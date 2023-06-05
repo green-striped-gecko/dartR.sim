@@ -35,6 +35,9 @@ Suggests:
     dartR.spatial, 
     dartR.popgenomics,
     testthat (>= 3.0.0)
+Remotes: github::green-striped-gecko/dartR.base,
+         github::green-striped-gecko/dartR.spatial, 
+         github::green-striped-gecko/dartR.popgenomics
 License: GPL (>= 3)
 RoxygenNote: 7.2.3
 NeedsCompilation: no
