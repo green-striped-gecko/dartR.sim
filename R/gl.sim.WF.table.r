@@ -43,7 +43,7 @@
 #' Optionally, if interactive_vars = FALSE, values for variables can be 
 #' submitted by using the csv file 'ref_variables.csv' which can be found by 
 #' typing in the R console:
-#'  system.file('extdata', 'ref_variables.csv', package ='dartR').
+#'  system.file('extdata', 'ref_variables.csv', package ='dartR.data').
 #'  
 #' The values of the variables can be modified using the third column (“value”) 
 #' of this file. 
@@ -55,8 +55,8 @@
 #' Examples of the format required for the recombination map file and the 
 #' targets for selection file can be found by typing in the R console:
 #' \itemize{ 
-#' \item system.file('extdata', 'fly_recom_map.csv', package ='dartR')
-#' \item system.file('extdata', 'fly_targets_of_selection.csv', package ='dartR')
+#' \item system.file('extdata', 'fly_recom_map.csv', package ='dartR.data')
+#' \item system.file('extdata', 'fly_targets_of_selection.csv', package ='dartR.data')
 #' }
 #' 
 #' To show further information of the variables in interactive mode, it might be
@@ -69,11 +69,11 @@
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
 #' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
-#' 'ref_variables.csv', package = 'dartR'),interactive_vars = FALSE)
+#' 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
 #' \dontrun{
 #' #uncomment to run 
 #' res_sim <- gl.sim.WF.run(file_var = system.file('extdata', 
-#' 'sim_variables.csv', package ='dartR'),ref_table=ref_table,
+#' 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
 #' interactive_vars = FALSE)
 #' }
 #' @seealso \code{\link{gl.sim.WF.run}}
