@@ -115,7 +115,7 @@ gl.diagnostics.sim <- function(x,
     
   })
   
-  colors_plot_ne <- discrete_palette(length(expected_het_2))
+  colors_plot_ne <- dartR.base::gl.colors("dis")(length(expected_het_2))
   
   for(i in 1:length(colors_plot_ne)){
     expected_het_2[[i]]$col <- colors_plot_ne[i]

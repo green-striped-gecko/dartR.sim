@@ -24,12 +24,6 @@ report <- crayon::green
 important <- crayon::blue
 code <- crayon::cyan
 
-# function to replicate defaults colors of ggplot
-discrete_palette <- function(n) {
-  hues <-seq(15, 375, length = n + 1)
-  return(hcl(h = hues, l = 65, c = 100)[1:n])
-}
-
 # SET GLOBAL VARIABLES FOR SIMULATION FUNCTIONS
 # for gl.sim.WF.table
 utils::globalVariables(c("q_neutral","chromosome_name","chunk_number","real_loc","chunk_recombination","map_resolution","gamma_scale","gamma_shape","log_mean","log_sd","rate","exp_rate","chunk_cM","loci_mutation","mutations_factor", "chunk_neutral_loci", "deleterious_factor", "h_adv", "h_del", "h_distribution_adv", "h_distribution_del", "h_intercept_adv", "h_intercept_del","h_mean_adv", "h_mean_del","h_rate_adv","h_rate_del","h_sd_adv","h_sd_del","loci_advantageous","loci_deleterious", "loci_mut_adv", "loci_mut_del","loci_mut_neu","q_adv", "q_del", "q_distribution_adv","q_distribution_del", "q_equation_adv", "q_equation_del","s_adv","s_del", "s_distribution_adv","s_distribution_del"))
