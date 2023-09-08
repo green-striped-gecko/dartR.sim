@@ -13,6 +13,7 @@
 #' @param noffpermother Number of offspring per mother [required].
 #' @param sexratio The sex ratio of simulated offspring 
 #' (females / females +males, 1 equals 100 percent females) [default 0.5.].
+#' @param popname population name of the returned genlight object [default: offspring]
 #' @return A genlight object with n individuals.
 #' @importFrom stats runif
 #' @export
@@ -27,28 +28,28 @@
 gl.sim.offspring <- function(fathers,
                              mothers,
                              noffpermother,
-                             sexratio = 0.5) {
+                             sexratio = 0.5, 
+                             popname = "offspring") {
     noff <- nInd(mothers) * noffpermother
     mother <- sample(1:nInd(mothers), noff, replace = T)
     father <- sample(1:nInd(fathers), noff, replace = T)
     
+    
+    if (sum( c(is.na(as.matrix(mothers)), is.na(as.matrix(fathers))))>0) 
+      cat(warn("Warning: You have missing data in your genlight object.\nThis most likely will cause unwanted structure in you offspring.\nBest to remove or impute missing values."))
     mmat <- as.matrix(mothers)[mother, ]
-    mhet <- sum(mmat == 1)
+    mhet <- sum(mmat == 1, na.rm=T)
     if (!is.na(mhet)) {
         mother.half <-
             ifelse(mmat == 1, sample(c(0, 2), mhet, replace = T), mmat)
-    } else {
-        mother.half <- mmat
     }
     
     fmat <- as.matrix(fathers)[father, ]
-    fhet <- sum(fmat == 1)
+    fhet <- sum(fmat == 1, na.rm = T)
     if (!is.na(fhet)) {
         father.half <-
             ifelse(fmat == 1, sample(c(0, 2), fhet, replace = T), fmat)
-    } else {
-        father.half <- fmat
-    }
+    } 
     
     offmat <- (mother.half + father.half) / 2
     gl2 <-
@@ -59,6 +60,7 @@ gl.sim.offspring <- function(fathers,
             loc.names = locNames(mothers),
             ploidy = rep(2, nrow(offmat))
         )
+    pop(gl2)<- rep(popname, nInd(gl2))
     
     # set sex ratio
     sr <-

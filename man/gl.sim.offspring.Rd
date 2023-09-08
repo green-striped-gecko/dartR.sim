@@ -5,7 +5,13 @@
 \title{Simulates a specified number of offspring based on alleles provided by
  potential father(s) and mother(s)}
 \usage{
-gl.sim.offspring(fathers, mothers, noffpermother, sexratio = 0.5)
+gl.sim.offspring(
+  fathers,
+  mothers,
+  noffpermother,
+  sexratio = 0.5,
+  popname = "offspring"
+)
 }
 \arguments{
 \item{fathers}{Genlight object of potential fathers [required].}
@@ -16,6 +22,8 @@ gl.sim.offspring(fathers, mothers, noffpermother, sexratio = 0.5)
 
 \item{sexratio}{The sex ratio of simulated offspring 
 (females / females +males, 1 equals 100 percent females) [default 0.5.].}
+
+\item{popname}{population name of the returned genlight object [default: offspring]}
 }
 \value{
 A genlight object with n individuals.
