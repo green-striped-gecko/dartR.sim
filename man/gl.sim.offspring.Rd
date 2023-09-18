@@ -10,7 +10,8 @@ gl.sim.offspring(
   mothers,
   noffpermother,
   sexratio = 0.5,
-  popname = "offspring"
+  popname = "offspring",
+  verbose = NULL
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ gl.sim.offspring(
 (females / females +males, 1 equals 100 percent females) [default 0.5.].}
 
 \item{popname}{population name of the returned genlight object [default: offspring]}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+progress log; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
 A genlight object with n individuals.
