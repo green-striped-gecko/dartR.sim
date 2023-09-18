@@ -86,13 +86,13 @@
 #' @author Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
-#' \dontrun{
-#' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
-#' 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
-#' res_sim <- gl.sim.WF.run(file_var = system.file('extdata', 
-#' 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
-#' interactive_vars = FALSE)
-#' }
+#' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
+#' "ref_variables.csv", package = "dartR.data"),interactive_vars = FALSE)
+#' 
+#' res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
+#'  "sim_variables.csv", package ="dartR.data"),ref_table=ref_table,
+#'  interactive_vars = FALSE)
+#'  
 #' @seealso \code{\link{gl.sim.WF.table}}
 #' @family simulation functions
 #' @import stats
@@ -392,7 +392,7 @@ locNames(pop_list_freq_temp[[1]])[which(pop_list_freq_temp[[1]]$chromosome ==
    
     ##### START ITERATION LOOP #####
     for (iteration in 1:number_iterations) {
-      if (iteration %% 1 == 0) {
+      if (iteration %% 1 == 0 & verbose >= 2) {
         cat(report(" Starting iteration =", iteration, "\n"))
       }
       ##### VARIABLES PHASE 1 #######
@@ -558,14 +558,14 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
       
       ##### START GENERATION LOOP #####
       for (generation in 1:number_generations) {
-        if (phase1 == TRUE & generation == 1) {
+        if (phase1 == TRUE & generation == 1 & verbose >= 2) {
           cat(report(" Starting phase 1\n"))
         }
-        if (generation %% 10 == 0) {
+        if (generation %% 10 == 0 & verbose >= 2) {
           cat(report("  Starting generation =", generation, "\n"))
         }
         ##### VARIABLES PHASE 2 #######
-        if (generation == (gen_number_phase1 + 1)) {
+        if (generation == (gen_number_phase1 + 1) & verbose >= 2) {
           cat(report(" Starting phase 2\n"))
           
           selection <- selection_phase2
@@ -759,7 +759,7 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
             
             for (offspring_ind in 1:nrow(offspring_pop)) {
               
-              if (length(mutation_loci_location) == 0) {
+              if (length(mutation_loci_location) == 0 & verbose >= 2) {
                 cat(important("  No more locus to mutate\n"))
                 break()
               }
@@ -861,7 +861,7 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
         length(which(offspring_list[[x]]$V1 == "Female")) < population_size / 2
         }))
 
-        if (any(test_extinction == TRUE)) {
+        if (any(test_extinction == TRUE) & verbose >= 2) {
           
           cat(
             important(

@@ -14,6 +14,9 @@
 #' @param sexratio The sex ratio of simulated offspring 
 #' (females / females +males, 1 equals 100 percent females) [default 0.5.].
 #' @param popname population name of the returned genlight object [default: offspring]
+#' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+#' progress log; 3, progress and results summary; 5, full report
+#' [default 2, unless specified using gl.set.verbosity].
 #' @return A genlight object with n individuals.
 #' @importFrom stats runif
 #' @export
@@ -29,13 +32,18 @@ gl.sim.offspring <- function(fathers,
                              mothers,
                              noffpermother,
                              sexratio = 0.5, 
-                             popname = "offspring") {
+                             popname = "offspring",
+                             verbose = NULL) {
+  
+  # SET VERBOSITY
+  verbose <- gl.check.verbosity(verbose)
+  
     noff <- nInd(mothers) * noffpermother
     mother <- sample(1:nInd(mothers), noff, replace = T)
     father <- sample(1:nInd(fathers), noff, replace = T)
     
     
-    if (sum( c(is.na(as.matrix(mothers)), is.na(as.matrix(fathers))))>0) 
+    if (sum( c(is.na(as.matrix(mothers)), is.na(as.matrix(fathers))))>0 & verbose >= 2) 
       cat(warn("Warning: You have missing data in your genlight object.\nThis most likely will cause unwanted structure in you offspring.\nBest to remove or impute missing values."))
     mmat <- as.matrix(mothers)[mother, ]
     mhet <- sum(mmat == 1, na.rm=T)

@@ -88,10 +88,12 @@ gl.sim.create_dispersal <- function(number_pops,
   
   dispersal_pairs <- dispersal_pairs[with(dispersal_pairs, order(pop1, pop2)),]
   
+  if(verbose>=2){
   cat(report(
     "  The dispersal table is saved as: ",
     file.path(outpath, outfile, "\n")
   ))
+  }
   
   utils::write.table(
     dispersal_pairs,
