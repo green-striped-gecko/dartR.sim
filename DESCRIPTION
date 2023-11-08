@@ -1,8 +1,8 @@
 Package: dartR.sim
 Type: Package
 Title: Computer Simulations of 'SNP' Data
-Version: 0.69
-Date: 2023-09-14
+Version: 0.70
+Date: 2023-11-08
 Authors@R: c(
             person("Jose L.", "Mijangos", email="luis.mijangos@gmail.com", role=c("aut","cre")),
             person("Bernd", "Gruber", email="bernd.gruber@canberra.edu.au", role="aut"), 
