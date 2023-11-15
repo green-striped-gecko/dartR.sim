@@ -1,5 +1,4 @@
-#' Simulates a specified number of offspring based on alleles provided by
-#'  potential father(s) and mother(s)
+#' Simulates offspring based on alleles provided by parents
 #'
 #' This takes a population (or a single individual) of fathers (provided as a
 #' genlight object) and mother(s) and simulates offspring based on 'random'
@@ -26,7 +25,7 @@
 #' gl.fathers <- glSim(10, 20, ploidy=2)
 #' #Simulate 10 potential mothers
 #' gl.mothers <- glSim(10, 20, ploidy=2)
-#' gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
+#' res <- gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
 
 gl.sim.offspring <- function(fathers,
                              mothers,

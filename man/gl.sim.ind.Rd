@@ -2,8 +2,7 @@
 % Please edit documentation in R/gl.sim.ind.r
 \name{gl.sim.ind}
 \alias{gl.sim.ind}
-\title{Simulates individuals based on the allele frequencies provided via a genlight
-object.}
+\title{Simulates individuals based on allele frequencies}
 \usage{
 gl.sim.ind(x, n = 50, popname = NULL)
 }

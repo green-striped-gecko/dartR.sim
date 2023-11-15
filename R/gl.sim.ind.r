@@ -1,5 +1,4 @@
-#' Simulates individuals based on the allele frequencies provided via a genlight
-#' object.
+#' Simulates individuals based on allele frequencies
 #'
 #' This function simulates individuals based on the allele frequencies of a
 #' genlight object. The output is a genlight object with the same number of loci

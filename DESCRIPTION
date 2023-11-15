@@ -1,8 +1,8 @@
 Package: dartR.sim
 Type: Package
 Title: Computer Simulations of 'SNP' Data
-Version: 0.69
-Date: 2023-09-14
+Version: 0.70
+Date: 2023-11-14
 Authors@R: c(
             person("Jose L.", "Mijangos", email="luis.mijangos@gmail.com", role=c("aut","cre")),
             person("Bernd", "Gruber", email="bernd.gruber@canberra.edu.au", role="aut"), 
@@ -11,7 +11,7 @@ Authors@R: c(
             person("Peter J.", "Unmack", email="peter.mail2@unmack.net", role="ctb"),
             person("Oliver", "Berry", email="oliver.berry@csiro.au", role="ctb" )
             )
-Description: Allows to simulate SNP (single nuclear polymorphism) data using 'genlight' objects. 
+Description: Allows to simulate SNP data using 'genlight' objects. 
         For example, it is straight forward to simulate a simple drift scenario with exchange of 
         individuals between two populations or create a new 'genlight' object based on allele 
         frequencies of an existing 'genlight' object.

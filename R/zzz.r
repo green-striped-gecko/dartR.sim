@@ -13,10 +13,8 @@
 #' @importFrom grDevices hcl
 #' @keywords internal
 
-
 #needed to avoid error
 zzz<-NULL
-
 
 error <- crayon::red
 warn <- crayon::yellow
