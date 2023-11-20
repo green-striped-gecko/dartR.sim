@@ -219,7 +219,7 @@ gl.diagnostics.sim <- function(x,
   # FLAG SCRIPT END
   
   if (verbose >= 1) {
-    cat(report("Completed:", funname, "\n"))
+    message(report("Completed:", funname, "\n"))
   }
   
   # RETURN
