@@ -32,12 +32,11 @@ metapopulation context.
 
 Currently the dartRverse consists of the following packages:
 
-- dartR.base (report, filter and input/output functions, basic
-  popgenomics)
-- dartR.data
+- dartR.base (report, filter and input/output functions, basic popgen)
+- dartR.data (example data sets)
 - dartR.sim (this package)
 - dartR.spatial (spatial analysis)
-- dartR.popgenomics (popgenomics analysis)
+- dartR.popgen (popgen analysis)
 - dartR.captive (functions to support analysis around captive breeding)
 - dartR.sexlinked (function to identify sexlinked loci)
 
