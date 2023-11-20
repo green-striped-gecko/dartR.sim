@@ -11,7 +11,8 @@ gl.diagnostics.sim(
   pop_he = 1,
   pops_fst = c(1, 2),
   plot_theme = theme_dartR(),
-  save2tmp = FALSE,
+  plot.file = NULL,
+  plot.dir = NULL,
   verbose = NULL
 )
 }
@@ -31,8 +32,9 @@ against theoretical expectations [default c(1,2)].}
 
 \item{plot_theme}{User specified theme [default theme_dartR()].}
 
-\item{save2tmp}{If TRUE, saves any ggplots and listings to the session
-temporary directory (tempdir) [default FALSE].}
+\item{plot.file}{Name for the RDS binary file to save (base name only, exclude extension) [default NULL]}
+
+\item{plot.dir}{Directory in which to save files [default = working directory]}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 progress log ; 3, progress and results summary; 5, full report
@@ -66,14 +68,16 @@ dispersal rate and n the number of subpopulations (always 2).
 }
 }
 \examples{
-\dontrun{
+\donttest{
 ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
-res_sim <- gl.sim.WF.run(file_var = system.file('extdata', 
-'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
-interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
-res <- gl.diagnostics.sim(x=res_sim,Ne=50)
-}
+
+res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
+ 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
+ interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+ 
+ res <- gl.diagnostics.sim(x=res_sim,Ne=50)
+ }
 }
 \references{
 \itemize{

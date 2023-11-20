@@ -2,10 +2,16 @@
 % Please edit documentation in R/gl.sim.offspring.r
 \name{gl.sim.offspring}
 \alias{gl.sim.offspring}
-\title{Simulates a specified number of offspring based on alleles provided by
- potential father(s) and mother(s)}
+\title{Simulates offspring based on alleles provided by parents}
 \usage{
-gl.sim.offspring(fathers, mothers, noffpermother, sexratio = 0.5)
+gl.sim.offspring(
+  fathers,
+  mothers,
+  noffpermother,
+  sexratio = 0.5,
+  popname = "offspring",
+  verbose = NULL
+)
 }
 \arguments{
 \item{fathers}{Genlight object of potential fathers [required].}
@@ -16,6 +22,13 @@ gl.sim.offspring(fathers, mothers, noffpermother, sexratio = 0.5)
 
 \item{sexratio}{The sex ratio of simulated offspring 
 (females / females +males, 1 equals 100 percent females) [default 0.5.].}
+
+\item{popname}{population name of the returned genlight object 
+[default offspring]}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+progress log; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
 A genlight object with n individuals.
@@ -33,7 +46,7 @@ genlight object) and mother(s) and simulates offspring based on 'random'
 gl.fathers <- glSim(10, 20, ploidy=2)
 #Simulate 10 potential mothers
 gl.mothers <- glSim(10, 20, ploidy=2)
-gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
+res <- gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
 }
 \author{
 Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})

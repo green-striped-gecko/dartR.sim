@@ -51,7 +51,7 @@ gl.sim.create_dispersal <- function(number_pops,
   funname <- match.call()[[1]]
   utils.flag.start(func = funname,
                    build = "Jody",
-                   verbosity = verbose)
+                   verbose = verbose)
   
   # DO THE JOB
   pops_vector <- 1:number_pops
@@ -88,10 +88,12 @@ gl.sim.create_dispersal <- function(number_pops,
   
   dispersal_pairs <- dispersal_pairs[with(dispersal_pairs, order(pop1, pop2)),]
   
-  cat(report(
+  if(verbose>=2){
+    message(report(
     "  The dispersal table is saved as: ",
     file.path(outpath, outfile, "\n")
   ))
+  }
   
   utils::write.table(
     dispersal_pairs,
@@ -105,7 +107,7 @@ gl.sim.create_dispersal <- function(number_pops,
   # FLAG SCRIPT END
   
   if (verbose >= 1) {
-    cat(report("Completed:", funname, "\n"))
+    message(report("Completed:", funname, "\n"))
   }
   
 }

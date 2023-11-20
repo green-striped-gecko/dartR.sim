@@ -86,13 +86,14 @@
 #' @author Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
-#' \dontrun{
-#' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
-#' 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
-#' res_sim <- gl.sim.WF.run(file_var = system.file('extdata', 
-#' 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
-#' interactive_vars = FALSE)
-#' }
+#'  \donttest{
+#' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
+#' "ref_variables.csv", package = "dartR.data"),interactive_vars = FALSE)
+#' 
+#' res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
+#'  "sim_variables.csv", package ="dartR.data"),ref_table=ref_table,
+#'  interactive_vars = FALSE)
+#'  }
 #' @seealso \code{\link{gl.sim.WF.table}}
 #' @family simulation functions
 #' @import stats
@@ -125,12 +126,12 @@ gl.sim.WF.run <-
     funname <- match.call()[[1]]
     utils.flag.start(func = funname,
                      build = "Jody",
-                     verbosity = verbose)
+                     verbose = verbose)
     
     # CHECK IF PACKAGES ARE INSTALLED
     pkg <- "stringi"
     if (!(requireNamespace(pkg, quietly = TRUE))) {
-      cat(error(
+      message(error(
         "Package",
         pkg,
         " needed for this function to work. Please install it.\n"
@@ -243,24 +244,25 @@ paste0("'",sim_vars[sim_vars$variable=="natural_selection_model" ,"value"],"'")
     # this is the option of real_freq from the reference table 
     real_freq_table <- ref_vars[ref_vars$variable=="real_freq","value"]
     if(real_freq_table != real_freq){
-      cat(error("  The value for the real_freq parameter was set differently in 
-                the simulations and in the creation of the reference table. 
-                They should be the same. Please check it\n"))
+      message(error(
+"  The value for the real_freq parameter was set differently in the simulations
+   and in the creation of the reference table. They should be the same. 
+   Please check it.\n"))
       stop()
     }
     
     # this is the option of real_loc from the reference table 
     real_loc_table <- ref_vars[ref_vars$variable=="real_loc","value"]
     if(real_loc_table != real_loc){
-      cat(error("  The value for the real_loc parameter was set differently in 
+      message(error("  The value for the real_loc parameter was set differently in 
                 the simulations and in the creation of the reference table. 
-                They should be the same. Please check it\n"))
+                They should be the same. Please check it.\n"))
       stop()
     }
     
     if( (real_pops ==TRUE | real_pop_size ==TRUE | real_loc ==TRUE | 
          real_freq==TRUE) && is.null(x)){
-      cat(error(" The real dataset to extract information is missing\n"))
+      message(error(" The real dataset to extract information is missing\n"))
       stop()
     }
     
@@ -392,8 +394,8 @@ locNames(pop_list_freq_temp[[1]])[which(pop_list_freq_temp[[1]]$chromosome ==
    
     ##### START ITERATION LOOP #####
     for (iteration in 1:number_iterations) {
-      if (iteration %% 1 == 0) {
-        cat(report(" Starting iteration =", iteration, "\n"))
+      if (iteration %% 1 == 0 & verbose >= 2) {
+        message(report(" Starting iteration =", iteration, "\n"))
       }
       ##### VARIABLES PHASE 1 #######
       if (phase1 == TRUE) {
@@ -448,18 +450,20 @@ locNames(pop_list_freq_temp[[1]])[which(pop_list_freq_temp[[1]]$chromosome ==
       }
       
       if(phase1 == TRUE & number_pops_phase1!=number_pops_phase2 ){
-cat(error("  Number of populations in phase 1 and phase 2 must be the same\n"))
+        message(error(
+    "  Number of populations in phase 1 and phase 2 must be the same\n"))
         stop()
       }
       
       if(length(population_size_phase2)!=number_pops_phase2){
-        cat(error("  Number of entries for population sizes do not agree with 
-                  the number of populations for phase 2\n"))
+        message(error(
+        "  Number of entries for population sizes do not agree with 
+           the number of populations for phase 2\n"))
         stop()
       }
       
       if(length(population_size_phase1)!=number_pops_phase1 & phase1==TRUE){
-        cat(error("  Number of entries for population sizes do not agree with 
+        message(error("  Number of entries for population sizes do not agree with 
                   the number of populations for phase 1\n"))
         stop()
       }
@@ -467,7 +471,7 @@ cat(error("  Number of populations in phase 1 and phase 2 must be the same\n"))
       ##### INITIALISE POPS #####
      #tic("initialisation")
       if (verbose >= 2) {
-        cat(report("  Initialising populations\n"))
+        message(report("  Initialising populations\n"))
       }
       
       # make chromosomes
@@ -558,15 +562,17 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
       
       ##### START GENERATION LOOP #####
       for (generation in 1:number_generations) {
-        if (phase1 == TRUE & generation == 1) {
-          cat(report(" Starting phase 1\n"))
+        if (phase1 == TRUE & generation == 1 & verbose >= 2) {
+          message(report(" Starting phase 1\n"))
         }
-        if (generation %% 10 == 0) {
-          cat(report("  Starting generation =", generation, "\n"))
+        if (generation %% 10 == 0 & verbose >= 2) {
+          message(report("  Starting generation =", generation, "\n"))
         }
         ##### VARIABLES PHASE 2 #######
         if (generation == (gen_number_phase1 + 1)) {
-          cat(report(" Starting phase 2\n"))
+          if(verbose >= 2){
+            message(report(" Starting phase 2\n"))
+          }
           
           selection <- selection_phase2
           dispersal <- dispersal_phase2
@@ -759,8 +765,8 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
             
             for (offspring_ind in 1:nrow(offspring_pop)) {
               
-              if (length(mutation_loci_location) == 0) {
-                cat(important("  No more locus to mutate\n"))
+              if (length(mutation_loci_location) == 0 & verbose >= 2) {
+                message(important("  No more locus to mutate\n"))
                 break()
               }
               
@@ -861,16 +867,16 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
         length(which(offspring_list[[x]]$V1 == "Female")) < population_size / 2
         }))
 
-        if (any(test_extinction == TRUE)) {
+        if (any(test_extinction == TRUE) & verbose >= 2) {
           
-          cat(
+          message(
             important(
               " One Population became EXTINCT at generation",
               generation,
               "\n"
             )
           )
-          cat(important(
+          message(important(
             "  Breaking this iteration and passing to the next iteration",
             "\n"
           ))
@@ -990,7 +996,7 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
         #tic("mutation_2")
         # making available to mutation those loci in which deleterious alleles 
         # have been eliminated from all populations
-        if(mutation==T){
+        if(mutation==TRUE){
           
           pops_merge <- rbindlist(pop_list)
           pops_seqs <- c(pops_merge$V3,pops_merge$V4)
@@ -1118,7 +1124,7 @@ Rcpp::cppFunction(plugins="cpp11",
     # FLAG SCRIPT END
     
     if (verbose >= 1) {
-      cat(report("Completed:", funname, "\n"))
+      message(report("Completed:", funname, "\n"))
     }
     
     # RETURN

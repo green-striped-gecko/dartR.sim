@@ -9,8 +9,8 @@
 #' @param pops_fst Pair of populations in which FST is going to be compared 
 #' against theoretical expectations [default c(1,2)].
 #' @param plot_theme User specified theme [default theme_dartR()].
-#' @param save2tmp If TRUE, saves any ggplots and listings to the session
-#' temporary directory (tempdir) [default FALSE].
+#' @param plot.dir Directory in which to save files [default = working directory]
+#' @param plot.file Name for the RDS binary file to save (base name only, exclude extension) [default NULL]
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 #' progress log ; 3, progress and results summary; 5, full report
 #' [default NULL, unless specified using gl.set.verbosity].
@@ -38,14 +38,16 @@
 #' @author Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
 #' 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
-#' res_sim <- gl.sim.WF.run(file_var = system.file('extdata', 
-#' 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
-#' interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
-#' res <- gl.diagnostics.sim(x=res_sim,Ne=50)
-#' }
+#' 
+#' res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
+#'  'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
+#'  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+#'  
+#'  res <- gl.diagnostics.sim(x=res_sim,Ne=50)
+#'  }
 #'@references
 #'\itemize{
 #'\item Crow JF, Kimura M. An introduction to population genetics theory. An 
@@ -62,18 +64,22 @@ gl.diagnostics.sim <- function(x,
                                pop_he = 1 ,
                                pops_fst = c(1,2),
                                plot_theme = theme_dartR(),
-                               save2tmp = FALSE,
+                               plot.file=NULL,
+                               plot.dir=NULL,
                                verbose = NULL){
   
   Ne_hold <- Ne
   # SET VERBOSITY
   verbose <- gl.check.verbosity(verbose)
   
+  # SET WORKING DIRECTORY
+  plot.dir <- gl.check.wd(plot.dir,verbose=0)
+  
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
   utils.flag.start(func = funname,
                    build = "Jody",
-                   verbosity = verbose)
+                   verbose = verbose)
 
   # DO THE JOB
   
@@ -200,36 +206,20 @@ gl.diagnostics.sim <- function(x,
   p3 <- (p1 / p2)
   print(p3)
   
-  # SAVE INTERMEDIATES TO TEMPDIR
+  # Optionally save the plot ---------------------
   
-  # creating temp file names
-  if (save2tmp) {
-    temp_plot <- tempfile(pattern = "Plot_")
-    match_call <-
-      paste0(names(match.call()),
-             "_",
-             as.character(match.call()),
-             collapse = "_")
-    # saving to tempdir
-    saveRDS(list(match_call, p3), file = temp_plot)
-
-    if (verbose >= 2) {
-      cat(report("  Saving the ggplot to session tempfile\n"))
-    }
-
-    if (verbose >= 2) {
-      cat(
-        report(
-          "  NOTE: Retrieve output files from tempdir using gl.list.reports() and gl.print.reports()\n"
-        )
-      )
-    }
+  if(!is.null(plot.file)){
+    tmp <- utils.plot.save(p3,
+                           dir=plot.dir,
+                           file=plot.file,
+                           verbose=verbose)
   }
+  
 
   # FLAG SCRIPT END
   
   if (verbose >= 1) {
-    cat(report("Completed:", funname, "\n"))
+    message(report("Completed:", funname, "\n"))
   }
   
   # RETURN
