@@ -89,7 +89,7 @@ gl.sim.create_dispersal <- function(number_pops,
   dispersal_pairs <- dispersal_pairs[with(dispersal_pairs, order(pop1, pop2)),]
   
   if(verbose>=2){
-  cat(report(
+    message(report(
     "  The dispersal table is saved as: ",
     file.path(outpath, outfile, "\n")
   ))
@@ -107,7 +107,7 @@ gl.sim.create_dispersal <- function(number_pops,
   # FLAG SCRIPT END
   
   if (verbose >= 1) {
-    cat(report("Completed:", funname, "\n"))
+    message(report("Completed:", funname, "\n"))
   }
   
 }
