@@ -45,6 +45,7 @@ gl.sim.offspring <- function(fathers,
     
     if (sum( c(is.na(as.matrix(mothers)), is.na(as.matrix(fathers))))>0 & verbose >= 2) 
       cat(warn("Warning: You have missing data in your genlight object.\nThis most likely will cause unwanted structure in you offspring.\nBest to remove or impute missing values."))
+
     mmat <- as.matrix(mothers)[mother, ]
     mhet <- sum(mmat == 1, na.rm=T)
     if (!is.na(mhet)) {
@@ -60,6 +61,8 @@ gl.sim.offspring <- function(fathers,
     } 
     
     offmat <- (mother.half + father.half) / 2
+    #edge case of a single offspring
+    if (!is.matrix(offmat)) offmat <- matrix(offmat, nrow=1)
     gl2 <-
         new(
             "genlight",
