@@ -212,7 +212,7 @@ gl.sim.WF.table <- function(file_var,
       map$Chr <- as.character(map$Chr)
       
       if(!chromosome_name %in% map$Chr){
-        cat(error("  Chromosome name is not in the recombination map file\n"))
+        message(error("  Chromosome name is not in the recombination map file\n"))
         stop()
       }
       map <- map[which(map$Chr == chromosome_name),]
@@ -232,7 +232,7 @@ gl.sim.WF.table <- function(file_var,
       targets_temp$chr_name <- as.character(targets_temp$chr_name)
       
       if(!chromosome_name %in% targets_temp$chr_name ){
-        cat(error("  Chromosome name is not in the targets of selection file\n"))
+        message(error("  Chromosome name is not in the targets of selection file\n"))
         stop()
       }
       
@@ -240,7 +240,7 @@ gl.sim.WF.table <- function(file_var,
     }
     # real dataset 
     if( (real_loc==TRUE | real_freq==TRUE) && is.null(x)){
-      cat(error(" The real dataset to extract information is missing\n"))
+      message(error(" The real dataset to extract information is missing\n"))
       stop()
     }
     location_real_temp <- NULL
@@ -250,7 +250,7 @@ gl.sim.WF.table <- function(file_var,
       colnames(location_real_temp) <- c("chr", "pos")
       
       if(!chromosome_name %in% location_real_temp$chr ){
-        cat(error("  Chromosome name is not in the genlight object\n"))
+        message(error("  Chromosome name is not in the genlight object\n"))
         stop()
       }
       
@@ -440,7 +440,7 @@ gl.sim.WF.table <- function(file_var,
     location_loci_bp <- location_loci_bp[order(location_loci_bp)]
     
     if(chunk_number > length(location_loci_bp)){
-      cat(error("  Number of loci should be more than the number of genome chunks\n"))
+      message(error("  Number of loci should be more than the number of genome chunks\n"))
       stop()
     }
   
@@ -829,7 +829,7 @@ gl.sim.WF.table <- function(file_var,
     # FLAG SCRIPT END
     
     if (verbose >= 1) {
-      cat(report("Completed:", funname, "\n"))
+      message(report("Completed:", funname, "\n"))
     }
     
     # RETURN

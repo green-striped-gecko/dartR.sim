@@ -28,8 +28,7 @@ emigration between population has happened
 \description{
 A function that allows to exchange individuals of populations within a
 genlight object (=simulate emigration between populations).
-}
-\details{
+
 There are two ways to specify emigration. If an emi.table is provided (a
 square matrix of dimension of the populations that specifies the emigration
 from column x to row y), then emigration is deterministic in terms of numbers

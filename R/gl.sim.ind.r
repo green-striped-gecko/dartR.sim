@@ -1,6 +1,6 @@
-#' Simulates individuals based on the allele frequencies provided via a genlight
-#' object.
-#'
+#' @name gl.sim.ind
+#' @title Simulates individuals based on allele frequencies
+#' @description
 #' This function simulates individuals based on the allele frequencies of a
 #' genlight object. The output is a genlight object with the same number of loci
 #' as the input genlight object.

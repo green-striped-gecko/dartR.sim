@@ -1,5 +1,6 @@
-#' Simulates emigration between populations
-#'
+#' @name gl.sim.emigration
+#' @title Simulates emigration between populations
+#' @description
 #' A function that allows to exchange individuals of populations within a
 #' genlight object (=simulate emigration between populations).
 #'

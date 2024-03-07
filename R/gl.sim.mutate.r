@@ -1,5 +1,6 @@
-#' Simulates mutations within a genlight object
-#'
+#' @name gl.sim.mutate
+#' @title Simulates mutations within a genlight object
+#' @description
 #' This script is intended to be used within the simulation framework of dartR. 
 #' It adds the ability to add a constant mutation rate across all loci. Only 
 #' works currently for biallelic data sets (SNPs). Mutation rate is checking for 
