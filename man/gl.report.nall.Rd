@@ -8,7 +8,7 @@ gl.report.nall(
   x,
   simlevels = seq(1, nInd(x), 5),
   reps = 10,
-  ncores = 10,
+  ncores = 2,
   plot.display = TRUE,
   plot.theme = theme_dartR(),
   plot.dir = NULL,
@@ -53,7 +53,7 @@ of alleles for each population. In addition it simulates the rarefaction curve
 of alleles for all individuals combined for different levels of subsamples (see simlevels)
 }
 \examples{
-dummy <- gl.report.nall(possums.gl)
+dummy <- gl.report.nall(possums.gl[c(1:4,31:36),], simlevels=seq(1,10,3), reps=2, ncores=1)
 }
 \author{
 Bernd Gruber (bernd.gruber@canberra.edu.au)

@@ -34,7 +34,7 @@
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
-#' dummy <- gl.report.nall(possums.gl)
+#' dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3), reps=2, ncores=1)
 
 ########################## packages needed
 #library(parallel)
@@ -49,7 +49,7 @@
 gl.report.nall <- function(x, 
                            simlevels=seq(1,nInd(x),5), 
                            reps=10, 
-                           ncores=10,
+                           ncores=2,
                            plot.display=TRUE,
                            plot.theme = theme_dartR(),
                            plot.dir=NULL,
