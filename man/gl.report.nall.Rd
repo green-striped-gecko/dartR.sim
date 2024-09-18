@@ -25,6 +25,8 @@ should be subsampled [default seq(1,nInd(x),5)].}
 
 \item{reps}{number of replicates per subsample level [default 10].}
 
+\item{ncores}{number of cores to be used for parallel processing [default 10].}
+
 \item{plot.display}{Specify if plot is to be produced [default TRUE].}
 
 \item{plot.theme}{User specified theme [default theme_dartR()].}
@@ -37,8 +39,6 @@ by the global working directory or tempdir()]}
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 progress log; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
-
-\item{probar}{If TRUE, a progress bar is displayed during run [defalut FALSE]}
 }
 \value{
 a list with three elements:

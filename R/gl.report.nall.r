@@ -11,12 +11,12 @@
 #' @param simlevels a vector that defines the different levels the combined population 
 #' should be subsampled [default seq(1,nInd(x),5)].
 #' @param reps number of replicates per subsample level [default 10].
+#' @param ncores number of cores to be used for parallel processing [default 10].
 #' @param plot.display Specify if plot is to be produced [default TRUE].
 #' @param plot.theme User specified theme [default theme_dartR()].
 #' @param plot.dir Directory to save the plot RDS files [default as specified 
 #' by the global working directory or tempdir()]
 #' @param plot.file Filename (minus extension) for the RDS plot file [Required for plot save]
-#' @param probar If TRUE, a progress bar is displayed during run [defalut FALSE]
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 #' progress log; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
@@ -29,6 +29,8 @@
 #' @importFrom ggrepel geom_text_repel
 #' @importFrom foreach foreach %dopar%
 #' @importFrom parallel makeCluster stopCluster
+#' @importFrom dplyr group_by summarise
+#' @importFrom doParallel registerDoParallel
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
@@ -106,7 +108,7 @@ ss <- function(sample)
 
 
 
-
+Npop <- Nallsim <- mnall <- low <- high <- N.all <- popname <- ip <- NULL
 ##############################################################
 ### find maxnumber of alleles in the population  
 onePop <- x
@@ -132,7 +134,7 @@ colnames(sims2) <- c("Npop", "Nallsim")
 
 sims2$Nallsim <- sims2$Nallsim/maxnall
 
-df <- sims2 |> group_by(Npop) |> dplyr::summarise(mnall=mean(Nallsim), low=min(Nallsim), high=max(Nallsim)) 
+df <- sims2 |> dplyr::group_by(Npop) |> dplyr::summarise(mnall=mean(Nallsim), low=min(Nallsim), high=max(Nallsim)) 
 
 ###calculate the points if needed
 # number of alleles for each pop of interest....

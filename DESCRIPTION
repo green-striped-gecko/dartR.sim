@@ -31,7 +31,9 @@ Imports:
   hierfstat,
   reshape2,
   foreach,
-  ggrepel
+  ggrepel,
+  dplyr, 
+  doParallel
 License: GPL (>= 3)
 RoxygenNote: 7.3.2
 NeedsCompilation: no
