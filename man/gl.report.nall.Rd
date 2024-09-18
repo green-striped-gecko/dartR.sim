@@ -53,7 +53,9 @@ of alleles for each population. In addition it simulates the rarefaction curve
 of alleles for all individuals combined for different levels of subsamples (see simlevels)
 }
 \examples{
-dummy <- gl.report.nall(possums.gl[c(1:4,31:36),], simlevels=seq(1,10,3), reps=2, ncores=1)
+\dontrun{
+dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3), reps=5, ncores=2)
+}
 }
 \author{
 Bernd Gruber (bernd.gruber@canberra.edu.au)

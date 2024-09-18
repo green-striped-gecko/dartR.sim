@@ -34,7 +34,9 @@
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
-#' dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3), reps=2, ncores=1)
+#' \dontrun{
+#' dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3), reps=5, ncores=2)
+#' }
 
 ########################## packages needed
 #library(parallel)
