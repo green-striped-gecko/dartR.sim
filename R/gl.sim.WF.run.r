@@ -917,11 +917,11 @@ stringi::stri_sub_all(pop[individual_pop, 4], from=real,length = 1) <-
           s_vars_temp$sample_percent <- sample_percent
           s_vars_temp$file_dispersal <- file_dispersal
           
-          s_vars_temp$dispersal_rate_phase1 <-
-            paste(dispersal_rate_phase1, collapse = " ")
-          
-          s_vars_temp$dispersal_rate_phase2 <-
-            paste(dispersal_rate_phase2, collapse = " ")
+          # s_vars_temp$dispersal_rate_phase1 <-
+          #   paste(dispersal_rate_phase1, collapse = " ")
+          # 
+          # s_vars_temp$dispersal_rate_phase2 <-
+          #   paste(dispersal_rate_phase2, collapse = " ")
          
           
           final_res[[iteration]][[count_store]] <-
