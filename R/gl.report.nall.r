@@ -100,6 +100,8 @@ gl.report.nall <- function(x,
   
   # FUNCTION SPECIFIC ERROR CHECKING
   
+  x <- gl.filter.allna(x,by.pop = TRUE)
+  
   #  initial functions needed
   gl.report.nall.pop <- function(x, x2 = NULL) {
     if (!is.null(x2)) {
