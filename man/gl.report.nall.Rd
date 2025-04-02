@@ -2,12 +2,13 @@
 % Please edit documentation in R/gl.report.nall.r
 \name{gl.report.nall}
 \alias{gl.report.nall}
-\title{Reports number of alleles for each population}
+\title{Allele Count Reporting and Rarefaction Curve Simulation}
 \usage{
 gl.report.nall(
   x,
   simlevels = seq(1, nInd(x), 5),
   reps = 10,
+  plot.colors.pop = gl.colors("dis"),
   ncores = 2,
   plot.display = TRUE,
   plot.theme = theme_dartR(),
@@ -17,44 +18,68 @@ gl.report.nall(
 )
 }
 \arguments{
-\item{x}{Name of the genlight/dartR object containing the SNP data. The object 
-needs to have no missing data as subsampling from missing data is not possible. So we recommend to filter by callrate using a threshold of 1 [required].}
+\item{x}{Name of the genlight/dartR object containing the SNP data.
+The object needs to have no missing data as subsampling from missing data
+is not possible. So we recommend to filter by callrate using a threshold
+of 1 [required].}
 
-\item{simlevels}{a vector that defines the different levels the combined population 
-should be subsampled [default seq(1,nInd(x),5)].}
+\item{simlevels}{a vector that defines the different levels the combined
+population should be subsampled [default seq(1,nInd(x),5)].}
 
 \item{reps}{number of replicates per subsample level [default 10].}
 
-\item{ncores}{number of cores to be used for parallel processing [default 10].}
+\item{plot.colors.pop}{A color palette for population plots or a list with
+as many colors as there are populations in the dataset 
+[default gl.colors("dis")].}
+
+\item{ncores}{number of cores to be used for parallel processing 
+[default 10].}
 
 \item{plot.display}{Specify if plot is to be produced [default TRUE].}
 
 \item{plot.theme}{User specified theme [default theme_dartR()].}
 
-\item{plot.dir}{Directory to save the plot RDS files [default as specified 
+\item{plot.dir}{Directory to save the plot RDS files [default as specified
 by the global working directory or tempdir()]}
 
-\item{plot.file}{Filename (minus extension) for the RDS plot file [Required for plot save]}
+\item{plot.file}{Filename (minus extension) for the RDS plot file
+[Required for plot save]}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 progress log; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-a list with three elements:
-1. a data frame with the number of simulated alleles for each simlevel (mean, min and mix)
-2. a data frame with the number of alleles of each subpopulation
-3. a ggplot object with the rarefaction curve of alleles for all individuals combined
+A list with three elements:
+\itemize{ 
+\item 1. A data frame with the number of simulated alleles for each simlevel
+(mean, min and mix)
+\item 2. A data frame with the number of alleles of each subpopulation
+\item 3. A ggplot object with the rarefaction curve of alleles for all
+individuals combined
+}
 }
 \description{
-This function counts for all individuals and for each population within in the
-genlight object the number of alleles. The output is a data frame with the number 
-of alleles for each population. In addition it simulates the rarefaction curve 
-of alleles for all individuals combined for different levels of subsamples (see simlevels)
+The function reports allele counts for each population and simulates a
+rarefaction curve. This curve demonstrates the proportion of the total 
+allelic diversity captured as increasing numbers of individuals are 
+subsampled from the combined dataset.
+}
+\details{
+To assess the effect of sample size on allelic diversity, the function 
+simulates subsampling at various levels (as specified by the `simlevels` 
+argument) and replicates this process (`reps` times). The maximum number 
+of alleles is determined from a pooled population of all individuals, and 
+simulation results are normalized to this maximum value. Finally, the 
+function aggregates the simulation outputs to yield the mean, minimum, 
+and maximum proportions of allele retention for each sample size, and 
+produces a plot of the rarefaction curve and the allele counts for each 
+population.
 }
 \examples{
 \dontrun{
-dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3), reps=5, ncores=2)
+dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3),
+reps=5, ncores=2)
 }
 }
 \author{
