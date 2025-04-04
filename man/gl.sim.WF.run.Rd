@@ -64,60 +64,18 @@ This function simulates populations made up of diploid organisms that
 reproduce in non-overlapping generations. Each individual has a pair of 
 homologous chromosomes that contains interspersed selected and neutral loci. 
 For the initial generation, the genotype for each individual’s chromosomes is
- randomly drawn from distributions at linkage equilibrium and in 
- Hardy-Weinberg equilibrium. 
+randomly drawn from distributions at linkage equilibrium and in 
+Hardy-Weinberg equilibrium. 
 
 See documentation and tutorial for a complete description of the simulations.
 These documents can be accessed at http://georges.biomatix.org/dartR 
 
 Take into account that the simulations will take a little bit longer the
- first time you use the function gl.sim.WF.run() because C++ functions must
-  be compiled.
+first time you use the function gl.sim.WF.run() because C++ functions must
+be compiled.
 }
 \details{
-Values for simulation variables can be submitted into the function 
-interactively through a shiny app if interactive_vars = TRUE. Optionally, if 
-interactive_vars = FALSE, values for variables can be submitted by using the
-csv file 'sim_variables.csv' which can be found by typing in the R console:
- system.file('extdata', 'sim_variables.csv', package ='dartR.data').
- 
-The values of the variables can be modified using the third column (“value”) 
-of this file. 
-
-The output of the simulations can be analysed seemingly with other dartR
-functions.
-
-If a genlight object is used as input for some of the simulation variables, 
-this function access the information stored in the slots x$position and 
-x$chromosome.
-
-To show further information of the variables in interactive mode, it might be
- necessary to call first: 'library(shinyBS)' for the information to be 
- displayed.
-
-The main characteristics of the simulations are:
-\itemize{ 
-\item Simulations can be parameterised with real-life genetic 
-characteristics such as the number, location, allele frequency and the 
-distribution of fitness effects (selection coefficients and dominance) of 
-loci under selection. 
-\item Simulations can recreate specific life histories and demographics, such
- as source populations, dispersal rate, number of generations, founder 
- individuals, effective population size and census population size.
-\item Each allele in each individual is an agent (i.e., each allele is 
-explicitly simulated).
-\item Each locus can be customisable regarding its allele frequencies, 
-selection coefficients, and dominance.
-\item The number of loci, individuals, and populations to be simulated is 
-only limited by computing resources.
-\item Recombination is accurately modeled, and it is possible to use real 
-recombination maps as input.
-\item The ratio between effective population size and census population size 
-can be easily controlled.
-\item The output of the simulations are genlight objects for each generation 
-or a subset of generations.
-\item Genlight objects can be used as input for some simulation variables.
-}
+(Further detailed description of simulation variables and processes...)
 }
 \examples{
  \donttest{
@@ -137,7 +95,6 @@ Other simulation functions:
 \code{\link{gl.sim.create_dispersal}()}
 }
 \author{
-Custodian: Luis Mijangos -- Post to
-\url{https://groups.google.com/d/forum/dartr}
+Custodian: Luis Mijangos
 }
 \concept{simulation functions}
