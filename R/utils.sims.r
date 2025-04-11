@@ -2,361 +2,456 @@
 ######################## CALCULATION OF Q #####################################
 ###############################################################################
 
+# Function to compute the discriminant (delta) of a quadratic equation.
 delta <- function(a, b, c) {
-  # # Constructing delta
+  # Calculate the discriminant: d = b^2 - 4ac
   d <- b ^ 2 - 4 * a * c
   
   return(d)
-  
 }
 
+# Function to compute one equilibrium solution (q) using the quadratic formula.
 q_equilibrium <- function(a, b, c) {
-  # Constructing Quadratic Formula
+  # Calculate the first solution of the quadratic equation:
+  # x_1 = (-b + sqrt(delta)) / (2a)
   x_1 <- (-b + sqrt(delta(a, b, c))) / (2 * a)
   
   return(x_1)
-  
 }
+
 
 ###############################################################################
 ################################ MIGRATION ####################################
 ###############################################################################
 
-migration <-
-  function(population1,
-           population2,
-           gen,
-           size_pop1,
-           size_pop2,
-           trans_gen,
-           male_tran,
-           female_tran,
-           n_transfer) {
-    if (gen != 1 & gen %% trans_gen == 0) {
-      if (n_transfer == 1) {
-        if (male_tran) {
-          malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = 1)
-          malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = 1)
-          temppop1 <- population1[malepoptran_pop1, ]
-          temppop2 <- population2[malepoptran_pop2, ]
-          population2[malepoptran_pop2, ] <- temppop1
-          population1[malepoptran_pop1, ] <- temppop2
-        }
-        if (female_tran) {
-          fempoptran_pop1 <-
-            sample(c(((
-              size_pop1 / 2
-            ) + 1):size_pop1), size = 1)
-          fempoptran_pop2 <-
-            sample(c(((
-              size_pop2 / 2
-            ) + 1):size_pop2), size = 1)
-          temppop1 <- population1[fempoptran_pop1, ]
-          temppop2 <- population2[fempoptran_pop2, ]
-          population2[fempoptran_pop2, ] <- temppop1
-          population1[fempoptran_pop1, ] <- temppop2
-        }
+# Function to simulate migration (or transfer) of individuals between two populations.
+# population1, population2: data frames representing the two populations.
+# gen: current generation.
+# size_pop1, size_pop2: sizes of the populations.
+# trans_gen: migration event interval (only migrate if generation is a multiple of this).
+# male_tran, female_tran: Boolean flags indicating whether migration should occur for males and/or females.
+# n_transfer: number of individuals to transfer.
+migration <- function(population1,
+                      population2,
+                      gen,
+                      size_pop1,
+                      size_pop2,
+                      trans_gen,
+                      male_tran,
+                      female_tran,
+                      n_transfer) {
+  # Check if it is not the first generation and if the current generation is a migration event
+  if (gen != 1 & gen %% trans_gen == 0) {
+    
+    # Case: transferring one individual at a time
+    if (n_transfer == 1) {
+      if (male_tran) {
+        # For males, sample one individual from the first half of each population
+        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = 1)
+        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = 1)
+        # Temporarily store the individuals and then swap them between populations
+        temppop1 <- population1[malepoptran_pop1, ]
+        temppop2 <- population2[malepoptran_pop2, ]
+        population2[malepoptran_pop2, ] <- temppop1
+        population1[malepoptran_pop1, ] <- temppop2
       }
-      if (n_transfer >= 2) {
-        size_malepoptran <- ceiling(n_transfer / 2)
-        size_femalepoptran <- floor(n_transfer / 2)
-        if (male_tran) {
-          malepoptran_pop1 <-
-            sample(c(1:(size_pop1 / 2)), size = size_malepoptran)
-          malepoptran_pop2 <-
-            sample(c(1:(size_pop2 / 2)), size = size_malepoptran)
-          temppop1 <- population1[malepoptran_pop1, ]
-          temppop2 <- population2[malepoptran_pop2, ]
-          population2[malepoptran_pop2, ] <- temppop1
-          population1[malepoptran_pop1, ] <- temppop2
-        }
-        if (female_tran) {
-          fempoptran_pop1 <-
-            sample(c(((
-              size_pop1 / 2
-            ) + 1):size_pop1), size = size_femalepoptran)
-          fempoptran_pop2 <-
-            sample(c(((
-              size_pop2 / 2
-            ) + 1):size_pop2), size = size_femalepoptran)
-          temppop1 <- population1[fempoptran_pop1, ]
-          temppop2 <- population2[fempoptran_pop2, ]
-          population2[fempoptran_pop2, ] <- temppop1
-          population1[fempoptran_pop1, ] <- temppop2
-        }
-      }
-      # if necessary flip transfer
-      if (n_transfer == 1) {
-        male_tran <- !male_tran
-        female_tran <- !female_tran
+      if (female_tran) {
+        # For females, sample one individual from the second half of each population
+        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = 1)
+        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = 1)
+        # Temporarily store the individuals and then swap them between populations
+        temppop1 <- population1[fempoptran_pop1, ]
+        temppop2 <- population2[fempoptran_pop2, ]
+        population2[fempoptran_pop2, ] <- temppop1
+        population1[fempoptran_pop1, ] <- temppop2
       }
     }
     
-    return (list(population1, population2, male_tran, female_tran))
-    
+    # Case: transferring two or more individuals
+    if (n_transfer >= 2) {
+      # Determine how many males and females to transfer
+      size_malepoptran <- ceiling(n_transfer / 2)
+      size_femalepoptran <- floor(n_transfer / 2)
+      if (male_tran) {
+        # Sample male individuals from the first half of each population
+        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = size_malepoptran)
+        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = size_malepoptran)
+        # Swap the selected male individuals between populations
+        temppop1 <- population1[malepoptran_pop1, ]
+        temppop2 <- population2[malepoptran_pop2, ]
+        population2[malepoptran_pop2, ] <- temppop1
+        population1[malepoptran_pop1, ] <- temppop2
+      }
+      if (female_tran) {
+        # Sample female individuals from the second half of each population
+        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = size_femalepoptran)
+        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = size_femalepoptran)
+        # Swap the selected female individuals between populations
+        temppop1 <- population1[fempoptran_pop1, ]
+        temppop2 <- population2[fempoptran_pop2, ]
+        population2[fempoptran_pop2, ] <- temppop1
+        population1[fempoptran_pop1, ] <- temppop2
+      }
+    }
+    # For one individual transfer, flip the migration flags to alternate migration types
+    if (n_transfer == 1) {
+      male_tran <- !male_tran
+      female_tran <- !female_tran
+    }
   }
+  
+  # Return the updated populations along with the (possibly toggled) migration flags
+  return (list(population1, population2, male_tran, female_tran))
+}
+
 
 ###############################################################################
 ########################## REPRODUCTION #######################################
 ###############################################################################
 
-reproduction <-
-  function(pop,
-           pop_number,
-           pop_size,
-           var_off,
-           num_off,
-           r_event,
-           recom,
-           r_males,
-           r_map_1,
-           n_loc) {
-    parents_matrix <- as.data.frame(matrix(nrow = pop_size / 2, ncol = 2))
-    parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), 
-                                  size = pop_size / 2)
-    parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]),
-                                  size = pop_size / 2)
-    offspring <- NULL
-    for (parent in 1:dim(parents_matrix)[1]) {
-      pairing_offspring <- rnbinom(1, size = var_off, mu = num_off)
-      offspring_temp <- as.data.frame(matrix(nrow = pairing_offspring, ncol = 6))
-      if (pairing_offspring < 1) {
-        next
-      }
-      offspring_temp[, 1] <- sample(c("Male", "Female"), 
-                                    size = pairing_offspring, 
-                                    replace = TRUE) # sex
-      offspring_temp[, 2] <- pop_number # source population
-      male_chromosomes <-
-        list(pop[parents_matrix[parent, 1], 3], pop[parents_matrix[parent, 1], 4])
-      female_chromosomes <-
-        list(pop[parents_matrix[parent, 2], 3], pop[parents_matrix[parent, 2], 4])
-      for (offs in 1:pairing_offspring) {
-        males_recom_events <- rpois(1, r_event)
-        females_recom_events <- rpois(1, r_event)
-        #recombination in males
-        if (recom == TRUE &
-            r_males == TRUE & males_recom_events > 1) {
-          for (event in males_recom_events) {
-            male_chromosomes <-
-              recomb(
-                chr1 = male_chromosomes[[1]],
-                chr2 = male_chromosomes[[2]],
-                r_map = r_map_1,
-                loci = n_loc)
-          }
-          offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-        } else{
-          offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-        }
-        #recombination in females
-        if (recom == TRUE & females_recom_events > 1) {
-          for (event in females_recom_events) {
-            female_chromosomes <-
-              recomb(
-                chr1 = female_chromosomes[[1]],
-                chr2 = female_chromosomes[[2]],
-                r_map = r_map_1,
-                loci = n_loc
-              )
-          }
-          offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-        } else{
-          offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-        }
-      }
-      offspring_temp[, 5] <- parents_matrix[parent, 1] #id father
-      offspring_temp[, 6] <- parents_matrix[parent, 2] #id mother
-      offspring <- rbind(offspring, offspring_temp)
+# Function to simulate reproduction within a population.
+# pop: current population data frame.
+# pop_number: identifier for the current population.
+# pop_size: total number of individuals.
+# var_off: dispersion parameter for the negative binomial distribution (offspring variance).
+# num_off: mean number of offspring per mating pair.
+# r_event: recombination event rate parameter (used as lambda for Poisson distribution).
+# recom: flag indicating if recombination should occur.
+# r_males: flag indicating if recombination occurs in males.
+# r_map_1: recombination map used by the recombination function.
+# n_loc: number of loci (genetic positions).
+reproduction <- function(pop,
+                         pop_number,
+                         pop_size,
+                         var_off,
+                         num_off,
+                         r_event,
+                         recom,
+                         r_males,
+                         r_map_1,
+                         n_loc) {
+  # Create a matrix to hold pairs of parents (male and female)
+  parents_matrix <- as.data.frame(matrix(nrow = pop_size / 2, ncol = 2))
+  # Randomly select male parents from the first half of the population
+  parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), size = pop_size / 2)
+  # Randomly select female parents from the second half of the population
+  parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]), size = pop_size / 2)
+  
+  # Initialize an empty data frame to store all offspring
+  offspring <- NULL
+  
+  # Loop over each mating pair to generate offspring
+  for (parent in 1:dim(parents_matrix)[1]) {
+    # Determine the number of offspring for this pair using a negative binomial distribution
+    pairing_offspring <- rnbinom(1, size = var_off, mu = num_off)
+    # Create a temporary data frame to hold offspring data (6 columns for various attributes)
+    offspring_temp <- as.data.frame(matrix(nrow = pairing_offspring, ncol = 6))
+    
+    # If no offspring are produced, skip to the next pair
+    if (pairing_offspring < 1) {
+      next
     }
-    return(offspring)
+    
+    # Assign sex randomly to each offspring ("Male" or "Female")
+    offspring_temp[, 1] <- sample(c("Male", "Female"), size = pairing_offspring, replace = TRUE)
+    # Assign the source population number
+    offspring_temp[, 2] <- pop_number
+    
+    # Extract the male parent's chromosomes (columns 3 and 4) as a list
+    male_chromosomes <- list(pop[parents_matrix[parent, 1], 3], pop[parents_matrix[parent, 1], 4])
+    # Extract the female parent's chromosomes as a list
+    female_chromosomes <- list(pop[parents_matrix[parent, 2], 3], pop[parents_matrix[parent, 2], 4])
+    
+    # Loop through each offspring produced by the pair
+    for (offs in 1:pairing_offspring) {
+      # Generate recombination event counts using a Poisson distribution for both sexes
+      males_recom_events <- rpois(1, r_event)
+      females_recom_events <- rpois(1, r_event)
+      
+      # For males: if recombination is enabled and enough events occur, recombine chromosomes
+      if (recom == TRUE & r_males == TRUE & males_recom_events > 1) {
+        for (event in males_recom_events) {
+          male_chromosomes <- recomb(
+            chr1 = male_chromosomes[[1]],
+            chr2 = male_chromosomes[[2]],
+            r_map = r_map_1,
+            loci = n_loc
+          )
+        }
+        # Randomly select one of the recombined male chromosomes for the offspring
+        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
+      } else {
+        # Without recombination, randomly select one of the male chromosomes
+        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
+      }
+      
+      # For females: if recombination is enabled and enough events occur, recombine chromosomes
+      if (recom == TRUE & females_recom_events > 1) {
+        for (event in females_recom_events) {
+          female_chromosomes <- recomb(
+            chr1 = female_chromosomes[[1]],
+            chr2 = female_chromosomes[[2]],
+            r_map = r_map_1,
+            loci = n_loc
+          )
+        }
+        # Randomly select one of the recombined female chromosomes for the offspring
+        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
+      } else {
+        # Without recombination, randomly select one of the female chromosomes
+        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
+      }
+    }
+    # Record the parent IDs: father (column 5) and mother (column 6)
+    offspring_temp[, 5] <- parents_matrix[parent, 1]
+    offspring_temp[, 6] <- parents_matrix[parent, 2]
+    
+    # Combine the offspring from this pair with the overall offspring data
+    offspring <- rbind(offspring, offspring_temp)
   }
+  
+  # Return the complete offspring data frame
+  return(offspring)
+}
+
 
 ###############################################################################
 ########################## RECOMBINATION ######################################
 ###############################################################################
 
+# Function to simulate recombination between two chromosomes.
+# chr1, chr2: strings representing the parental chromosome sequences.
+# r_map: recombination map that provides crossover probabilities (expects a column "c").
+# loci: total number of loci in the chromosome.
 recomb <- function(chr1, 
                    chr2,
                    r_map, 
                    loci) {
+  # Sample a chiasma (crossover point) from the recombination map based on the provided probabilities.
   chiasma <- as.numeric(sample(row.names(r_map), size = 1, prob = r_map[, "c"]))
+  
+  # If the sampled chiasma falls within the loci range, perform recombination.
   if (chiasma < (loci + 1)) {
-    r_chr1 <- paste0(substr(chr1,1,chiasma), substr(chr2, chiasma + 1,loci))
-    r_chr2 <- paste0(substr(chr2,1,chiasma), substr(chr1, chiasma + 1,loci))
+    # Create a new recombinant chromosome by combining the first part of chr1 and the second part of chr2.
+    r_chr1 <- paste0(substr(chr1, 1, chiasma), substr(chr2, chiasma + 1, loci))
+    # Create a second recombinant chromosome by combining the first part of chr2 and the second part of chr1.
+    r_chr2 <- paste0(substr(chr2, 1, chiasma), substr(chr1, chiasma + 1, loci))
     return(list(r_chr1, r_chr2))
-  } else{
+  } else {
+    # If no recombination event occurs, return the original chromosomes.
     return(list(chr1, chr2))
   }
 }
+
 
 ###############################################################################
 ########################## SELECTION ##########################################
 ###############################################################################
 
-selection_fun <-
-  function(offspring,
-           h,
-           s,
-           sel_model,
-           g_load) {
-    
-    
-    # make genotypes
-    #to hack package checking...
-    make_fit <- function(){}  
-    
-    Rcpp::cppFunction(plugins="cpp11",
-                      
-"NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
-int loc_number = strlen(seqs(0,0));
-int indN = seqs.nrow();
-NumericVector out(indN);
-for (int i = 0; i < indN; i++) {
-NumericVector fit_ind(loc_number);
-fit_ind.fill(1);
-  for (int loc = 0; loc < loc_number; loc++){
-    char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
-    if (chr1 == chr2 && chr1=='1')
-    fit_ind[loc] = 1 - s[loc];
-    if (chr1 != chr2)
-    fit_ind[loc] = 1 - (h[loc] * s[loc]);
+# Function to apply selection on offspring based on their genotypes and calculated fitness.
+# offspring: data frame with offspring genetic information (columns 3 and 4 for chromosomes).
+# h: vector of dominance coefficients at each locus.
+# s: vector of selection coefficients at each locus.
+# sel_model: type of selection model to apply ("absolute" or "relative").
+# g_load: genetic load parameter used in the absolute selection model.
+selection_fun <- function(offspring,
+                          h,
+                          s,
+                          sel_model,
+                          g_load) {
+  
+  # Dummy function to satisfy package checking (will be replaced by the C++ implementation below)
+  make_fit <- function(){}  
+  
+  # Define a C++ function using Rcpp that calculates individual fitness.
+  # The function iterates over each offspring's loci, comparing allele pairs,
+  # and computes the product of fitness values across loci.
+  Rcpp::cppFunction(plugins="cpp11",
+                    
+                    "NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
+  int loc_number = strlen(seqs(0,0));
+  int indN = seqs.nrow();
+  NumericVector out(indN);
+  for (int i = 0; i < indN; i++) {
+    NumericVector fit_ind(loc_number);
+    fit_ind.fill(1);
+    for (int loc = 0; loc < loc_number; loc++){
+      char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
+      if (chr1 == chr2 && chr1=='1')
+        fit_ind[loc] = 1 - s[loc];
+      if (chr1 != chr2)
+        fit_ind[loc] = 1 - (h[loc] * s[loc]);
+    }
+    out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
   }
-  out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
-}
   return(out);
 }"
-    )
-
-    offspring$fitness <- make_fit(as.matrix(offspring[,3:4]),h,s)
-    if (sel_model == "absolute") {
-      offspring$random_deviate <- runif(nrow(offspring), min = 0, max = g_load)
-      offspring$alive <- offspring$fitness > offspring$random_deviate
-      offspring <- offspring[which(offspring$alive == TRUE),]
-    }
-    if (sel_model == "relative") {
-      fitnes_proportion <- sum(offspring$fitness)
-      offspring$relative_fitness <- offspring$fitness / fitnes_proportion
-      offspring$relative_fitness[offspring$relative_fitness < 0] <- 0
-    }
-    
-    return(offspring)
-    
+  )
+  
+  # Calculate fitness for each offspring by passing their genetic data to the C++ function.
+  offspring$fitness <- make_fit(as.matrix(offspring[,3:4]),h,s)
+  
+  # Apply selection based on the specified model.
+  if (sel_model == "absolute") {
+    # For the absolute model, generate a random threshold for each offspring.
+    offspring$random_deviate <- runif(nrow(offspring), min = 0, max = g_load)
+    # Offspring survive only if their fitness exceeds the random threshold.
+    offspring$alive <- offspring$fitness > offspring$random_deviate
+    # Keep only the surviving offspring.
+    offspring <- offspring[which(offspring$alive == TRUE),]
   }
+  if (sel_model == "relative") {
+    # For the relative model, compute the proportion of total fitness.
+    fitnes_proportion <- sum(offspring$fitness)
+    offspring$relative_fitness <- offspring$fitness / fitnes_proportion
+    # Replace any negative fitness proportions with zero.
+    offspring$relative_fitness[offspring$relative_fitness < 0] <- 0
+  }
+  
+  return(offspring)
+}
+
 
 ###############################################################################
 ########################## STORE GENLIGHT #####################################
 ###############################################################################
 
-store <-
-  function(p_vector,
-           p_size,
-           p_list,
-           n_loc_1,
-           ref,
-           p_map,
-           s_vars,
-           g) {
-    pop_names <- rep(as.character(p_vector), p_size)
-    df_genotypes <- rbindlist(p_list)
-    df_genotypes$V1[df_genotypes$V1 == "Male"]   <- 1
-    df_genotypes$V1[df_genotypes$V1 == "Female"] <- 2
-    df_genotypes[, 2] <- pop_names
-    df_genotypes$id <-
-      paste0(unlist(unname(df_genotypes[, 2])), "_", unlist(lapply(p_size, function(x) {
-        1:x
-      })))
-    
-    # make genotypes
-    #to hack package checking...
-    make_geno <- function(){}  
-    
-    Rcpp::cppFunction(plugins="cpp11",
-                      
-'List make_geno(StringMatrix mat) {
+# Function to process and store genotype data in a "genlight" object format.
+# p_vector: vector of population identifiers.
+# p_size: population size (number of individuals).
+# p_list: list of genotype data for each individual.
+# n_loc_1: number of loci (not used directly in this function).
+# ref: reference data for loci (e.g., chromosome names and positions).
+# p_map: genetic map (e.g., recombination map).
+# s_vars: simulation variables/settings.
+# g: generation number or another parameter.
+store <- function(p_vector,
+                  p_size,
+                  p_list,
+                  n_loc_1,
+                  ref,
+                  p_map,
+                  s_vars,
+                  g) {
+  # Create a vector of population names repeated for each individual.
+  pop_names <- rep(as.character(p_vector), p_size)
+  # Combine the list of genotype data into a single data frame.
+  df_genotypes <- rbindlist(p_list)
+  
+  # Convert sex labels from "Male"/"Female" to numeric codes (1 for male, 2 for female).
+  df_genotypes$V1[df_genotypes$V1 == "Male"]   <- 1
+  df_genotypes$V1[df_genotypes$V1 == "Female"] <- 2
+  # Assign population names to the second column.
+  df_genotypes[, 2] <- pop_names
+  # Create a unique ID for each individual combining population and an index.
+  df_genotypes$id <- paste0(unlist(unname(df_genotypes[, 2])), "_", 
+                            unlist(lapply(p_size, function(x) { 1:x })))
+  
+  # Dummy function for package checking (will be replaced by the C++ function below)
+  make_geno <- function(){}  
+  
+  # Define a C++ function using Rcpp that generates genotype information.
+  # It converts two chromosome strings into a combined genotype per locus.
+  Rcpp::cppFunction(plugins="cpp11",
+                    
+                    'List make_geno(StringMatrix mat) {
     int ind = mat.nrow();
     int loc = strlen(mat(0,0));
     List out(ind);
-for (int i = 0; i < ind; i++) {
- std::string chr1 (mat(i,0));
- std::string chr2 (mat(i,1));
- StringVector temp(loc);
-for (int j = 0; j < loc; j++) {
- StringVector geno = StringVector::create(chr1[j],chr2[j]);
-    temp[j] = collapse(geno);
-  }
+    for (int i = 0; i < ind; i++) {
+      std::string chr1 (mat(i,0));
+      std::string chr2 (mat(i,1));
+      StringVector temp(loc);
+      for (int j = 0; j < loc; j++) {
+        StringVector geno = StringVector::create(chr1[j],chr2[j]);
+        temp[j] = collapse(geno);
+      }
       out[i] = temp;
     }
     return out;
   }'
+  )
+  
+  # Extract genotype columns (assumed to be columns V3 and V4) and convert them to a matrix.
+  plink_temp <- as.matrix(df_genotypes[,3:4])
+  # Use the C++ function to process the genotype strings.
+  plink_ped <- make_geno(plink_temp)
+  # Convert the genotype strings:
+  # "11" becomes 2 (homozygous for allele 1),
+  # "00" becomes 0 (homozygous for allele 0),
+  # "01" and "10" become 1 (heterozygous).
+  plink_ped_2 <- lapply(plink_ped, function(x) {
+    x[x == "11"] <- 2
+    x[x == "00"] <- 0
+    x[x == "01"] <- 1
+    x[x == "10"] <- 1
+    return(x)
+  })
+  
+  # Create locus names based on the reference information.
+  loc.names <- 1:nrow(ref)
+  n.loc <- length(loc.names)
+  # Initialize a list to store miscellaneous individual metrics.
+  misc.info <- lapply(1:6, function(i){NULL})
+  names(misc.info) <- c("FID", "IID", "PAT", "MAT", "SEX", "PHENOTYPE")
+  res <- list()
+  # Create a temporary data frame with individual-level information.
+  temp <- as.data.frame(
+    cbind(
+      df_genotypes[, "V2"],      # Population ID
+      df_genotypes[, "id"],      # Individual ID
+      df_genotypes[, "V5"],      # Father ID
+      df_genotypes[, "V6"],      # Mother ID
+      df_genotypes[, "V1"],      # Sex (numeric)
+      1                          # Phenotype placeholder (set to 1)
     )
-    
-    plink_temp <- as.matrix(df_genotypes[,3:4])
-    plink_ped <- make_geno(plink_temp)
-    plink_ped_2 <- lapply(plink_ped, function(x) {
-      x[x == "11"] <- 2
-      x[x == "00"] <- 0
-      x[x == "01"] <- 1
-      x[x == "10"] <- 1
-      
-      return(x)
-      
-    })
-    
-    loc.names <- 1:nrow(ref)
-    n.loc <- length(loc.names)
-    misc.info <- lapply(1:6, function(i){NULL})
-    names(misc.info) <- c("FID", "IID", "PAT", "MAT", "SEX", "PHENOTYPE")
-    res <- list()
-    temp <-
-      as.data.frame(
-        cbind(
-          df_genotypes[, "V2"],
-          df_genotypes[, "id"],
-          df_genotypes[, "V5"],
-          df_genotypes[, "V6"],
-          df_genotypes[, "V1"],
-          1
-        )
-      )
-    
-    for (i in 1:6) {
-      misc.info[[i]] <- temp[, i]
-    }
-    txt <-
-      lapply(plink_ped_2, function(e)
-        suppressWarnings(as.integer(e)))
-      res <-
-        c(res, lapply(txt, function(e)
-          new(
-            "SNPbin", snp = e, ploidy = 2L
-          )))
-    
-    res <- new("genlight", res, ploidy = 2L)
-    
-    indNames(res) <- misc.info$IID
-    pop(res) <- misc.info$FID
-    locNames(res) <- loc.names
-    misc.info <- misc.info[c("SEX", "PHENOTYPE", "PAT", "MAT")]
-    names(misc.info) <- tolower(names(misc.info))
-    misc.info$sex[misc.info$sex == 1] <- "m"
-    misc.info$sex[misc.info$sex == 2] <- "f"
-    misc.info$sex <- factor(misc.info$sex)
-    misc.info$phenotype[misc.info$phenotype == 1] <- "control"
-    misc.info$phenotype[misc.info$phenotype == 2] <- "case"
-    misc.info$phenotype <- factor(misc.info$phenotype)
-    res$other$ind.metrics <- as.data.frame(misc.info)
-    res$other$loc.metrics <- ref
-    chromosome(res) <- res$other$loc.metrics$chr_name
-    position(res) <- res$other$loc.metrics$loc_bp
-    res$loc.all <- rep("G/C",nLoc(res))
-    res$other$sim.vars <- s_vars
-    res <- utils.reset.flags(res,verbose=0)
-    
-    
-    return(res)
-    
+  )
+  
+  # Populate the misc.info list with the corresponding data.
+  for (i in 1:6) {
+    misc.info[[i]] <- temp[, i]
   }
+  # Convert the processed genotype data into integer format and create SNPbin objects.
+  txt <- lapply(plink_ped_2, function(e)
+    suppressWarnings(as.integer(e)))
+  res <- c(res, lapply(txt, function(e)
+    new("SNPbin", snp = e, ploidy = 2L)
+  ))
+  
+  # Create a genlight object from the SNPbin objects.
+  res <- new("genlight", res, ploidy = 2L)
+  
+  # Assign individual names and population IDs to the genlight object.
+  indNames(res) <- misc.info$IID
+  pop(res) <- misc.info$FID
+  locNames(res) <- loc.names
+  
+  # Store additional individual metrics (sex, phenotype, parent IDs).
+  misc.info <- misc.info[c("SEX", "PHENOTYPE", "PAT", "MAT")]
+  names(misc.info) <- tolower(names(misc.info))
+  misc.info$sex[misc.info$sex == 1] <- "m"
+  misc.info$sex[misc.info$sex == 2] <- "f"
+  misc.info$sex <- factor(misc.info$sex)
+  misc.info$phenotype[misc.info$phenotype == 1] <- "control"
+  misc.info$phenotype[misc.info$phenotype == 2] <- "case"
+  misc.info$phenotype <- factor(misc.info$phenotype)
+  res$other$ind.metrics <- as.data.frame(misc.info)
+  # Store locus metrics (reference data) in the genlight object.
+  res$other$loc.metrics <- ref
+  # Set chromosome and position information from the reference data.
+  chromosome(res) <- res$other$loc.metrics$chr_name
+  position(res) <- res$other$loc.metrics$loc_bp
+  # Set default locus allele information.
+  res$loc.all <- rep("G/C", nLoc(res))
+  # Store simulation variables.
+  res$other$sim.vars <- s_vars
+  # Reset internal flags (suppressing verbose output).
+  res <- utils.reset.flags(res,verbose=0)
+  
+  # Return the final genlight object.
+  return(res)
+}
+
 
 ###############################################################################
 ######### SHINY APP FOR THE VARIABLES OF THE REFERENCE TABLE ###################
