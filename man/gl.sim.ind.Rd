@@ -4,14 +4,15 @@
 \alias{gl.sim.ind}
 \title{Simulates individuals based on allele frequencies}
 \usage{
-gl.sim.ind(x, n = 50, popname = NULL)
+gl.sim.ind(x, n = 50, popname = "pop1")
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
 
 \item{n}{Number of individuals that should be simulated [default 50].}
 
-\item{popname}{A population name for the simulated individuals [default NULL].}
+\item{popname}{A population name for the simulated individuals 
+[default "pop1"].}
 }
 \value{
 A genlight object with n individuals.
