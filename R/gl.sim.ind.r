@@ -7,7 +7,8 @@
 #'
 #' @param x Name of the genlight object containing the SNP data [required].
 #' @param n Number of individuals that should be simulated [default 50].
-#' @param popname A population name for the simulated individuals [default NULL].
+#' @param popname A population name for the simulated individuals 
+#' [default "pop1"].
 #' @return A genlight object with n individuals.
 #' @details
 #' The function can be used to simulate populations for sampling designs or for
@@ -43,23 +44,8 @@
 
 gl.sim.ind <- function(x,
                        n = 50,
-                       popname = NULL) {
+                       popname = "pop1") {
   
-  # SET VERBOSITY
-  verbose <- gl.check.verbosity(verbose)
-  
-  # FLAG SCRIPT START
-  funname <- match.call()[[1]]
-  utils.flag.start(
-    func = funname,
-    build = "Jody",
-    verbose = verbose
-  )
-  
-  # CHECK DATATYPE
-  datatype <- dartR.base::utils.check.datatype(x, verbose = verbose)
-  
-  x <- gl.filter.allna(x, verbose = 0)
   # allelefequency of the population
   p <- as.matrix(x)
   alf <- colMeans(p, na.rm = T) / 2
@@ -80,12 +66,6 @@ gl.sim.ind <- function(x,
       position = position(x),
       pop = rep(popname, n)
     )
-  
-  # FLAG SCRIPT END
-  
-  if (verbose >= 1) {
-    cat(report("Completed:", funname, "\n"))
-  }
   
   return(glsim)
 }
