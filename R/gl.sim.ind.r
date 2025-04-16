@@ -12,10 +12,10 @@
 #' @details
 #' The function can be used to simulate populations for sampling designs or for
 #'  power analysis. Check the example below where the effect of drift is
-#'   explored, by simply simulating several generation a genlight object and 
+#'   explored, by simply simulating several generation a genlight object and
 #'   putting in the allele frequencies of the previous generation. The beauty of
-#'    the function is, that it is lightning fast. Be aware this is a simulation 
-#'    and to avoid lengthy error checking the function crashes if there are loci 
+#'    the function is, that it is lightning fast. Be aware this is a simulation
+#'    and to avoid lengthy error checking the function crashes if there are loci
 #'    that have just NAs. If such a case can occur during your simulation, those
 #'    loci need to be removed, before the function is called.
 #'
@@ -44,25 +44,48 @@
 gl.sim.ind <- function(x,
                        n = 50,
                        popname = NULL) {
-    # allelefequency of the population
-    p <- as.matrix(x)
-    alf <- colMeans(p, na.rm = T) / 2
-    alfinds <- matrix(rep(alf, n), nrow = n, byrow = T)
-    simind <-
-        apply(alfinds, c(1, 2), function(x)
-            sample(0:2, size = 1, prob = c((1 - x) ^ 2, 2 * x * (1 - x), x ^ 2)))
-    # now create genlight objects.....
-    
-    glsim <-
-        new(
-            "genlight",
-            gen = simind,
-            ploidy = 2,
-            ind.names = 1:n,
-            loc.names = locNames(x),
-            loc.all = x@loc.all,
-            position = position(x),
-            pop = rep(popname, n)
-        )
-    return(glsim)
+  
+  # SET VERBOSITY
+  verbose <- gl.check.verbosity(verbose)
+  
+  # FLAG SCRIPT START
+  funname <- match.call()[[1]]
+  utils.flag.start(
+    func = funname,
+    build = "Jody",
+    verbose = verbose
+  )
+  
+  # CHECK DATATYPE
+  datatype <- dartR.base::utils.check.datatype(x, verbose = verbose)
+  
+  x <- gl.filter.allna(x, verbose = 0)
+  # allelefequency of the population
+  p <- as.matrix(x)
+  alf <- colMeans(p, na.rm = T) / 2
+  alfinds <- matrix(rep(alf, n), nrow = n, byrow = T)
+  simind <-
+    apply(alfinds, c(1, 2), function(x)
+      sample(0:2, size = 1, prob = c((1 - x)^2, 2 * x * (1 - x), x^2)))
+  # now create genlight objects.....
+  
+  glsim <-
+    new(
+      "genlight",
+      gen = simind,
+      ploidy = 2,
+      ind.names = 1:n,
+      loc.names = locNames(x),
+      loc.all = x@loc.all,
+      position = position(x),
+      pop = rep(popname, n)
+    )
+  
+  # FLAG SCRIPT END
+  
+  if (verbose >= 1) {
+    cat(report("Completed:", funname, "\n"))
+  }
+  
+  return(glsim)
 }
