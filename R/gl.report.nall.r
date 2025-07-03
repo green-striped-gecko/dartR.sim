@@ -1,6 +1,6 @@
 #' @name gl.report.nall
 #' @title
-#' Allele Count Reporting and Rarefaction Curve Simulation
+#' Allele Count Reporting and Rarefaction Curve Simulation 
 #'
 #' @description
 #' The function reports allele counts for each population and simulates a
