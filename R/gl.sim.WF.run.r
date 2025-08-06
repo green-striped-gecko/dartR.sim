@@ -104,6 +104,8 @@ gl.sim.WF.run <-
       return(-1)
     }
     
+    replace_parents <- NULL
+    
     # -------------------------------
     # RETRIEVE SIMULATION VARIABLES
     # -------------------------------
@@ -450,6 +452,7 @@ gl.sim.WF.run <-
         pop[, 2] <- pop_n   # Population identifier
         pop[, 3] <- chr_pops[[pop_n]][1]  # First chromosome
         pop[, 4] <- chr_pops[[pop_n]][2]  # Second chromosome
+        pop$id <- paste0("0_",pop_n,"_",1:nrow(pop)) # ID
         
         # If real frequency data is provided and location information is used:
         if (real_freq == TRUE & real_loc == TRUE) {
@@ -655,7 +658,7 @@ gl.sim.WF.run <-
         # REPRODUCTION PHASE
         # -------------------------------
         offspring_list <- lapply(pops_vector, function(x) {
-          reproduction(
+          tmp_rep <- reproduction(
             pop = pop_list[[x]],
             pop_number = x,
             pop_size = population_size[x],
@@ -665,8 +668,12 @@ gl.sim.WF.run <-
             recom = recombination,
             r_males = recombination_males,
             r_map_1 = recombination_map,
-            n_loc = loci_number
+            n_loc = loci_number,
+            gen = generation,
+            rep_parents = replace_parents
           )
+          tmp_rep$id <- paste0(generation,"_",x,"_",1:nrow(tmp_rep))
+          return(tmp_rep)
         })
         
         # -------------------------------

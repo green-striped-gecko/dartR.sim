@@ -55,7 +55,6 @@
 #'\item Takahata N. Gene identity and genetic differentiation of populations in 
 #'the finite island model. Genetics. 1983;104(3):497-512.
 #'  }
-#' @seealso \code{\link{gl.filter.callrate}}
 #' @export
 
 gl.diagnostics.sim <- function(x,

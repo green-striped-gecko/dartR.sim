@@ -56,6 +56,7 @@
 #' @importFrom parallel makeCluster stopCluster
 #' @importFrom dplyr group_by summarise
 #' @importFrom doParallel registerDoParallel
+#' @importFrom methods is
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
