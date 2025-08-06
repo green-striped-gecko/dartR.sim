@@ -87,9 +87,6 @@ introduction to population genetics theory. 1970.
 the finite island model. Genetics. 1983;104(3):497-512.
  }
 }
-\seealso{
-\code{\link{gl.filter.callrate}}
-}
 \author{
 Custodian: Luis Mijangos -- Post to
 \url{https://groups.google.com/d/forum/dartr}

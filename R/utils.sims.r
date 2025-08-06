@@ -129,13 +129,19 @@ reproduction <- function(pop,
                          recom,
                          r_males,
                          r_map_1,
-                         n_loc) {
+                         n_loc,
+                         gen,
+                         rep_parents) {
   # Create a matrix to hold pairs of parents (male and female)
   parents_matrix <- as.data.frame(matrix(nrow = pop_size / 2, ncol = 2))
   # Randomly select male parents from the first half of the population
-  parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), size = pop_size / 2)
+  parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), 
+                                size = pop_size / 2,
+                                replace = rep_parents)
   # Randomly select female parents from the second half of the population
-  parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]), size = pop_size / 2)
+  parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]), 
+                                size = pop_size / 2,
+                                replace = rep_parents)
   
   # Initialize an empty data frame to store all offspring
   offspring <- NULL
@@ -153,14 +159,18 @@ reproduction <- function(pop,
     }
     
     # Assign sex randomly to each offspring ("Male" or "Female")
-    offspring_temp[, 1] <- sample(c("Male", "Female"), size = pairing_offspring, replace = TRUE)
+    offspring_temp[, 1] <- sample(c("Male", "Female"),
+                                  size = pairing_offspring, 
+                                  replace = TRUE)
     # Assign the source population number
     offspring_temp[, 2] <- pop_number
     
     # Extract the male parent's chromosomes (columns 3 and 4) as a list
-    male_chromosomes <- list(pop[parents_matrix[parent, 1], 3], pop[parents_matrix[parent, 1], 4])
+    male_chromosomes <- list(pop[parents_matrix[parent, 1], 3],
+                             pop[parents_matrix[parent, 1], 4])
     # Extract the female parent's chromosomes as a list
-    female_chromosomes <- list(pop[parents_matrix[parent, 2], 3], pop[parents_matrix[parent, 2], 4])
+    female_chromosomes <- list(pop[parents_matrix[parent, 2], 3], 
+                               pop[parents_matrix[parent, 2], 4])
     
     # Loop through each offspring produced by the pair
     for (offs in 1:pairing_offspring) {
@@ -203,13 +213,12 @@ reproduction <- function(pop,
       }
     }
     # Record the parent IDs: father (column 5) and mother (column 6)
-    offspring_temp[, 5] <- parents_matrix[parent, 1]
-    offspring_temp[, 6] <- parents_matrix[parent, 2]
+    offspring_temp[, 5] <- pop[parents_matrix[parent,1],"id"]
+    offspring_temp[, 6] <- pop[parents_matrix[parent,2],"id"]
     
     # Combine the offspring from this pair with the overall offspring data
     offspring <- rbind(offspring, offspring_temp)
   }
-  
   # Return the complete offspring data frame
   return(offspring)
 }
@@ -344,8 +353,8 @@ store <- function(p_vector,
   # Assign population names to the second column.
   df_genotypes[, 2] <- pop_names
   # Create a unique ID for each individual combining population and an index.
-  df_genotypes$id <- paste0(unlist(unname(df_genotypes[, 2])), "_", 
-                            unlist(lapply(p_size, function(x) { 1:x })))
+  # df_genotypes$id <- paste0(unlist(unname(df_genotypes[, 2])), "_", 
+  #                           unlist(lapply(p_size, function(x) { 1:x })))
   
   # Dummy function for package checking (will be replaced by the C++ function below)
   make_geno <- function(){}  
