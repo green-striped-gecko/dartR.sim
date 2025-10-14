@@ -6,17 +6,26 @@
 \usage{
 gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = 0)
 }
+\arguments{
+\item{ninds}{Number of individuals in the population.}
+
+\item{nlocs}{Number of loci in the population.}
+
+\item{mutation_rate}{Mutation rate per generation (default is 1e-8).}
+
+\item{verbose}{Verbosity level (default is 0).}
+}
+\value{
+A genlight object representing the simulated population.
+}
 \description{
 This function simulates a population with a constant mutation rate using a beta distribution for allele frequencies.
-#' @param ninds Number of individuals in the population.
-#' @param nlocs Number of loci in the population.
-#' #' @param mutation_rate Mutation rate per generation (default is 1e-8).
-#' #' @param verbose Verbosity level (default is 0).
-#' @return A genlight object representing the simulated population.
-#' @details The function generates a genlight object with the specified number of individuals and loci, simulating allele frequencies based on a beta distribution. The mutation rate is used to calculate theta, which in turn is the parameter in the beta function.
+}
+\details{
+The function generates a genlight object with the specified number of individuals and loci, simulating allele frequencies based on a beta distribution. The mutation rate is used to calculate theta, which in turn is the parameter in the beta function.
 }
 \examples{
 # Simulate a population with 50 individuals and 4000 loci
 gg <- gl.sim.Neconst(ninds = 50, nlocs = 4000, mutation_rate = 1e-8, verbose = 0)
-gl.sfs(gg)
+dartR.popgen::gl.sfs(gg)
 }

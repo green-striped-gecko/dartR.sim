@@ -2,21 +2,25 @@
 
 #' @title Simulate a population with constant mutation rate
 #' @description This function simulates a population with a constant mutation rate using a beta distribution for allele frequencies.
-#' #' @param ninds Number of individuals in the population.
-#' #' @param nlocs Number of loci in the population.
-#' #' #' @param mutation_rate Mutation rate per generation (default is 1e-8).
-#' #' #' @param verbose Verbosity level (default is 0).
-#' #' @return A genlight object representing the simulated population.
-#' #' @details The function generates a genlight object with the specified number of individuals and loci, simulating allele frequencies based on a beta distribution. The mutation rate is used to calculate theta, which in turn is the parameter in the beta function.
+#' @param ninds Number of individuals in the population.
+#' @param nlocs Number of loci in the population.
+#' @param mutation_rate Mutation rate per generation (default is 1e-8).
+#' @param verbose Verbosity level (default is 0).
+#' @return A genlight object representing the simulated population.
+#' @details The function generates a genlight object with the specified number of individuals and loci, simulating allele frequencies based on a beta distribution. The mutation rate is used to calculate theta, which in turn is the parameter in the beta function.
 #' @importFrom stats dbeta
+#' @importFrom dartR.popgen gl.sfs
 #' @export
 #' @examples
 #' # Simulate a population with 50 individuals and 4000 loci
 #' gg <- gl.sim.Neconst(ninds = 50, nlocs = 4000, mutation_rate = 1e-8, verbose = 0)
-#' gl.sfs(gg)
+#' dartR.popgen::gl.sfs(gg)
 
 
-gl.sim.Neconst <- function(ninds, nlocs, mutation_rate=1e-8,verbose=0) {
+gl.sim.Neconst <- function(ninds, 
+                           nlocs,
+                           mutation_rate=1e-8,
+                           verbose=0) {
 	
 	# Function to calculate allele frequency distribution
 	allele_frequency_distribution <- function(pop_size, mutation_rate, num_bins = 100) {
