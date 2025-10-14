@@ -9,9 +9,10 @@
 #' Hardy-Weinberg equilibrium. 
 #' 
 #' See documentation and tutorial for a complete description of the simulations.
-#' These documents can be accessed at http://georges.biomatix.org/dartR 
+#' These documents can be accessed at 
+#' https://github.com/green-striped-gecko/dartR/wiki/Simulations-tutorial
 #' 
-#' Take into account that the simulations will take a little bit longer the
+#' Take into account that the simulations will take a little longer the
 #' first time you use the function gl.sim.WF.run() because C++ functions must
 #' be compiled.
 #' @param file_var Path of the variables file 'sim_variables.csv' (see details) 
@@ -38,17 +39,15 @@
 #' @param ... Any variable and its value can be added separately within the 
 #' function, will be changed over the input value supplied by the csv file. See 
 #' tutorial. 
-#' @details
-#' (Further detailed description of simulation variables and processes...)
 #' @return Returns genlight objects with simulated data.
 #' @author Custodian: Luis Mijangos
 #' @examples
 #'  \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
-#' "ref_variables.csv", package = "dartR.data"),interactive_vars = FALSE)
+#' "ref_variables.csv", package = "dartR.sim"),interactive_vars = FALSE)
 #' 
 #' res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
-#'  "sim_variables.csv", package ="dartR.data"),ref_table=ref_table,
+#'  "sim_variables.csv", package ="dartR.sim"),ref_table=ref_table,
 #'  interactive_vars = FALSE)
 #'  }
 #' @seealso \code{\link{gl.sim.WF.table}}
