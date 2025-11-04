@@ -56,6 +56,7 @@
 #' @importFrom parallel makeCluster stopCluster
 #' @importFrom dplyr group_by summarise
 #' @importFrom doParallel registerDoParallel
+#' @importFrom methods is
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
@@ -170,6 +171,8 @@ gl.report.nall <- function(x,
   nall.pop <- gl.report.nall.pop(x)
   nall.pop$N.all <- nall.pop$N.all / maxnall
   
+  pop_order <- unique(as.character(pop(x))) 
+  
   # printing plots and reports assigning colors to populations
   if (is(plot.colors.pop, "function")) {
     colors_pops <- plot.colors.pop(length(levels(pop(x))))
@@ -178,6 +181,8 @@ gl.report.nall <- function(x,
   if (!is(plot.colors.pop, "function")) {
     colors_pops <- plot.colors.pop
   }
+  
+  colors_pops <- setNames(colors_pops, pop_order)
   
   p1 <- ggplot(df, aes(x = Npop, y = mnall)) +
     geom_line() +
@@ -193,7 +198,9 @@ gl.report.nall <- function(x,
                size = 6,
                pch = 16) +
     guides(color = guide_legend(title = "Population")) +
-    scale_color_manual(values = colors_pops) +
+    scale_color_manual(values = colors_pops,
+                       breaks = pop_order,
+                       limits = pop_order) +
     plot.theme
   
   # PRINTING OUTPUTS

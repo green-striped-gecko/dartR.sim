@@ -70,10 +70,10 @@
 #' @examples
 #'  \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
-#' "ref_variables.csv", package = "dartR.data"),interactive_vars = FALSE)
+#' "ref_variables.csv", package = "dartR.sim"),interactive_vars = FALSE)
 #' 
 #' res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
-#'  "sim_variables.csv", package ="dartR.data"),ref_table=ref_table,
+#'  "sim_variables.csv", package ="dartR.sim"),ref_table=ref_table,
 #'  interactive_vars = FALSE)
 #'  }
 #'  
@@ -236,14 +236,14 @@ gl.sim.WF.table <- function(file_var,
   }
   location_real_temp <- NULL
   if (real_loc == TRUE & !is.null(x)) {
+    if (!chromosome_name %in% x@chromosome) {
+      message(error("  Chromosome name is not in the genlight object\n"))
+      stop()
+    }
     ## Extract chromosome and position data from the genlight object
     location_real_temp <- as.data.frame(cbind(as.character(x$chromosome), x$position))
     colnames(location_real_temp) <- c("chr", "pos")
     
-    if (!chromosome_name %in% location_real_temp$chr) {
-      message(error("  Chromosome name is not in the genlight object\n"))
-      stop()
-    }
     location_real_temp <- location_real_temp[location_real_temp$chr == chromosome_name, ]
     location_real_temp <- as.numeric(location_real_temp[, "pos"])
     location_real_temp <- location_real_temp[order(location_real_temp)]
