@@ -12,6 +12,7 @@ gl.sim.ind(x, n = 50, popname = "pop1")
 \item{n}{Number of individuals that should be simulated [default 50].}
 
 \item{popname}{A population name for the simulated individuals 
+ objects
 [default "pop1"].}
 }
 \value{
@@ -33,6 +34,7 @@ The function can be used to simulate populations for sampling designs or for
    loci need to be removed, before the function is called.
 }
 \examples{
+if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 glsim
 ###Simulate drift over 10 generation

@@ -8,6 +8,7 @@
 #' @param x Name of the genlight object containing the SNP data [required].
 #' @param n Number of individuals that should be simulated [default 50].
 #' @param popname A population name for the simulated individuals 
+#'  objects
 #' [default "pop1"].
 #' @return A genlight object with n individuals.
 #' @details
@@ -23,6 +24,7 @@
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
+#' if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 #' glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 #' glsim
 #' ###Simulate drift over 10 generation
@@ -54,11 +56,13 @@ gl.sim.ind <- function(x,
     apply(alfinds, c(1, 2), function(x)
       sample(0:2, size = 1, prob = c((1 - x)^2, 2 * x * (1 - x), x^2)))
   # now create genlight objects.....
+    
   
   glsim <-
     new(
-      "genlight",
+      "dartR",
       gen = simind,
+      fbm = NULL,
       ploidy = 2,
       ind.names = 1:n,
       loc.names = locNames(x),
@@ -66,6 +70,9 @@ gl.sim.ind <- function(x,
       position = position(x),
       pop = rep(popname, n)
     )
+  
+  if (!is.null(.fbm_or_null(x))) glsim <- gl.gen2fbm(glsim)
+    
   
   return(glsim)
 }
