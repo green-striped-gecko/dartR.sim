@@ -4,7 +4,7 @@
 \alias{gl.sim.ind.af}
 \title{Simulate diploid genotypes from per-population allele frequencies}
 \usage{
-gl.sim.ind.af(df, pop.sizes, seed = NULL, check.loci = TRUE)
+gl.sim.ind.af(df, pop.sizes, fbm = FALSE)
 }
 \arguments{
 \item{df}{A `data.frame` with **three** columns: (1) population name,
@@ -14,6 +14,11 @@ The function internally renames these to `popn`, `locus`, and `frequency`.}
 \item{pop.sizes}{A numeric (integer) vector of population sizes, with one
 element **per unique population** in `df`, in the same order as
 `unique(df$popn)`.}
+
+\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
+large matrix format, which is faster if the dataset is large 
+[default FALSE, because still in a testing phase].
+If you want to back convert use gl.gen2fbm and gl.fbm2gen.}
 }
 \value{
 A `genlight` object with:
@@ -49,29 +54,14 @@ set to `"control"` for all individuals. Locus allele labels are initialized
 to `"G/C"` as a placeholder. Computation of chromosomes and genotype strings
 is implemented with `Rcpp` for speed.
 }
-\section{Notes}{
-
-\itemize{
-  \item Input frequencies must lie in \[0, 1\]; one row per population–locus
-        combination is expected. For reproducibility, call `set.seed()` before
-        simulation.
-  \item The sampling assumes Hardy–Weinberg and linkage equilibrium; no LD or
-        relatedness is modeled. If `pop.sizes` contains odd numbers, the
-        alternating sex assignment may be imbalanced.
-  \item For consistent locus order across populations, ensure that each
-        population provides frequencies for the same set of loci.
-}
-}
-
 \examples{
-\dontrun{
+if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
 t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = T)
 r1 <- gl.allele.freq(t1, by='popxloc' )
 r2 <- r1[,c("popn",'locus',"frequency")]
 res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
 p1 <- gl.pcoa(res)
 gl.pcoa.plot(p1,res,zaxis = 3)
-}
 }
 \author{
 Custodian: Luis Mijangos -- Post to

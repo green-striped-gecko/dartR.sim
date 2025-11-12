@@ -29,6 +29,10 @@
 #' @param pop.sizes A numeric (integer) vector of population sizes, with one
 #'   element **per unique population** in `df`, in the same order as
 #'   `unique(df$popn)`.
+#' @param fbm If TRUE, the genlight object will be converted to a filebacked 
+#' large matrix format, which is faster if the dataset is large 
+#' [default FALSE, because still in a testing phase].
+#' If you want to back convert use gl.gen2fbm and gl.fbm2gen.
 #'
 #' @return
 #' A `genlight` object with:
@@ -41,17 +45,6 @@
 #'         (`"control"`).
 #' }
 #'
-#' @section Notes:
-#' \itemize{
-#'   \item Input frequencies must lie in \[0, 1\]; one row per population–locus
-#'         combination is expected. For reproducibility, call `set.seed()` before
-#'         simulation.
-#'   \item The sampling assumes Hardy–Weinberg and linkage equilibrium; no LD or
-#'         relatedness is modeled. If `pop.sizes` contains odd numbers, the
-#'         alternating sex assignment may be imbalanced.
-#'   \item For consistent locus order across populations, ensure that each
-#'         population provides frequencies for the same set of loci.
-#' }
 #' @author Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #'
@@ -60,19 +53,18 @@
 #' @export
 #'
 #' @examples
-#' \dontrun{
+#' if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
 #' t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = T)
 #' r1 <- gl.allele.freq(t1, by='popxloc' )
 #' r2 <- r1[,c("popn",'locus',"frequency")]
 #' res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
 #' p1 <- gl.pcoa(res)
 #' gl.pcoa.plot(p1,res,zaxis = 3)
-#' }
+
 
 gl.sim.ind.af <- function(df,
                           pop.sizes,
-                          seed = NULL,
-                          check.loci = TRUE) {
+                          fbm = FALSE) {
   # --- Basic validation --------------------------------------------------------
   if (!is.data.frame(df) || ncol(df) != 3L) {
     stop("'df' must be a data.frame with exactly three columns: ",
@@ -122,11 +114,6 @@ gl.sim.ind.af <- function(df,
     }
   }
   
-  # Optional reproducibility
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  
   # --- Ensure consistent locus set & order across populations ------------------
   # Define a canonical locus order from the whole df
   loci_all  <- unique(df$locus)
@@ -134,7 +121,7 @@ gl.sim.ind.af <- function(df,
   
   # Split per population and (optionally) check each has the same locus set
   df_pops <- split(df, df$popn)
-  if (check.loci) {
+  # if (check.loci) {
     bad <- vapply(df_pops, function(d) {
       !setequal(d$locus, loci_all)
     }, logical(1))
@@ -143,7 +130,7 @@ gl.sim.ind.af <- function(df,
            "Populations failing this check: ",
            paste(names(df_pops)[bad], collapse = ", "))
     }
-  }
+  # }
   # Reorder each population's table by canonical locus order
   df_pops <- lapply(df_pops, function(d) {
     d[match(loci_all, d$locus), , drop = FALSE]
@@ -263,5 +250,9 @@ gl.sim.ind.af <- function(df,
     gl <- utils.reset.flags(gl, verbose = 0)
   }
   
+  if (fbm) gl <- gl.gen2fbm(gl)
+  
   return(gl)
+  
+
 }
