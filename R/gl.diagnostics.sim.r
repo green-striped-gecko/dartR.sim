@@ -136,8 +136,8 @@ gl.diagnostics.sim <- function(x,
   expected_het_3$lab <- factor(expected_het_3$lab, levels = unique(expected_het_3$lab))
   
   p1 <- ggplot(data=expected_het_3, aes(x=gen,y=He,color=lab)) +
-    geom_line(size=0.75,linetype = "dashed") +
-    geom_line(data=he_pop,aes(x=gen,y=value,color=variable),size=1.5) +
+    geom_line(linewidth=0.75,linetype = "dashed") +
+    geom_line(data=he_pop,aes(x=gen,y=value,color=variable),linewidth=1.5) +
     labs(x="Generations",
          y="He", 
          title=paste("Rate of loss of heterozygosity\nacross generations population",
@@ -192,9 +192,9 @@ gl.diagnostics.sim <- function(x,
   generations_fst <- data.frame("gen"=generations_sim,"fst_obs"=fst_gen)
 
   p2 <- ggplot(generations_fst) +
-    geom_line(aes(x=gen,y=fst_obs,color="brown"),size=1) +
-    geom_hline(aes(yintercept = Fst_expected[1],color="Fst expected"),size=1)+
-    geom_vline(aes(xintercept = fst_equilibrium[1],color="Fst equilibrium"),size=1)+
+    geom_line(aes(x=gen,y=fst_obs,color="brown"),linewidth=1) +
+    geom_hline(aes(yintercept = Fst_expected[1],color="Fst expected"),linewidth=1)+
+    geom_vline(aes(xintercept = fst_equilibrium[1],color="Fst equilibrium"),linewidth=1)+
     labs(x="Generations", y="Fst", title=paste("Fst between populations:",paste(pops_fst,collapse = " ")))+ 
     scale_color_manual(values = c("deeppink","blue","chartreuse4"),labels=c("Fst observed", "Fst equilibrium" ,"Fst expected")) +
     plot_theme +
