@@ -56,7 +56,7 @@ is implemented with `Rcpp` for speed.
 }
 \examples{
 if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
-t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = T)
+t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = TRUE)
 r1 <- gl.allele.freq(t1, by='popxloc' )
 r2 <- r1[,c("popn",'locus',"frequency")]
 res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))

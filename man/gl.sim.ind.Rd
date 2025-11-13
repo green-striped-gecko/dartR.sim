@@ -4,7 +4,7 @@
 \alias{gl.sim.ind}
 \title{Simulates individuals based on allele frequencies}
 \usage{
-gl.sim.ind(x, n = 50, popname = "pop1")
+gl.sim.ind(x, n = 50, popname = "pop1", fbm = FALSE)
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
@@ -13,6 +13,10 @@ gl.sim.ind(x, n = 50, popname = "pop1")
 
 \item{popname}{A population name for the simulated individuals 
 [default "pop1"].}
+
+\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
+large matrix format, which is faster if the dataset is large 
+[default FALSE, because still in a testing phase].}
 }
 \value{
 A genlight object with n individuals.
@@ -33,6 +37,7 @@ The function can be used to simulate populations for sampling designs or for
    loci need to be removed, before the function is called.
 }
 \examples{
+if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 glsim
 ###Simulate drift over 10 generation

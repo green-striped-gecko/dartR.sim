@@ -40,3 +40,12 @@ utils::globalVariables(c("chromosome_name","phase1","same_line","number_pops_pha
   ))
 }
 
+.onLoad <- function(libname, pkgname) {
+  # Only set a default if user hasn’t set it already
+  if (is.null(getOption("dartR_fbm"))) {
+    val <- Sys.getenv("dartR_fbm", "")
+    # Accept a few truthy values: 1, true, yes, on (case-insensitive)
+    if (val=="TRUE") options(dartR_fbm = TRUE) else options(dartR_fbm=FALSE)
+  }
+}
+

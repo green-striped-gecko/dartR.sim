@@ -29,11 +29,15 @@
 #' number of populations). e.g. an entry in the 'emi.table[2,1]<- 5' means that
 #' five individuals emigrate from population 1 to population 2 (from=columns and
 #'  to=row) [default NULL].
+#' @param fbm If TRUE, the genlight object will be converted to a filebacked 
+#' large matrix format, which is faster if the dataset is large 
+#' [default FALSE, because still in a testing phase].
 #' @return A list or a single [depends on the input] genlight object, where
 #' emigration between population has happened
 #' @author Custodian: Bernd Gruber (Post to
 #' \url{https://groups.google.com/d/forum/dartr})
 #' @examples
+#' if (isTRUE(getOption("dartR_fbm"))) possums.gl <- gl.gen2fbm(possums.gl)
 #' x <- possums.gl
 #' #one individual moves from every population to
 #' #every other population
@@ -42,11 +46,13 @@
 #' np <- gl.sim.emigration(x, emi.table=emi.tab)
 #' np
 #' @export
+#' @importFrom dartR.base gl.gen2fbm
 
 gl.sim.emigration <- function(x,
                               perc.mig = NULL,
                               emi.m = NULL,
-                              emi.table = NULL) {
+                              emi.table = NULL,
+                              fbm = FALSE) {
     if (length(x) == 1)
         p <- seppop(x)
     else
@@ -95,5 +101,8 @@ gl.sim.emigration <- function(x,
         xout <- do.call("rbind", p)
     else
         xout <- p
+    
+    if (fbm) xout <- gl.gen2fbm(xout)
+    
     return(xout)
 }

@@ -4,14 +4,19 @@
 \alias{gl.sim.Neconst}
 \title{Simulate a population with constant mutation rate}
 \usage{
-gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = 0)
+gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, fbm = FALSE, verbose = 0)
 }
 \arguments{
-\item{ninds}{Number of individuals in the population.}
+\item{ninds}{Number of individuals in the population [required].}
 
-\item{nlocs}{Number of loci in the population.}
+\item{nlocs}{Number of loci in the population [required].}
 
-\item{mutation_rate}{Mutation rate per generation (default is 1e-8).}
+\item{mutation_rate}{Mutation rate per generation (default is 1e-8) 
+[default 1e-8].}
+
+\item{fbm}{If TRUE, the genlight object will be converted to a filebacked
+large matrix format, which is faster if the dataset is large
+[default FALSE, because still in a testing phase].}
 
 \item{verbose}{Verbosity level (default is 0).}
 }
@@ -19,13 +24,20 @@ gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = 0)
 A genlight object representing the simulated population.
 }
 \description{
-This function simulates a population with a constant mutation rate using a beta distribution for allele frequencies.
+This function simulates a population with a constant mutation 
+rate using a beta distribution for allele frequencies.
 }
 \details{
-The function generates a genlight object with the specified number of individuals and loci, simulating allele frequencies based on a beta distribution. The mutation rate is used to calculate theta, which in turn is the parameter in the beta function.
+The function generates a genlight object with the specified number 
+of individuals and loci, simulating allele frequencies based on a beta 
+distribution. The mutation rate is used to calculate theta, which in turn is 
+the parameter in the beta function.
 }
 \examples{
 # Simulate a population with 50 individuals and 4000 loci
 gg <- gl.sim.Neconst(ninds = 50, nlocs = 4000, mutation_rate = 1e-8, verbose = 0)
 dartR.popgen::gl.sfs(gg)
+}
+\author{
+Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 }

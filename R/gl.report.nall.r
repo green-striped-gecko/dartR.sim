@@ -32,7 +32,7 @@
 #' 
 #' @details
 #' The function estimates how sampling effort affects observed allelic diversity
-#' by repeatedly subsampling individuals from the **pooled** set of all
+#' by repeatedly subsampling individuals from the pooled set of all
 #' individuals at user-defined sample sizes (`simlevels`), with each subsample
 #' replicated (`reps` times). The maximum attainable allele count is first
 #' determined by pooling all individuals into a single group; all simulation
@@ -45,19 +45,19 @@
 #' (min–max across replicates) and (ii) points for each empirical population at
 #' its observed sample size and retained proportion.
 #'
-#' **How to use the output**
+#' How to use the output
 #'
-#' - **Assess genetic diversity and sampling sufficiency.** The curve indicates
+#' - Assess genetic diversity and sampling sufficiency. The curve indicates
 #'   how quickly allelic diversity accumulates with additional individuals, and
 #'   where diminishing returns begin.
-#' - **Interpret population points relative to the curve.**
+#' - Interpret population points relative to the curve.
 #'   \itemize{
-#'     \item *Above the curve*: population retains more allelic diversity than
+#'     \item Above the curve: population retains more allelic diversity than
 #'     expected for its sample size (e.g., unusually high diversity or more
 #'     private/low-frequency alleles).
-#'     \item *On/within the ribbon*: diversity consistent with random sampling
+#'     \item On/within the ribbon: diversity consistent with random sampling
 #'     from the pooled dataset at that size.
-#'     \item *Below the curve*: population retains fewer alleles than expected,
+#'     \item Below the curve: population retains fewer alleles than expected,
 #'     suggesting reduced diversity (e.g., drift, bottleneck), uneven missingness,
 #'     or data-quality issues.
 #'   }
@@ -84,10 +84,9 @@
 #' @author Custodian: Bernd Gruber -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
-#' \dontrun{
+#' if (isTRUE(getOption("dartR_fbm"))) possums.gl <- gl.gen2fbm(possums.gl)
 #' dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3),
 #' reps=5, ncores=2)
-#' }
 
 gl.report.nall <- function(x,
                            simlevels = seq(1, nInd(x), 5),

@@ -38,16 +38,14 @@
 #' @author Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
-#' \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
 #' 'ref_variables.csv', package = 'dartR.sim'),interactive_vars = FALSE)
 #' 
 #' res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
 #'  'sim_variables.csv', package ='dartR.sim'),ref_table=ref_table,
-#'  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+#'  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="20 20")
 #'  
-#'  res <- gl.diagnostics.sim(x=res_sim,Ne=50)
-#'  }
+#'  res <- gl.diagnostics.sim(x=res_sim, Ne=20)
 #'@references
 #'\itemize{
 #'\item Crow JF, Kimura M. An introduction to population genetics theory. An 

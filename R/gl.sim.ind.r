@@ -9,6 +9,9 @@
 #' @param n Number of individuals that should be simulated [default 50].
 #' @param popname A population name for the simulated individuals 
 #' [default "pop1"].
+#' @param fbm If TRUE, the genlight object will be converted to a filebacked 
+#' large matrix format, which is faster if the dataset is large 
+#' [default FALSE, because still in a testing phase].
 #' @return A genlight object with n individuals.
 #' @details
 #' The function can be used to simulate populations for sampling designs or for
@@ -21,8 +24,10 @@
 #'    loci need to be removed, before the function is called.
 #'
 #' @export
+#' @importFrom dartR.base gl.gen2fbm
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
+#' if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 #' glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 #' glsim
 #' ###Simulate drift over 10 generation
@@ -44,9 +49,10 @@
 
 gl.sim.ind <- function(x,
                        n = 50,
-                       popname = "pop1") {
+                       popname = "pop1",
+                       fbm = FALSE) {
   
-  # allelefequency of the population
+  # allele fequency of the population
   p <- as.matrix(x)
   alf <- colMeans(p, na.rm = T) / 2
   alfinds <- matrix(rep(alf, n), nrow = n, byrow = T)
@@ -66,6 +72,8 @@ gl.sim.ind <- function(x,
       position = position(x),
       pop = rep(popname, n)
     )
+  
+  if (fbm) glsim <- gl.gen2fbm(glsim)
   
   return(glsim)
 }
