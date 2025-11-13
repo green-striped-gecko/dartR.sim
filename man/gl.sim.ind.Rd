@@ -4,7 +4,7 @@
 \alias{gl.sim.ind}
 \title{Simulates individuals based on allele frequencies}
 \usage{
-gl.sim.ind(x, n = 50, popname = "pop1")
+gl.sim.ind(x, n = 50, popname = "pop1", fbm = FALSE)
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
@@ -14,6 +14,10 @@ gl.sim.ind(x, n = 50, popname = "pop1")
 \item{popname}{A population name for the simulated individuals 
  objects
 [default "pop1"].}
+
+\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
+large matrix format, which is faster if the dataset is large 
+[default FALSE, because still in a testing phase].}
 }
 \value{
 A genlight object with n individuals.
