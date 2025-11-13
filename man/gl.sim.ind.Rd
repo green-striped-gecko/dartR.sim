@@ -12,6 +12,7 @@ gl.sim.ind(x, n = 50, popname = "pop1", fbm = FALSE)
 \item{n}{Number of individuals that should be simulated [default 50].}
 
 \item{popname}{A population name for the simulated individuals 
+ objects
 [default "pop1"].}
 
 \item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
