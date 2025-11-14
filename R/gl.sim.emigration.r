@@ -46,7 +46,6 @@
 #' np <- gl.sim.emigration(x, emi.table=emi.tab)
 #' np
 #' @export
-# @importFrom dartR.base gl.gen2fbm
 
 gl.sim.emigration <- function(x,
                               perc.mig = NULL,

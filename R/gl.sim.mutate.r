@@ -16,7 +16,6 @@
 # [default FALSE, because still in a testing phase].
 #' @return Returns a genlight object with the applied mutations
 #' @export
-# @importFrom dartR.base gl.gen2fbm
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @examples
 # if (isTRUE(getOption("dartR_fbm"))) bandicoot.gl <- gl.gen2fbm(bandicoot.gl)

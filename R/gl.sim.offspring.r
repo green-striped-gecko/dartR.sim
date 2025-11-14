@@ -24,7 +24,6 @@
 #' @return A genlight object with n individuals.
 #' @importFrom stats runif
 #' @export
-# @importFrom dartR.base gl.gen2fbm
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @examples
 #' #Simulate 10 potential fathers

@@ -54,8 +54,6 @@ t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = TRUE)
 r1 <- gl.allele.freq(t1, by='popxloc' )
 r2 <- r1[,c("popn",'locus',"frequency")]
 res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
-p1 <- gl.pcoa(res)
-gl.pcoa.plot(p1,res,zaxis = 3)
 }
 \author{
 Custodian: Luis Mijangos -- Post to
