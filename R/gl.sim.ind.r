@@ -25,7 +25,6 @@
 #'    loci need to be removed, before the function is called.
 #'
 #' @export
-# @importFrom dartR.base gl.gen2fbm
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
 # if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)

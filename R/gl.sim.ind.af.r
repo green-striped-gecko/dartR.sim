@@ -50,8 +50,6 @@
 #'
 #' @importFrom Rcpp cppFunction
 #' @importFrom data.table rbindlist
-# @importFrom dartR.base gl.gen2fbm
-#' @rawNamespace import(adegenet, except = glMean)
 #' @export
 #'
 #' @examples
@@ -60,9 +58,6 @@
 #' r1 <- gl.allele.freq(t1, by='popxloc' )
 #' r2 <- r1[,c("popn",'locus',"frequency")]
 #' res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
-#' p1 <- gl.pcoa(res)
-#' gl.pcoa.plot(p1,res,zaxis = 3)
-
 
 gl.sim.ind.af <- function(df,
                           pop.sizes

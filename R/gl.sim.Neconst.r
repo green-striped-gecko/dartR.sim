@@ -17,7 +17,6 @@
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @importFrom stats dbeta
 #' @importFrom dartR.popgen gl.sfs
-# @importFrom dartR.base gl.gen2fbm
 #' @export
 #' @examples
 #' # Simulate a population with 50 individuals and 4000 loci
