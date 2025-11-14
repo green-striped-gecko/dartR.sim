@@ -4,13 +4,7 @@
 \alias{gl.sim.emigration}
 \title{Simulates emigration between populations}
 \usage{
-gl.sim.emigration(
-  x,
-  perc.mig = NULL,
-  emi.m = NULL,
-  emi.table = NULL,
-  fbm = FALSE
-)
+gl.sim.emigration(x, perc.mig = NULL, emi.m = NULL, emi.table = NULL)
 }
 \arguments{
 \item{x}{A genlight or list of genlight objects [required].}
@@ -26,10 +20,6 @@ emigration as specified in the matrix (a square matrix of dimension of the
 number of populations). e.g. an entry in the 'emi.table[2,1]<- 5' means that
 five individuals emigrate from population 1 to population 2 (from=columns and
  to=row) [default NULL].}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
-large matrix format, which is faster if the dataset is large 
-[default FALSE, because still in a testing phase].}
 }
 \value{
 A list or a single [depends on the input] genlight object, where
@@ -56,7 +46,6 @@ emigration call(as there is no check, so an individual moved from population
 1 to 2 can move again from population 2 to 3).
 }
 \examples{
-if (isTRUE(getOption("dartR_fbm"))) possums.gl <- gl.gen2fbm(possums.gl)
 x <- possums.gl
 #one individual moves from every population to
 #every other population

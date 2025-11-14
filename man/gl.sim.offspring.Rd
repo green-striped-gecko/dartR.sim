@@ -10,7 +10,6 @@ gl.sim.offspring(
   noffpermother,
   sexratio = 0.5,
   popname = "offspring",
-  fbm = FALSE,
   verbose = NULL
 )
 }
@@ -26,10 +25,6 @@ gl.sim.offspring(
 
 \item{popname}{population name of the returned genlight object 
 [default "offspring"].}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
-large matrix format, which is faster if the dataset is large 
-[default FALSE, because still in a testing phase].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 progress log; 3, progress and results summary; 5, full report

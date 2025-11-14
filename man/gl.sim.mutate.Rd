@@ -4,17 +4,13 @@
 \alias{gl.sim.mutate}
 \title{Simulates mutations within a genlight object}
 \usage{
-gl.sim.mutate(x, mut.rate = 1e-06, fbm = FALSE)
+gl.sim.mutate(x, mut.rate = 1e-06)
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
 
 \item{mut.rate}{Constant mutation rate over nInd*nLoc*2 possible locations
 [default 1e-6].}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
-large matrix format, which is faster if the dataset is large 
-[default FALSE, because still in a testing phase].}
 }
 \value{
 Returns a genlight object with the applied mutations
@@ -28,7 +24,6 @@ and in principle 'double mutations' at the same loci can occur, but should be
 rare.
 }
 \examples{
-if (isTRUE(getOption("dartR_fbm"))) bandicoot.gl <- gl.gen2fbm(bandicoot.gl)
 b2 <- gl.sim.mutate(bandicoot.gl,mut.rate=1e-4 )
 #check the mutations that have occurred
 table(as.matrix(bandicoot.gl), as.matrix(b2))

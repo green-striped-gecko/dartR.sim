@@ -41,24 +41,22 @@ utils::globalVariables(c("chromosome_name","phase1","same_line","number_pops_pha
 }
 
 
-## returns NULL if the 'fbm' slot is missing OR is NULL
-.fbm_or_null <- function(x) {
-  if (methods::.hasSlot(x, "fbm")) {
-    val <- methods::slot(x, "fbm")
-    return(if (is.null(val)) NULL else val)
-  }
-  NULL
-}
-
-
-
-.onLoad <- function(libname, pkgname) {
-  # Only set a default if user hasn’t set it already
-  if (is.null(getOption("dartR_fbm"))) {
-    val <- Sys.getenv("dartR_fbm", "")
-    # Accept a few truthy values: 1, true, yes, on (case-insensitive)
-    if (val=="TRUE") options(dartR_fbm = TRUE) else options(dartR_fbm=FALSE)
-  }
-}
+# ## returns NULL if the 'fbm' slot is missing OR is NULL
+# .fbm_or_null <- function(x) {
+#   if (methods::.hasSlot(x, "fbm")) {
+#     val <- methods::slot(x, "fbm")
+#     return(if (is.null(val)) NULL else val)
+#   }
+#   NULL
+# }
+# 
+# .onLoad <- function(libname, pkgname) {
+#   # Only set a default if user hasn’t set it already
+#   if (is.null(getOption("dartR_fbm"))) {
+#     val <- Sys.getenv("dartR_fbm", "")
+#     # Accept a few truthy values: 1, true, yes, on (case-insensitive)
+#     if (val=="TRUE") options(dartR_fbm = TRUE) else options(dartR_fbm=FALSE)
+#   }
+# }
 
 

@@ -5,9 +5,9 @@
 #' @param nlocs Number of loci in the population [required].
 #' @param mutation_rate Mutation rate per generation (default is 1e-8) 
 #' [default 1e-8].
-#' @param fbm If TRUE, the genlight object will be converted to a filebacked
-#' large matrix format, which is faster if the dataset is large
-#' [default FALSE, because still in a testing phase].
+# @param fbm If TRUE, the genlight object will be converted to a filebacked
+# large matrix format, which is faster if the dataset is large
+# [default FALSE, because still in a testing phase].
 #' @param verbose Verbosity level (default is 0).
 #' @return A genlight object representing the simulated population.
 #' @details The function generates a genlight object with the specified number 
@@ -17,7 +17,7 @@
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @importFrom stats dbeta
 #' @importFrom dartR.popgen gl.sfs
-#' @importFrom dartR.base gl.gen2fbm
+# @importFrom dartR.base gl.gen2fbm
 #' @export
 #' @examples
 #' # Simulate a population with 50 individuals and 4000 loci
@@ -27,7 +27,7 @@
 gl.sim.Neconst <- function(ninds,
                            nlocs,
                            mutation_rate = 1e-8,
-                           fbm = FALSE,
+                           # fbm = FALSE,
                            verbose = 0) {
   # Function to calculate allele frequency distribution
   allele_frequency_distribution <- function(pop_size, mutation_rate, num_bins = 100) {
@@ -75,7 +75,7 @@ gl.sim.Neconst <- function(ninds,
 
   inds <- gl.compliance.check(inds, verbose = 0)
   
-  if (fbm) inds <- gl.gen2fbm(inds)
+  # if (fbm) inds <- gl.gen2fbm(inds)
   
   return(inds)
 }
