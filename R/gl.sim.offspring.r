@@ -15,16 +15,16 @@
 #' (females / females +males, 1 equals 100 percent females) [default 0.5.].
 #' @param popname population name of the returned genlight object 
 #' [default "offspring"].
-#' @param fbm If TRUE, the genlight object will be converted to a filebacked 
-#' large matrix format, which is faster if the dataset is large 
-#' [default FALSE, because still in a testing phase].
+# @param fbm If TRUE, the genlight object will be converted to a filebacked 
+# large matrix format, which is faster if the dataset is large 
+# [default FALSE, because still in a testing phase].
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 #' progress log; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
 #' @return A genlight object with n individuals.
 #' @importFrom stats runif
 #' @export
-#' @importFrom dartR.base gl.gen2fbm
+# @importFrom dartR.base gl.gen2fbm
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @examples
 #' #Simulate 10 potential fathers
@@ -38,7 +38,7 @@ gl.sim.offspring <- function(fathers,
                              noffpermother,
                              sexratio = 0.5, 
                              popname = "offspring",
-                             fbm = FALSE,
+                             # fbm = FALSE,
                              verbose = NULL) {
   
   # SET VERBOSITY
@@ -84,7 +84,7 @@ gl.sim.offspring <- function(fathers,
         factor(ifelse(runif(nInd(gl2)) < sexratio, "female", "male"))
     gl2@other$sex <- sr
     
-    if (fbm) gl2 <- gl.gen2fbm(gl2)
+    # if (fbm) gl2 <- gl.gen2fbm(gl2)
     
     return(gl2)
 }

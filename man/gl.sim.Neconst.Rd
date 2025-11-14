@@ -4,7 +4,7 @@
 \alias{gl.sim.Neconst}
 \title{Simulate a population with constant mutation rate}
 \usage{
-gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, fbm = FALSE, verbose = 0)
+gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = 0)
 }
 \arguments{
 \item{ninds}{Number of individuals in the population [required].}
@@ -13,10 +13,6 @@ gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, fbm = FALSE, verbose = 0)
 
 \item{mutation_rate}{Mutation rate per generation (default is 1e-8) 
 [default 1e-8].}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked
-large matrix format, which is faster if the dataset is large
-[default FALSE, because still in a testing phase].}
 
 \item{verbose}{Verbosity level (default is 0).}
 }

@@ -29,10 +29,10 @@
 #' @param pop.sizes A numeric (integer) vector of population sizes, with one
 #'   element **per unique population** in `df`, in the same order as
 #'   `unique(df$popn)`.
-#' @param fbm If TRUE, the genlight object will be converted to a filebacked 
-#' large matrix format, which is faster if the dataset is large 
-#' [default FALSE, because still in a testing phase].
-#' If you want to back convert use gl.gen2fbm and gl.fbm2gen.
+# @param fbm If TRUE, the genlight object will be converted to a filebacked 
+# large matrix format, which is faster if the dataset is large 
+# [default FALSE, because still in a testing phase].
+# If you want to back convert use gl.gen2fbm and gl.fbm2gen.
 #'
 #' @return
 #' A `genlight` object with:
@@ -50,12 +50,12 @@
 #'
 #' @importFrom Rcpp cppFunction
 #' @importFrom data.table rbindlist
-#' @importFrom dartR.base gl.gen2fbm
+# @importFrom dartR.base gl.gen2fbm
 #' @rawNamespace import(adegenet, except = glMean)
 #' @export
 #'
 #' @examples
-#' if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
+# if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
 #' t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = TRUE)
 #' r1 <- gl.allele.freq(t1, by='popxloc' )
 #' r2 <- r1[,c("popn",'locus',"frequency")]
@@ -65,8 +65,10 @@
 
 
 gl.sim.ind.af <- function(df,
-                          pop.sizes,
-                          fbm = FALSE) {
+                          pop.sizes
+                          # ,
+                          # fbm = FALSE
+                          ) {
   # --- Basic validation --------------------------------------------------------
   if (!is.data.frame(df) || ncol(df) != 3L) {
     stop("'df' must be a data.frame with exactly three columns: ",
@@ -252,7 +254,7 @@ gl.sim.ind.af <- function(df,
     gl <- utils.reset.flags(gl, verbose = 0)
   }
   
-  if (fbm) gl <- gl.gen2fbm(gl)
+  # if (fbm) gl <- gl.gen2fbm(gl)
   
   return(gl)
   

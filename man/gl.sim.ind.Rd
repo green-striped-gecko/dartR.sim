@@ -4,7 +4,7 @@
 \alias{gl.sim.ind}
 \title{Simulates individuals based on allele frequencies}
 \usage{
-gl.sim.ind(x, n = 50, popname = "pop1", fbm = FALSE)
+gl.sim.ind(x, n = 50, popname = "pop1")
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
@@ -14,10 +14,6 @@ gl.sim.ind(x, n = 50, popname = "pop1", fbm = FALSE)
 \item{popname}{A population name for the simulated individuals 
  objects
 [default "pop1"].}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
-large matrix format, which is faster if the dataset is large 
-[default FALSE, because still in a testing phase].}
 }
 \value{
 A genlight object with n individuals.
@@ -38,7 +34,6 @@ The function can be used to simulate populations for sampling designs or for
    loci need to be removed, before the function is called.
 }
 \examples{
-if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 glsim
 ###Simulate drift over 10 generation
@@ -47,12 +42,10 @@ glsim
 # Simulate 20 individuals with no structure and 50 SNP loci
 founder <- glSim(n.ind = 20, n.snp.nonstruc = 50, ploidy=2)
 #number of fixed loci in the first generation
-
 res <- sum(colMeans(as.matrix(founder), na.rm=TRUE) \%\%2 ==0)
 simgl <- founder
 #49 generations of only 10 individuals
-for (i in 2:50)
-{
+for (i in 2:50) {
    simgl <- gl.sim.ind(simgl, n=10, popname='sims')
    res[i]<- sum(colMeans(as.matrix(simgl), na.rm=TRUE) \%\%2 ==0)
 }

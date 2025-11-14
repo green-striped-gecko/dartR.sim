@@ -4,7 +4,7 @@
 \alias{gl.sim.ind.af}
 \title{Simulate diploid genotypes from per-population allele frequencies}
 \usage{
-gl.sim.ind.af(df, pop.sizes, fbm = FALSE)
+gl.sim.ind.af(df, pop.sizes)
 }
 \arguments{
 \item{df}{A `data.frame` with **three** columns: (1) population name,
@@ -14,11 +14,6 @@ The function internally renames these to `popn`, `locus`, and `frequency`.}
 \item{pop.sizes}{A numeric (integer) vector of population sizes, with one
 element **per unique population** in `df`, in the same order as
 `unique(df$popn)`.}
-
-\item{fbm}{If TRUE, the genlight object will be converted to a filebacked 
-large matrix format, which is faster if the dataset is large 
-[default FALSE, because still in a testing phase].
-If you want to back convert use gl.gen2fbm and gl.fbm2gen.}
 }
 \value{
 A `genlight` object with:
@@ -55,7 +50,6 @@ to `"G/C"` as a placeholder. Computation of chromosomes and genotype strings
 is implemented with `Rcpp` for speed.
 }
 \examples{
-if (isTRUE(getOption("dartR_fbm"))) platypus.gl <- gl.gen2fbm(platypus.gl)
 t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = TRUE)
 r1 <- gl.allele.freq(t1, by='popxloc' )
 r2 <- r1[,c("popn",'locus',"frequency")]
