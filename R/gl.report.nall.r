@@ -84,9 +84,11 @@
 #' @author Custodian: Bernd Gruber -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
+#' \donttest{
 # if (isTRUE(getOption("dartR_fbm"))) possums.gl <- gl.gen2fbm(possums.gl)
 #' dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3),
 #' reps=5, ncores=2)
+#' }
 
 gl.report.nall <- function(x,
                            simlevels = seq(1, nInd(x), 5),
