@@ -12,6 +12,7 @@ gl.sim.ind(x, n = 50, popname = "pop1")
 \item{n}{Number of individuals that should be simulated [default 50].}
 
 \item{popname}{A population name for the simulated individuals 
+ objects
 [default "pop1"].}
 }
 \value{
@@ -41,12 +42,10 @@ glsim
 # Simulate 20 individuals with no structure and 50 SNP loci
 founder <- glSim(n.ind = 20, n.snp.nonstruc = 50, ploidy=2)
 #number of fixed loci in the first generation
-
 res <- sum(colMeans(as.matrix(founder), na.rm=TRUE) \%\%2 ==0)
 simgl <- founder
 #49 generations of only 10 individuals
-for (i in 2:50)
-{
+for (i in 2:50) {
    simgl <- gl.sim.ind(simgl, n=10, popname='sims')
    res[i]<- sum(colMeans(as.matrix(simgl), na.rm=TRUE) \%\%2 ==0)
 }

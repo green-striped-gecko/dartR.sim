@@ -74,9 +74,9 @@ ref_table <- gl.sim.WF.table(file_var=system.file('extdata',
 
 res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
  'sim_variables.csv', package ='dartR.sim'),ref_table=ref_table,
- interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+ interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="10 10")
  
- res <- gl.diagnostics.sim(x=res_sim,Ne=50)
+ res <- gl.diagnostics.sim(x=res_sim, Ne=10)
  }
 }
 \references{

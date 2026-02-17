@@ -10,7 +10,7 @@ gl.sim.mutate(x, mut.rate = 1e-06)
 \item{x}{Name of the genlight object containing the SNP data [required].}
 
 \item{mut.rate}{Constant mutation rate over nInd*nLoc*2 possible locations
-[default 1e-6]}
+[default 1e-6].}
 }
 \value{
 Returns a genlight object with the applied mutations

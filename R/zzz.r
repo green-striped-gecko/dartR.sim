@@ -2,7 +2,7 @@
 #'
 #' Setting up dartR.sim
 #' @import adegenet
-#' @import dartR.base
+#' @importFrom dartR.base theme_dartR gl.check.verbosity gl.check.wd utils.flag.start gl.He gl.colors gl2gi utils.plot.save utils.check.datatype gl.filter.allna gl.compliance.check gl.keep.loc gl.alf utils.reset.flags
 #' @import dartR.data
 #' @import ggplot2
 #' @importFrom utils packageVersion head read.csv tail
@@ -39,4 +39,24 @@ utils::globalVariables(c("chromosome_name","phase1","same_line","number_pops_pha
     )
   ))
 }
+
+
+# ## returns NULL if the 'fbm' slot is missing OR is NULL
+# .fbm_or_null <- function(x) {
+#   if (methods::.hasSlot(x, "fbm")) {
+#     val <- methods::slot(x, "fbm")
+#     return(if (is.null(val)) NULL else val)
+#   }
+#   NULL
+# }
+# 
+# .onLoad <- function(libname, pkgname) {
+#   # Only set a default if user hasn’t set it already
+#   if (is.null(getOption("dartR_fbm"))) {
+#     val <- Sys.getenv("dartR_fbm", "")
+#     # Accept a few truthy values: 1, true, yes, on (case-insensitive)
+#     if (val=="TRUE") options(dartR_fbm = TRUE) else options(dartR_fbm=FALSE)
+#   }
+# }
+
 

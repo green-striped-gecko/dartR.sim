@@ -8,7 +8,11 @@
 #' @param x Name of the genlight object containing the SNP data [required].
 #' @param n Number of individuals that should be simulated [default 50].
 #' @param popname A population name for the simulated individuals 
+#'  objects
 #' [default "pop1"].
+# @param fbm If TRUE, the genlight object will be converted to a filebacked 
+# large matrix format, which is faster if the dataset is large 
+# [default FALSE, because still in a testing phase].
 #' @return A genlight object with n individuals.
 #' @details
 #' The function can be used to simulate populations for sampling designs or for
@@ -23,6 +27,7 @@
 #' @export
 #' @author Bernd Gruber (bernd.gruber@@canberra.edu.au)
 #' @examples
+# if (isTRUE(getOption("dartR_fbm"))) testset.gl <- gl.gen2fbm(testset.gl)
 #' glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
 #' glsim
 #' ###Simulate drift over 10 generation
@@ -31,12 +36,10 @@
 #' # Simulate 20 individuals with no structure and 50 SNP loci
 #' founder <- glSim(n.ind = 20, n.snp.nonstruc = 50, ploidy=2)
 #' #number of fixed loci in the first generation
-#'
 #' res <- sum(colMeans(as.matrix(founder), na.rm=TRUE) %%2 ==0)
 #' simgl <- founder
 #' #49 generations of only 10 individuals
-#' for (i in 2:50)
-#' {
+#' for (i in 2:50) {
 #'    simgl <- gl.sim.ind(simgl, n=10, popname='sims')
 #'    res[i]<- sum(colMeans(as.matrix(simgl), na.rm=TRUE) %%2 ==0)
 #' }
@@ -44,9 +47,12 @@
 
 gl.sim.ind <- function(x,
                        n = 50,
-                       popname = "pop1") {
+                       popname = "pop1"
+                       # ,
+                       # fbm = FALSE
+                       ) {
   
-  # allelefequency of the population
+  # allele fequency of the population
   p <- as.matrix(x)
   alf <- colMeans(p, na.rm = T) / 2
   alfinds <- matrix(rep(alf, n), nrow = n, byrow = T)
@@ -54,11 +60,13 @@ gl.sim.ind <- function(x,
     apply(alfinds, c(1, 2), function(x)
       sample(0:2, size = 1, prob = c((1 - x)^2, 2 * x * (1 - x), x^2)))
   # now create genlight objects.....
+    
   
   glsim <-
     new(
-      "genlight",
+      "dartR",
       gen = simind,
+      fbm = NULL,
       ploidy = 2,
       ind.names = 1:n,
       loc.names = locNames(x),
@@ -67,5 +75,7 @@ gl.sim.ind <- function(x,
       pop = rep(popname, n)
     )
   
+  # if (!is.null(.fbm_or_null(x))) glsim <- gl.gen2fbm(glsim)
+    
   return(glsim)
 }

@@ -10,17 +10,24 @@
 #'
 #' @param x Name of the genlight object containing the SNP data [required].
 #' @param mut.rate Constant mutation rate over nInd*nLoc*2 possible locations
-#'  [default 1e-6]
+#'  [default 1e-6].
+# @param fbm If TRUE, the genlight object will be converted to a filebacked 
+# large matrix format, which is faster if the dataset is large 
+# [default FALSE, because still in a testing phase].
 #' @return Returns a genlight object with the applied mutations
 #' @export
 #' @author Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
 #' @examples
+# if (isTRUE(getOption("dartR_fbm"))) bandicoot.gl <- gl.gen2fbm(bandicoot.gl)
 #' b2 <- gl.sim.mutate(bandicoot.gl,mut.rate=1e-4 )
 #' #check the mutations that have occurred
 #' table(as.matrix(bandicoot.gl), as.matrix(b2))
 
 gl.sim.mutate <- function(x,
-                          mut.rate = 1e-06) {
+                          mut.rate = 1e-06
+                          # ,
+                          # fbm = FALSE
+                          ) {
     nm <- rbinom(1, nInd(x) * nLoc(x) * 2, mut.rate)
     for (ii in 1:nm) {
         ri <- sample(1:nInd(x), 1)
@@ -38,5 +45,8 @@ gl.sim.mutate <- function(x,
             x@gen[[ri]] <- new("SNPbin", xx)
         }  #end missing
     }
+    
+    # if (fbm) x <- gl.gen2fbm(x)
+    
     return(x)
 }
