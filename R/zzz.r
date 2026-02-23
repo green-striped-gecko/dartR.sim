@@ -1,7 +1,7 @@
 #' Setting up the package
 #'
 #' Setting up dartR.sim
-#' @import adegenet
+#' @rawNamespace import(adegenet, except = c(glMean, glSum))
 #' @importFrom dartR.base theme_dartR gl.check.verbosity gl.check.wd utils.flag.start gl.He gl.colors gl2gi utils.plot.save utils.check.datatype gl.filter.allna gl.compliance.check gl.keep.loc gl.alf utils.reset.flags
 #' @import dartR.data
 #' @import ggplot2
