@@ -2,7 +2,7 @@
 % Please edit documentation in R/gl.report.nall.r
 \name{gl.report.nall}
 \alias{gl.report.nall}
-\title{Allele Count Reporting and Rarefaction Curve Simulation}
+\title{Report allelic retention and simulate a rarefaction curve}
 \usage{
 gl.report.nall(
   x,
@@ -23,27 +23,28 @@ The object needs to have no missing data as subsampling from missing data
 is not possible. So we recommend to filter by callrate using a threshold
 of 1 [required].}
 
-\item{simlevels}{a vector that defines the different levels the combined
+\item{simlevels}{A vector that defines the different levels the combined
 population should be subsampled [default seq(1,nInd(x),5)].}
 
-\item{reps}{number of replicates per subsample level [default 10].}
+\item{reps}{Number of replicate subsamples per sample size [default 10].}
 
 \item{plot.colors.pop}{A color palette for population plots or a list with
 as many colors as there are populations in the dataset 
 [default gl.colors("dis")].}
 
-\item{ncores}{number of cores to be used for parallel processing 
+\item{ncores}{Number of cores to be used for parallel processing 
 [default 10].}
 
 \item{plot.display}{Specify if plot is to be produced [default TRUE].}
 
-\item{plot.theme}{User specified theme [default theme_dartR()].}
+\item{plot.theme}{A `ggplot2` theme object for styling the plot
+[default theme_dartR()].}
 
 \item{plot.dir}{Directory to save the plot RDS files [default as specified
-by the global working directory or tempdir()]}
+by the global working directory or tempdir()].}
 
 \item{plot.file}{Filename (minus extension) for the RDS plot file
-[Required for plot save]}
+[Required for plot save].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 progress log; 3, progress and results summary; 5, full report
@@ -51,37 +52,60 @@ progress log; 3, progress and results summary; 5, full report
 }
 \value{
 A list with three elements:
-\itemize{ 
-\item 1. A data frame with the number of simulated alleles for each simlevel
-(mean, min and mix)
-\item 2. A data frame with the number of alleles of each subpopulation
-\item 3. A ggplot object with the rarefaction curve of alleles for all
-individuals combined
+\itemize{
+  \item `sim`: `data.frame` with columns `Npop` (sample size),
+  `mnall` (mean proportion retained), `low` (minimum), and `high` (maximum)
+  across replicates.
+  \item `points`: `data.frame` with observed per-population values at their
+  actual sample sizes (columns include `popname`, `Npop`, and scaled `N.all`).
+  \item `p1`: a `ggplot` object showing the rarefaction curve, uncertainty
+  ribbon, and per-population points.
 }
 }
 \description{
-The function reports allele counts for each population and simulates a
-rarefaction curve. This curve demonstrates the proportion of the total 
-allelic diversity captured as increasing numbers of individuals are 
-subsampled from the combined dataset.
+This function reports per-population allele counts and simulates a
+rarefaction-style curve showing the proportion of the dataset’s total allelic
+diversity captured as progressively more individuals are sampled.
 }
 \details{
-To assess the effect of sample size on allelic diversity, the function 
-simulates subsampling at various levels (as specified by the `simlevels` 
-argument) and replicates this process (`reps` times). The maximum number 
-of alleles is determined from a pooled population of all individuals, and 
-simulation results are normalized to this maximum value. Finally, the 
-function aggregates the simulation outputs to yield the mean, minimum, 
-and maximum proportions of allele retention for each sample size, and 
-produces a plot of the rarefaction curve and the allele counts for each 
-population.
+The function estimates how sampling effort affects observed allelic diversity
+by repeatedly subsampling individuals from the pooled set of all
+individuals at user-defined sample sizes (`simlevels`), with each subsample
+replicated (`reps` times). The maximum attainable allele count is first
+determined by pooling all individuals into a single group; all simulation
+outputs and per-population observations are then normalized to this pooled
+maximum and expressed as a proportion of alleles retained.
+
+For each target sample size, replicated subsamples are aggregated to yield
+the mean, minimum, and maximum proportions of alleles retained. A plot is
+produced showing (i) the mean rarefaction curve with an uncertainty ribbon
+(min–max across replicates) and (ii) points for each empirical population at
+its observed sample size and retained proportion.
+
+How to use the output
+
+- Assess genetic diversity and sampling sufficiency. The curve indicates
+  how quickly allelic diversity accumulates with additional individuals, and
+  where diminishing returns begin.
+- Interpret population points relative to the curve.
+  \itemize{
+    \item Above the curve: population retains more allelic diversity than
+    expected for its sample size (e.g., unusually high diversity or more
+    private/low-frequency alleles).
+    \item On/within the ribbon: diversity consistent with random sampling
+    from the pooled dataset at that size.
+    \item Below the curve: population retains fewer alleles than expected,
+    suggesting reduced diversity (e.g., drift, bottleneck), uneven missingness,
+    or data-quality issues.
+  }
 }
 \examples{
-\dontrun{
+\donttest{
 dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3),
 reps=5, ncores=2)
 }
 }
 \author{
-Bernd Gruber (bernd.gruber@canberra.edu.au)
+Custodian: Bernd Gruber -- Post to
+\url{https://groups.google.com/d/forum/dartr}
 }

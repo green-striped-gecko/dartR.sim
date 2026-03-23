@@ -70,13 +70,13 @@ dispersal rate and n the number of subpopulations (always 2).
 \examples{
 \donttest{
 ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
-'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
+'ref_variables.csv', package = 'dartR.sim'),interactive_vars = FALSE)
 
 res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
- 'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
- interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+ 'sim_variables.csv', package ='dartR.sim'),ref_table=ref_table,
+ interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="10 10")
  
- res <- gl.diagnostics.sim(x=res_sim,Ne=50)
+ res <- gl.diagnostics.sim(x=res_sim, Ne=10)
  }
 }
 \references{
@@ -86,9 +86,6 @@ introduction to population genetics theory. 1970.
 \item Takahata N. Gene identity and genetic differentiation of populations in 
 the finite island model. Genetics. 1983;104(3):497-512.
  }
-}
-\seealso{
-\code{\link{gl.filter.callrate}}
 }
 \author{
 Custodian: Luis Mijangos -- Post to

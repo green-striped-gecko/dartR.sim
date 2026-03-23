@@ -9,9 +9,10 @@
 #' Hardy-Weinberg equilibrium. 
 #' 
 #' See documentation and tutorial for a complete description of the simulations.
-#' These documents can be accessed at http://georges.biomatix.org/dartR 
+#' These documents can be accessed at 
+#' https://github.com/green-striped-gecko/dartR/wiki/Simulations-tutorial
 #' 
-#' Take into account that the simulations will take a little bit longer the
+#' Take into account that the simulations will take a little longer the
 #' first time you use the function gl.sim.WF.run() because C++ functions must
 #' be compiled.
 #' @param file_var Path of the variables file 'sim_variables.csv' (see details) 
@@ -38,38 +39,34 @@
 #' @param ... Any variable and its value can be added separately within the 
 #' function, will be changed over the input value supplied by the csv file. See 
 #' tutorial. 
-#' @details
-#' (Further detailed description of simulation variables and processes...)
 #' @return Returns genlight objects with simulated data.
 #' @author Custodian: Luis Mijangos
 #' @examples
-#'  \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
-#' "ref_variables.csv", package = "dartR.data"),interactive_vars = FALSE)
+#' "ref_variables.csv", package = "dartR.sim"),interactive_vars = FALSE)
 #' 
 #' res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
-#'  "sim_variables.csv", package ="dartR.data"),ref_table=ref_table,
+#'  "sim_variables.csv", package ="dartR.sim"),ref_table=ref_table,
 #'  interactive_vars = FALSE)
-#'  }
 #' @seealso \code{\link{gl.sim.WF.table}}
 #' @family simulation functions
 #' @import stats
 #' @import shiny
 #' @export
 
-gl.sim.WF.run <-
-  function(file_var,
-           ref_table,
-           x = NULL,
-           file_dispersal = NULL,
-           number_iterations = 1,
-           every_gen = 10,
-           sample_percent = 50,
-           store_phase1 = FALSE,
-           interactive_vars = TRUE,
-           seed = NULL,
-           verbose = NULL,
-           ...) {
+gl.sim.WF.run <- function(file_var,
+                          ref_table,
+                          x = NULL,
+                          file_dispersal = NULL,
+                          number_iterations = 1,
+                          every_gen = 10,
+                          sample_percent = 50,
+                          store_phase1 = FALSE,
+                          interactive_vars = TRUE,
+                          seed = NULL,
+                          verbose = NULL,
+                          ...) {
+  
     
     # -------------------------------
     # SET SEED FOR REPRODUCIBILITY
@@ -103,6 +100,8 @@ gl.sim.WF.run <-
       ))
       return(-1)
     }
+    
+    replace_parents <- NULL
     
     # -------------------------------
     # RETRIEVE SIMULATION VARIABLES
@@ -450,6 +449,7 @@ gl.sim.WF.run <-
         pop[, 2] <- pop_n   # Population identifier
         pop[, 3] <- chr_pops[[pop_n]][1]  # First chromosome
         pop[, 4] <- chr_pops[[pop_n]][2]  # Second chromosome
+        pop$id <- paste0("0_",pop_n,"_",1:nrow(pop)) # ID
         
         # If real frequency data is provided and location information is used:
         if (real_freq == TRUE & real_loc == TRUE) {
@@ -655,7 +655,7 @@ gl.sim.WF.run <-
         # REPRODUCTION PHASE
         # -------------------------------
         offspring_list <- lapply(pops_vector, function(x) {
-          reproduction(
+          tmp_rep <- reproduction(
             pop = pop_list[[x]],
             pop_number = x,
             pop_size = population_size[x],
@@ -665,8 +665,12 @@ gl.sim.WF.run <-
             recom = recombination,
             r_males = recombination_males,
             r_map_1 = recombination_map,
-            n_loc = loci_number
+            n_loc = loci_number,
+            gen = generation,
+            rep_parents = replace_parents
           )
+          tmp_rep$id <- paste0(generation,"_",x,"_",1:nrow(tmp_rep))
+          return(tmp_rep)
         })
         
         # -------------------------------

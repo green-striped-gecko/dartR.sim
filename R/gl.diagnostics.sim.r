@@ -40,13 +40,13 @@
 #' @examples
 #' \donttest{
 #' ref_table <- gl.sim.WF.table(file_var=system.file('extdata', 
-#' 'ref_variables.csv', package = 'dartR.data'),interactive_vars = FALSE)
+#' 'ref_variables.csv', package = 'dartR.sim'),interactive_vars = FALSE)
 #' 
 #' res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
-#'  'sim_variables.csv', package ='dartR.data'),ref_table=ref_table,
-#'  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="50 50")
+#'  'sim_variables.csv', package ='dartR.sim'),ref_table=ref_table,
+#'  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="10 10")
 #'  
-#'  res <- gl.diagnostics.sim(x=res_sim,Ne=50)
+#'  res <- gl.diagnostics.sim(x=res_sim, Ne=10)
 #'  }
 #'@references
 #'\itemize{
@@ -55,7 +55,6 @@
 #'\item Takahata N. Gene identity and genetic differentiation of populations in 
 #'the finite island model. Genetics. 1983;104(3):497-512.
 #'  }
-#' @seealso \code{\link{gl.filter.callrate}}
 #' @export
 
 gl.diagnostics.sim <- function(x,
@@ -137,8 +136,8 @@ gl.diagnostics.sim <- function(x,
   expected_het_3$lab <- factor(expected_het_3$lab, levels = unique(expected_het_3$lab))
   
   p1 <- ggplot(data=expected_het_3, aes(x=gen,y=He,color=lab)) +
-    geom_line(size=0.75,linetype = "dashed") +
-    geom_line(data=he_pop,aes(x=gen,y=value,color=variable),size=1.5) +
+    geom_line(linewidth=0.75,linetype = "dashed") +
+    geom_line(data=he_pop,aes(x=gen,y=value,color=variable),linewidth=1.5) +
     labs(x="Generations",
          y="He", 
          title=paste("Rate of loss of heterozygosity\nacross generations population",
@@ -193,9 +192,9 @@ gl.diagnostics.sim <- function(x,
   generations_fst <- data.frame("gen"=generations_sim,"fst_obs"=fst_gen)
 
   p2 <- ggplot(generations_fst) +
-    geom_line(aes(x=gen,y=fst_obs,color="brown"),size=1) +
-    geom_hline(aes(yintercept = Fst_expected[1],color="Fst expected"),size=1)+
-    geom_vline(aes(xintercept = fst_equilibrium[1],color="Fst equilibrium"),size=1)+
+    geom_line(aes(x=gen,y=fst_obs,color="brown"),linewidth=1) +
+    geom_hline(aes(yintercept = Fst_expected[1],color="Fst expected"),linewidth=1)+
+    geom_vline(aes(xintercept = fst_equilibrium[1],color="Fst equilibrium"),linewidth=1)+
     labs(x="Generations", y="Fst", title=paste("Fst between populations:",paste(pops_fst,collapse = " ")))+ 
     scale_color_manual(values = c("deeppink","blue","chartreuse4"),labels=c("Fst observed", "Fst equilibrium" ,"Fst expected")) +
     plot_theme +
