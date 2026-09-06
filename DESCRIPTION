@@ -36,6 +36,8 @@ Imports:
   ggrepel,
   dplyr, 
   doParallel
+Suggests:
+  testthat (>= 3.0.0)
 License: GPL (>= 3)
 RoxygenNote: 7.3.3
 NeedsCompilation: no
