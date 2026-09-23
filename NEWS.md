@@ -49,6 +49,12 @@
 
 ## gl.sim.WF.run
 
+* With 10 or more populations, individuals are now labelled with the
+  population they belong to. Before, the labels were scrambled: for
+  example, individuals of population 10 were labelled "2" and those of
+  population 2 were labelled "5". **Population labels change for runs with
+  10 or more populations.**
+
 * Recombination now follows the map. Each gamete gets a Poisson number of
   crossovers with mean equal to the map length, independently of its
   siblings. Before, a meiosis had at most one new crossover (none when the
