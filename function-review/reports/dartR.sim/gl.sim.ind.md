@@ -97,7 +97,7 @@ Proposed change: rewrite `@details`, fix the tags, remove the `fbm` leftovers.
 | 7 | `devtools::document()`; `man/gl.sim.ind.Rd` regenerated | drift example: 0, 32, 48 fixed loci at generations 1, 25, 50 |
 
 Tests: `test-gl.sim.ind.R` 19 expectations pass; full suite passes. NEWS.md updated.
-PR: pending.
+PR: #50.
 
 ```json
 {
@@ -118,7 +118,7 @@ PR: pending.
     {"id": "F7", "severity": "LOW", "confidence": "high", "rule": "DOC1", "status": "approved", "change": 7}
   ],
   "coverage_skipped": ["FBM path: fbm argument disabled", "forum/issues search: not run"],
-  "status": "applied",
-  "pr": null
+  "status": "pr-open",
+  "pr": 50
 }
 ```
