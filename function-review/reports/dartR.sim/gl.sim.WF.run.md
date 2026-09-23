@@ -232,7 +232,7 @@ Proposed change: have `gl.sim.create_dispersal()` write each unordered pair once
 
 Unchanged: default-example structure test and the drift test (Ne = N) still pass. `recomb()` is no longer called but is kept.
 Tests: `test-gl.sim.WF.run.R` 36 expectations and `test-gl.sim.WF.table.R` 28 pass. Callers: `dartR.captive` (`utils.classes.diagnostics.relatedness.r`) passes `number_iterations`, `every_gen`, `sample_percent`, `gen_number_phase2`, all valid; dartr2shiny passes CSV-based arguments. NEWS.md updated.
-PR: pending.
+PR: #48.
 
 ```json
 {
@@ -265,7 +265,7 @@ PR: pending.
     {"id": "F19", "severity": "MEDIUM", "confidence": "high", "rule": "DOC5", "status": "approved", "change": "addendum"}
   ],
   "coverage_skipped": ["interactive Shiny route: needs browser", "file_dispersal route: read only", "large-N profiling: not run", "forum/issues search: not run"],
-  "status": "applied",
-  "pr": null
+  "status": "pr-open",
+  "pr": 48
 }
 ```
