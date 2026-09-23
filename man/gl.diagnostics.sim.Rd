@@ -19,53 +19,70 @@ gl.diagnostics.sim(
 \arguments{
 \item{x}{Output from function \code{\link{gl.sim.WF.run}} [required].}
 
-\item{Ne}{Effective population size to use as input to compare theoretical 
-expectations [required].}
+\item{Ne}{Effective population size used for the theoretical expectations:
+one value, or one value per population [required].}
 
 \item{iteration}{Iteration number to analyse [default 1].}
 
-\item{pop_he}{Population name in which the rate of loss of heterozygosity is
-going to be compared against theoretical expectations [default 1].}
+\item{pop_he}{Population (position in popNames) in which the rate of loss
+of heterozygosity is compared against theoretical expectations
+[default 1].}
 
-\item{pops_fst}{Pair of populations in which FST is going to be compared 
-against theoretical expectations [default c(1,2)].}
+\item{pops_fst}{Pair of populations (positions in popNames) in which FST is
+compared against theoretical expectations [default c(1,2)].}
 
 \item{plot_theme}{User specified theme [default theme_dartR()].}
 
-\item{plot.file}{Name for the RDS binary file to save (base name only, exclude extension) [default NULL]}
+\item{plot.file}{Name for the RDS binary file to save (base name only,
+exclude extension) [default NULL].}
 
-\item{plot.dir}{Directory in which to save files [default = working directory]}
+\item{plot.dir}{Directory in which to save files [default = working
+directory].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-progress log ; 3, progress and results summary; 5, full report
-[default NULL, unless specified using gl.set.verbosity].}
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-Returns plots comparing simulations against theoretical expectations
+Invisibly, a list with the plot (plot), a data frame of observed
+and expected He by generation and Ne (he), and a data frame of observed
+and expected FST by generation (fst). The plot is printed.
 }
 \description{
 Comparing simulations against theoretical expectations
 }
 \details{
-Two plots are presented comparing the simulations against theoretical 
-expectations:
+Two plots compare the simulations against theoretical expectations:
 
 \enumerate{
-\item Expected heterozygosity under neutrality (Crow & Kimura, 1970, p. 329) is 
- calculated as:
- 
-Het = He0(1-(1/2Ne))^t,
+\item Heterozygosity. The expected He under drift in an isolated
+population (Crow & Kimura, 1970, p. 329) is
 
-where Ne is effective population size, He0  is heterozygosity at generation 0
- and t is the number of generations.
+He(t) = He(t0) (1 - 1/(2Ne))^(t - t0),
 
-\item Expected FST under neutrality (Takahata, 1983) is calculated as:
+where t0 is the first stored generation and He(t0) the observed He in
+population pop_he at t0. Five curves are drawn, for Ne, 1.25 Ne, ... 2 Ne,
+to show how sensitive the expectation is to Ne. Migration slows the loss
+of heterozygosity, so with dispersal the observed He is expected to fall
+more slowly than these curves.
 
-FST=1/(4Nem(n/(n-1))^2+1),
-
-where Ne is effective populations size of each individual subpopulation, m is
-dispersal rate and n the number of subpopulations (always 2).
+\item FST. The expected FST between the populations in pops_fst is
+computed generation by generation with the identity-by-descent recursion
+of the island model simulated by \code{\link{gl.sim.WF.run}}: in each
+generation, genes are exchanged between populations (a fraction m of
+each population are immigrants, m = number_transfers / N in generations
+with dispersal, coming equally from the other populations), then drift
+acts within populations (Ne). FST = (F0 - F1) / (1 - F1), where F0 and F1
+are the probabilities of identity by descent of two genes within and
+between populations. The recursion starts at the first stored generation
+of phase 2 from the observed FST. At equilibrium, for n populations and
+small m, this is close to 1 / (1 + 4 Ne m n / (n - 1)) (Takahata, 1983,
+with m counting only immigrants from other populations). The expectation
+is available without dispersal (m = 0) and for dispersal_type
+"all_connected"; "line", "circle" and dispersal files are not island
+models and stop the function.
 }
+Observed FST is Nei's estimator (hierfstat::pairwise.neifst).
 }
 \examples{
 \donttest{
@@ -77,17 +94,27 @@ res_sim <- gl.sim.WF.run(file_var = system.file('extdata',
  interactive_vars = FALSE,number_pops_phase2=2,population_size_phase2="10 10")
  
  res <- gl.diagnostics.sim(x=res_sim, Ne=10)
+ head(res$fst)
  }
 }
 \references{
 \itemize{
-\item Crow JF, Kimura M. An introduction to population genetics theory. An 
-introduction to population genetics theory. 1970.
+\item Crow JF, Kimura M. An introduction to population genetics theory.
+Harper and Row, New York. 1970.
 \item Takahata N. Gene identity and genetic differentiation of populations in 
 the finite island model. Genetics. 1983;104(3):497-512.
  }
 }
+\seealso{
+Other simulation functions: 
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()}
+}
 \author{
-Custodian: Luis Mijangos -- Post to
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 \url{https://groups.google.com/d/forum/dartr}
 }
+\concept{simulation functions}
