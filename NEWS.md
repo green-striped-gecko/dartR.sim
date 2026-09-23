@@ -1,5 +1,19 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.offspring
+
+* Loci are inherited independently. Before, `ifelse()` recycled the random
+  draws, so some pairs of loci were always passed on together (a mother
+  heterozygous at loci 1 and 11 passed the same allele at both in every
+  offspring). **Seeded outputs change**, including the sibs simulated by
+  `dartR.captive::gl.sim.relatedness()`.
+* Each mother has exactly `noffpermother` offspring (before, mothers were
+  drawn at random and could get none). **Family sizes change.**
+* Parents must be SNP data with the same loci in the same order; otherwise
+  the function stops.
+* The offspring are a `dartR` object with the mothers' locus metadata, and
+  `@other$ind.metrics` records sex, mother and father. `@other$sex` is kept.
+
 ## gl.diagnostics.sim
 
 * The expected FST is now a curve over generations from the exact
