@@ -96,7 +96,7 @@ Proposed change: describe the model (Mendelian segregation, independent loci, on
 | 6 | `devtools::document()`; `man/gl.sim.offspring.Rd` regenerated | new `@details` |
 
 Mendelian proportions (0.25 / 0.50 / 0.25) and sex ratio unchanged and passing. Tests: `test-gl.sim.offspring.R` 21 expectations pass; full suite passes. NEWS.md updated.
-PR: pending.
+PR: #53.
 
 ```json
 {
@@ -116,7 +116,7 @@ PR: pending.
     {"id": "F6", "severity": "LOW", "confidence": "high", "rule": "DOC1", "status": "approved", "change": 6}
   ],
   "coverage_skipped": ["FBM path: fbm argument disabled", "forum/issues search: not run"],
-  "status": "applied",
-  "pr": null
+  "status": "pr-open",
+  "pr": 53
 }
 ```
