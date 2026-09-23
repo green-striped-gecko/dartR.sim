@@ -107,7 +107,7 @@ Proposed change: correct the text; add the tags; regenerate `man/`.
 | 7 | `devtools::document()`; `@family` adds `gl.sim.ind.af` to the "Other simulation functions" links in six other `.Rd` files | docs only |
 
 Unchanged and passing: documented example structure (150 x 383, IDs `0_<pop>_<i>`), Hardy-Weinberg proportions, sex alternation, `loc.all` placeholder. The output goes through `gl.filter.callrate()` and `gl.report.heterozygosity()` without errors. Tests: `test-gl.sim.ind.af.R` 41 expectations pass; full suite 178 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #54.
 
 ```json
 {
@@ -130,6 +130,6 @@ PR: pending.
   ],
   "coverage_skipped": ["FBM path: fbm argument disabled", "Windows toolchain failure: inferred, not reproduced", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 54
 }
 ```
