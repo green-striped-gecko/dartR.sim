@@ -1,5 +1,20 @@
 # dartR.sim 1.2.2.9000
 
+## gl.diagnostics.sim
+
+* The expected FST is now a curve over generations from the exact
+  identity-by-descent recursion of the simulated island model. The old line,
+  1/(16 Ne m + 1), was about half the correct value (0.059 against 0.111 for
+  2 populations of 50 exchanging one individual per generation; simulated
+  0.114). **The plotted expectation changes.** Dispersal types "line" and
+  "circle", and dispersal files, stop with an error.
+* The expected He decays from the first stored generation (it was offset
+  when phase 1 was used). **The plotted expectation changes.**
+* **Returns a list** (`plot`, `he`, `fst`) instead of the plot alone; use
+  `$plot` for the plot.
+* Population sizes quoted in the CSV are read; inputs are validated;
+  `verbose = 0` is silent.
+
 ## gl.sim.ind
 
 * Loci with no calls get `NA` genotypes instead of stopping the function
