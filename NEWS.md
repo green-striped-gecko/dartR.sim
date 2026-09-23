@@ -1,5 +1,18 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.ind
+
+* Loci with no calls get `NA` genotypes instead of stopping the function
+  (its own example failed on `testset.gl`).
+* SilicoDArT input now stops with an error; before, it was returned as
+  meaningless diploid genotypes.
+* The output keeps the chromosome and locus metrics of the input (metrics
+  flags reset).
+* Genotypes are drawn with `rbinom()`: about 40 times faster (46 s -> 1.2 s
+  for 1000 individuals x 10,080 loci). **Seeded outputs change**; the
+  Hardy-Weinberg genotype distribution is unchanged.
+* New `verbose` argument; history is recorded; `n` is validated.
+
 ## gl.sim.apply (new)
 
 * `gl.sim.apply()` runs any function over the output of `gl.sim.WF.run()`
