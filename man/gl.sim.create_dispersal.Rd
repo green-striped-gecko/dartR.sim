@@ -66,7 +66,8 @@ Other simulation functions:
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},
-\code{\link{gl.sim.ind}()}
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()}
 }
 \author{
 Custodian: Luis Mijangos -- Post to
