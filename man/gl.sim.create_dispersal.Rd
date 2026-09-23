@@ -20,7 +20,9 @@ gl.sim.create_dispersal(
 \item{dispersal_type}{One of: "all_connected", "circle" or "line"
 [default "all_connected"].}
 
-\item{number_transfers}{Number of dispersing individuals. This value can be .
+\item{number_transfers}{Number of individuals swapped in each direction
+between the two populations of a row at each dispersal event. Each
+connected pair of populations is written once. This value can be
 modified by hand after the file has been created [default 1].}
 
 \item{transfer_each_gen}{Interval of number of generations in which dispersal

@@ -26,3 +26,53 @@
 * Errors now carry their message (`stop(error(...))`).
 * `fly_recom_map.csv` and `fly_targets_of_selection.csv` now ship in
   `inst/extdata`.
+
+## gl.sim.WF.run
+
+* Recombination now follows the map. Each gamete gets a Poisson number of
+  crossovers with mean equal to the map length, independently of its
+  siblings. Before, a meiosis had at most one new crossover (none when the
+  Poisson draw was 1), and crossovers accumulated from one sibling to the
+  next. **Output changes for every run with `recombination = TRUE`.**
+* Advantageous selection now acts when `local_adap` is `NULL`. Before, it
+  was silently switched off in every population. **Output changes for runs
+  with selection and advantageous loci.**
+* Clinal adaptation indexes populations by their position in the cline;
+  populations outside the cline get advantageous `s = 0`; the multiplier is
+  floored at 0. **Output changes for clinal runs.**
+* Returned elements are named by the generation they hold. Before, names
+  were shifted with `phase1 = TRUE` and were `NA` for iterations after the
+  first.
+* Extinction is detected at any `verbose` and for each population; the
+  iteration stops and the generations stored so far are returned. Before,
+  it crashed or overwrote the last stored generation.
+* Mutation only uses loci of type `mutation_neu`, `mutation_del` and
+  `mutation_adv`; an empty pool is skipped. Before, lost neutral and
+  selected loci also received mutations. **Output changes for mutation
+  runs.**
+* Real allele frequencies (`real_freq = TRUE`) use the alternative allele,
+  fill missing frequencies from the pooled frequency, and follow locus
+  position. Before, the coding was flipped. **Output changes for
+  real-frequency runs.**
+* Phase-2 founders are sampled without replacement when phase 1 has enough
+  individuals. **Output changes for runs with `phase1 = TRUE`.**
+* Each connected pair of populations now exchanges individuals once per
+  migration event (it was twice). **Migration rate halves for dispersal
+  types `line`, `circle` and `all_connected`.**
+* A warning is printed when relative selection is weakened by a small
+  offspring pool.
+* Names passed through `...` that are not simulation variables now stop the
+  function; `local_adap = "1 2"` and `clinal_adap` work through `...`.
+* `phase1 = TRUE` works with `real_pops` and `real_pop_size`; the
+  interactive route no longer fails on `replace_parents`.
+* The pool of mutation loci is reset at the start of each iteration, so
+  iterations are independent replicates. **Output changes for mutation runs
+  with `number_iterations > 1`.**
+* C++ helpers are compiled once per session.
+* `@details` now describes the model.
+
+## gl.sim.create_dispersal
+
+* Each connected pair of populations is written once, since
+  `gl.sim.WF.run()` swaps individuals in both directions for each row.
+  **Migration halves for runs that use a newly generated dispersal file.**

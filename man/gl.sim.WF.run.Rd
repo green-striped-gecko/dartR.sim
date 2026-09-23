@@ -26,7 +26,7 @@ gl.sim.WF.run(
 \item{ref_table}{Reference table created by the function 
 \code{\link{gl.sim.WF.table}} [required].}
 
-\item{x}{Name of the genlight object containing the SNP data to extract
+\item{x}{Genlight object containing the SNP data to extract
 values for some simulation variables (see details) [default NULL].}
 
 \item{file_dispersal}{Path of the file with the dispersal table created with
@@ -38,7 +38,9 @@ the function \code{\link{gl.sim.create_dispersal}} [default NULL].}
 a genlight object [default 10].}
 
 \item{sample_percent}{Percentage of individuals, from the total population, 
-to sample and save in the genlight object every generation [default 50].}
+to sample and save in the genlight object every generation. The number is
+rounded up to an even number, e.g. 50 percent of 50 individuals stores 26
+[default 50].}
 
 \item{store_phase1}{Whether to store simulations of phase 1 in genlight
 objects [default FALSE].}
@@ -46,34 +48,93 @@ objects [default FALSE].}
 \item{interactive_vars}{Run a shiny app to input interactively the values of
 simulations variables [default TRUE].}
 
-\item{seed}{Set the seed for the simulations [default NULL].}
+\item{seed}{Set the seed for the simulations. This calls set.seed(), so it
+also sets the random number stream of the R session for any code run
+afterwards [default NULL].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-progress log; 3, progress and results summary; 5, full report
+brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 
-\item{...}{Any variable and its value can be added separately within the 
-function, will be changed over the input value supplied by the csv file. See 
-tutorial.}
+\item{...}{Any simulation variable of 'sim_variables.csv' and its value,
+e.g. gen_number_phase2 = 20 or local_adap = "1 2". The value replaces the
+one in the csv file or the Shiny app. Names that are not simulation
+variables stop the function with an error.}
 }
 \value{
-Returns genlight objects with simulated data.
+A list with one element per iteration ("iteration_1", ...). Each
+is a list of genlight objects, one per stored generation, named by the
+generation they hold ("generation_1", ...). Each genlight has the
+reference table in @other$loc.metrics, sex and parents in
 }
 \description{
 This function simulates populations made up of diploid organisms that 
 reproduce in non-overlapping generations. Each individual has a pair of 
 homologous chromosomes that contains interspersed selected and neutral loci. 
-For the initial generation, the genotype for each individual’s chromosomes is
+For the initial generation, the genotype for each individual's chromosomes is
 randomly drawn from distributions at linkage equilibrium and in 
 Hardy-Weinberg equilibrium. 
 
-See documentation and tutorial for a complete description of the simulations.
-These documents can be accessed at 
-https://github.com/green-striped-gecko/dartR/wiki/Simulations-tutorial
+The simulations will take a little longer the first time you use the
+function gl.sim.WF.run() in an R session because C++ functions must be
+compiled.
+}
+\details{
+Values for the simulation variables can be entered in a Shiny app
+(interactive_vars = TRUE) or in the file 'sim_variables.csv', which can be
+found by typing in the R console:
+system.file('extdata', 'sim_variables.csv', package = 'dartR.sim').
 
-Take into account that the simulations will take a little longer the
-first time you use the function gl.sim.WF.run() because C++ functions must
-be compiled.
+The model, generation by generation:
+\itemize{
+\item Migration. Every transfer_each_gen generations, each connected pair
+of populations swaps number_transfers individuals in each direction (half
+males, half females; a single transfer alternates between sexes). With
+dispersal_type "line", "circle" or "all_connected", each pair of
+connected populations is processed once. A file from
+\code{\link{gl.sim.create_dispersal}} is used row by row.
+\item Reproduction. N/2 monogamous pairs are formed at random. The number
+of offspring per pair follows a negative binomial distribution with mean
+number_offspring and size variance_offspring: large values of
+variance_offspring give Poisson family sizes (Ne close to N), small values
+increase the variance of family size and lower Ne. Sex is assigned at
+random.
+\item Recombination. For each gamete, the number of recombination events
+is Poisson with mean equal to the map length in Morgans rounded up; each
+event places a crossover between two loci with probability proportional
+to the recombination rate c of the reference table, so the mean number of
+crossovers per gamete equals the map length. There is no interference.
+recombination_males = FALSE switches recombination off in males.
+\item Mutation. Each offspring receives, with probability mut_rate, one new
+allele at a locus drawn from the loci of type mutation_neu, mutation_del
+or mutation_adv that are not segregating. A locus returns to this pool
+when its new allele is lost.
+\item Selection. Fitness is multiplicative across loci: 1 - s for the
+homozygote of the simulated allele, 1 - hs for heterozygotes and 1
+otherwise; advantageous alleles have negative s. With the "relative"
+model, the next generation is sampled from the offspring without
+replacement with probability proportional to fitness; this weakens
+selection when the offspring pool is not much larger than N (a warning is
+printed at verbose >= 1 when it is less than 3 times N). With the
+"absolute" model, an offspring survives with probability
+min(1, fitness / genetic_load), so there is no selection among offspring
+whose fitness is at least genetic_load. local_adap lists the populations
+where advantageous alleles are under selection (s = 0 elsewhere).
+clinal_adap gives the first and last populations of a cline along which
+advantageous s is multiplied by 1, 1 - k, 1 - 2k, ... with
+k = clinal_strength / 100 (floored at 0); outside the cline s = 0.
+\item Next generation. N/2 males and N/2 females are sampled from the
+offspring. If there are too few of either sex, the population is extinct:
+the iteration stops and the generations stored so far are returned.
+}
+With phase1 = TRUE, phase 2 starts from individuals sampled from the
+phase-1 populations, without replacement unless phase 2 is larger.
+
+If a genlight object is used (real_pops, real_pop_size, real_loc or
+real_freq), the simulated allele is the alternative allele of the
+genlight (genotype 2). Loci without calls in a population take the
+frequency across all populations. real_pop_size sets the sizes of the
+first phase simulated, rounded up to even numbers.
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
@@ -91,6 +152,7 @@ Other simulation functions:
 \code{\link{gl.sim.create_dispersal}()}
 }
 \author{
-Custodian: Luis Mijangos
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
+\url{https://groups.google.com/d/forum/dartr}
 }
 \concept{simulation functions}

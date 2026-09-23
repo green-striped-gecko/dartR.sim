@@ -1,25 +1,22 @@
 #' @name gl.sim.WF.run
 #' @title Runs Wright-Fisher simulations
+#' @family simulation functions
 #' @description
 #' This function simulates populations made up of diploid organisms that 
 #' reproduce in non-overlapping generations. Each individual has a pair of 
 #' homologous chromosomes that contains interspersed selected and neutral loci. 
-#' For the initial generation, the genotype for each individual’s chromosomes is
+#' For the initial generation, the genotype for each individual's chromosomes is
 #' randomly drawn from distributions at linkage equilibrium and in 
 #' Hardy-Weinberg equilibrium. 
 #' 
-#' See documentation and tutorial for a complete description of the simulations.
-#' These documents can be accessed at 
-#' https://github.com/green-striped-gecko/dartR/wiki/Simulations-tutorial
-#' 
-#' Take into account that the simulations will take a little longer the
-#' first time you use the function gl.sim.WF.run() because C++ functions must
-#' be compiled.
+#' The simulations will take a little longer the first time you use the
+#' function gl.sim.WF.run() in an R session because C++ functions must be
+#' compiled.
 #' @param file_var Path of the variables file 'sim_variables.csv' (see details) 
 #' [required if interactive_vars = FALSE].
 #' @param ref_table Reference table created by the function 
 #' \code{\link{gl.sim.WF.table}} [required].
-#' @param x Name of the genlight object containing the SNP data to extract
+#' @param x Genlight object containing the SNP data to extract
 #' values for some simulation variables (see details) [default NULL].
 #' @param file_dispersal Path of the file with the dispersal table created with
 #' the function \code{\link{gl.sim.create_dispersal}} [default NULL]. 
@@ -27,20 +24,87 @@
 #' @param every_gen Generation interval at which simulations should be stored in
 #' a genlight object [default 10].
 #' @param sample_percent Percentage of individuals, from the total population, 
-#' to sample and save in the genlight object every generation [default 50].
+#' to sample and save in the genlight object every generation. The number is
+#' rounded up to an even number, e.g. 50 percent of 50 individuals stores 26
+#' [default 50].
 #' @param store_phase1 Whether to store simulations of phase 1 in genlight
 #' objects [default FALSE].
 #' @param interactive_vars Run a shiny app to input interactively the values of
 #' simulations variables [default TRUE].
-#' @param seed Set the seed for the simulations [default NULL].
+#' @param seed Set the seed for the simulations. This calls set.seed(), so it
+#' also sets the random number stream of the R session for any code run
+#' afterwards [default NULL].
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-#' progress log; 3, progress and results summary; 5, full report
+#' brief progress messages; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
-#' @param ... Any variable and its value can be added separately within the 
-#' function, will be changed over the input value supplied by the csv file. See 
-#' tutorial. 
-#' @return Returns genlight objects with simulated data.
-#' @author Custodian: Luis Mijangos
+#' @param ... Any simulation variable of 'sim_variables.csv' and its value,
+#' e.g. gen_number_phase2 = 20 or local_adap = "1 2". The value replaces the
+#' one in the csv file or the Shiny app. Names that are not simulation
+#' variables stop the function with an error.
+#' @details
+#' Values for the simulation variables can be entered in a Shiny app
+#' (interactive_vars = TRUE) or in the file 'sim_variables.csv', which can be
+#' found by typing in the R console:
+#' system.file('extdata', 'sim_variables.csv', package = 'dartR.sim').
+#' 
+#' The model, generation by generation:
+#' \itemize{
+#' \item Migration. Every transfer_each_gen generations, each connected pair
+#' of populations swaps number_transfers individuals in each direction (half
+#' males, half females; a single transfer alternates between sexes). With
+#' dispersal_type "line", "circle" or "all_connected", each pair of
+#' connected populations is processed once. A file from
+#' \code{\link{gl.sim.create_dispersal}} is used row by row.
+#' \item Reproduction. N/2 monogamous pairs are formed at random. The number
+#' of offspring per pair follows a negative binomial distribution with mean
+#' number_offspring and size variance_offspring: large values of
+#' variance_offspring give Poisson family sizes (Ne close to N), small values
+#' increase the variance of family size and lower Ne. Sex is assigned at
+#' random.
+#' \item Recombination. For each gamete, the number of recombination events
+#' is Poisson with mean equal to the map length in Morgans rounded up; each
+#' event places a crossover between two loci with probability proportional
+#' to the recombination rate c of the reference table, so the mean number of
+#' crossovers per gamete equals the map length. There is no interference.
+#' recombination_males = FALSE switches recombination off in males.
+#' \item Mutation. Each offspring receives, with probability mut_rate, one new
+#' allele at a locus drawn from the loci of type mutation_neu, mutation_del
+#' or mutation_adv that are not segregating. A locus returns to this pool
+#' when its new allele is lost.
+#' \item Selection. Fitness is multiplicative across loci: 1 - s for the
+#' homozygote of the simulated allele, 1 - hs for heterozygotes and 1
+#' otherwise; advantageous alleles have negative s. With the "relative"
+#' model, the next generation is sampled from the offspring without
+#' replacement with probability proportional to fitness; this weakens
+#' selection when the offspring pool is not much larger than N (a warning is
+#' printed at verbose >= 1 when it is less than 3 times N). With the
+#' "absolute" model, an offspring survives with probability
+#' min(1, fitness / genetic_load), so there is no selection among offspring
+#' whose fitness is at least genetic_load. local_adap lists the populations
+#' where advantageous alleles are under selection (s = 0 elsewhere).
+#' clinal_adap gives the first and last populations of a cline along which
+#' advantageous s is multiplied by 1, 1 - k, 1 - 2k, ... with
+#' k = clinal_strength / 100 (floored at 0); outside the cline s = 0.
+#' \item Next generation. N/2 males and N/2 females are sampled from the
+#' offspring. If there are too few of either sex, the population is extinct:
+#' the iteration stops and the generations stored so far are returned.
+#' }
+#' With phase1 = TRUE, phase 2 starts from individuals sampled from the
+#' phase-1 populations, without replacement unless phase 2 is larger.
+#' 
+#' If a genlight object is used (real_pops, real_pop_size, real_loc or
+#' real_freq), the simulated allele is the alternative allele of the
+#' genlight (genotype 2). Loci without calls in a population take the
+#' frequency across all populations. real_pop_size sets the sizes of the
+#' first phase simulated, rounded up to even numbers.
+#' @return A list with one element per iteration ("iteration_1", ...). Each
+#' is a list of genlight objects, one per stored generation, named by the
+#' generation they hold ("generation_1", ...). Each genlight has the
+#' reference table in @other$loc.metrics, sex and parents in
+#' @other$ind.metrics, and the simulation variables (including the
+#' generation) in @other$sim.vars.
+#' @author Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
+#' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
 #' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
 #' "ref_variables.csv", package = "dartR.sim"),interactive_vars = FALSE)
@@ -49,7 +113,6 @@
 #'  "sim_variables.csv", package ="dartR.sim"),ref_table=ref_table,
 #'  interactive_vars = FALSE)
 #' @seealso \code{\link{gl.sim.WF.table}}
-#' @family simulation functions
 #' @import stats
 #' @import shiny
 #' @export
@@ -85,98 +148,71 @@ gl.sim.WF.run <- function(file_var,
     # -------------------------------
     funname <- match.call()[[1]]
     utils.flag.start(func = funname,
-                     build = "Jody",
                      verbose = verbose)
     
     # -------------------------------
-    # CHECK FOR REQUIRED PACKAGES
+    # CHECK INPUTS
     # -------------------------------
-    pkg <- "stringi"
-    if (!(requireNamespace(pkg, quietly = TRUE))) {
-      message(error(
-        "Package",
-        pkg,
-        " needed for this function to work. Please install it.\n"
-      ))
-      return(-1)
+    if (interactive_vars == FALSE &&
+        (missing(file_var) || !file.exists(file_var))) {
+      stop(error("  When interactive_vars = FALSE, file_var must be the path",
+                 "to an existing 'sim_variables.csv' file\n"))
     }
-    
-    replace_parents <- NULL
+    if (!is.null(x) && !is(x, "genlight")) {
+      stop(error("  x must be a genlight object\n"))
+    }
     
     # -------------------------------
     # RETRIEVE SIMULATION VARIABLES
     # -------------------------------
-    # If interactive_vars is TRUE, launch the shiny app to retrieve variables interactively.
+    # Variables come from the Shiny app or from the CSV file; either way
+    # sim_vars is a two-column table (variable, value) of character values
     if (interactive_vars == TRUE) {
-      
       sim_vars <- interactive_sim_run()
-      
-      # Wrap specific variable values in quotes to treat them as strings.
-      sim_vars[sim_vars$variable=="population_size_phase2" ,"value"] <-
-        paste0("'", sim_vars[sim_vars$variable=="population_size_phase2" ,"value"], "'")
-      sim_vars[sim_vars$variable=="population_size_phase1" ,"value"] <-
-        paste0("'", sim_vars[sim_vars$variable=="population_size_phase1" ,"value"], "'")
-      sim_vars[sim_vars$variable=="dispersal_type_phase2" ,"value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="dispersal_type_phase2" ,"value"], "'")
-      sim_vars[sim_vars$variable=="dispersal_type_phase1" ,"value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="dispersal_type_phase1" ,"value"], "'")
-      sim_vars[sim_vars$variable=="natural_selection_model" ,"value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="natural_selection_model" ,"value"], "'")
-      
-      # Order the simulation variables alphabetically by variable name.
-      sim_vars <- sim_vars[order(sim_vars$variable),]
-      
-      # Create assignment strings for each variable (e.g., var <- value).
-      vars_assign <- unlist(unname(
-        mapply(paste, sim_vars$variable, "<-", sim_vars$value, SIMPLIFY = F)
-      ))
-      
-      # Evaluate the assignments to create the variables in the environment.
-      eval(parse(text = vars_assign))
-      
     } else {
-      # If interactive_vars is FALSE, read variables from a CSV file.
       sim_vars <- suppressWarnings(read.csv(file_var))
-      sim_vars <- sim_vars[, 2:3]  # Use only the variable names and values columns.
-      
-      sim_vars <- sim_vars[order(sim_vars$variable),]
-      
-      vars_assign <- unlist(unname(
-        mapply(paste, sim_vars$variable, "<-", sim_vars$value, SIMPLIFY = F)
-      ))
-      eval(parse(text = vars_assign))
+      sim_vars <- sim_vars[, c("variable", "value")]
     }
+    ## The Shiny app does not ask for replace_parents; parents are then
+    ## sampled without replacement, as in sim_variables.csv
+    if (!"replace_parents" %in% sim_vars$variable) {
+      sim_vars <- rbind(sim_vars,
+                        data.frame(variable = "replace_parents",
+                                   value = "FALSE"))
+    }
+    sim_vars <- sim_vars[order(sim_vars$variable), ]
     
     # -------------------------------
     # OVERRIDE VARIABLES WITH ADDITIONAL ARGUMENTS (if any)
     # -------------------------------
+    # Names that are not simulation variables are refused, so a misspelt
+    # name cannot be silently ignored
     input_list <- list(...)
-    
     if (length(input_list) > 0) {
-      sim_vars <- sim_vars[order(sim_vars$variable),]
-      input_list <- input_list[order(names(input_list))]
-      
-      # Identify which simulation variables are provided in the additional input.
-      val_change <- which(sim_vars$variable %in% names(input_list))
-      sim_vars[val_change, "value"] <- unlist(input_list)
-      
-      # Ensure that some specific variable values are kept as strings.
-      sim_vars[sim_vars$variable=="population_size_phase2", "value"] <-
-        paste0("'", sim_vars[sim_vars$variable=="population_size_phase2", "value"], "'")
-      sim_vars[sim_vars$variable=="population_size_phase1", "value"] <-
-        paste0("'", sim_vars[sim_vars$variable=="population_size_phase1", "value"], "'")
-      sim_vars[sim_vars$variable=="dispersal_type_phase2", "value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="dispersal_type_phase2", "value"], "'")
-      sim_vars[sim_vars$variable=="dispersal_type_phase1", "value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="dispersal_type_phase1", "value"], "'")
-      sim_vars[sim_vars$variable=="natural_selection_model", "value"] <- 
-        paste0("'", sim_vars[sim_vars$variable=="natural_selection_model", "value"], "'")
-      
-      vars_assign <- unlist(unname(
-        mapply(paste, sim_vars$variable, "<-", sim_vars$value, SIMPLIFY = F)
-      ))
-      eval(parse(text = vars_assign))
+      unknown <- setdiff(names(input_list), sim_vars$variable)
+      if (is.null(names(input_list)) || any(names(input_list) == "") ||
+          anyDuplicated(names(input_list)) > 0 || length(unknown) > 0) {
+        stop(error("  Arguments passed through ... must be named simulation",
+                   "variables, each given once. Unknown:",
+                   paste(unknown, collapse = ", "), "\n"))
+      }
+      for (var in names(input_list)) {
+        sim_vars[sim_vars$variable == var, "value"] <-
+          paste(as.character(input_list[[var]]), collapse = " ")
+      }
     }
+    
+    # Create one R variable per simulation variable in this environment.
+    # These variables are character strings; lists of values (population
+    # sizes, local_adap, clinal_adap) are space delimited
+    list2env(
+      utils.wf.ref.values(
+        sim_vars,
+        char_vars = c("chromosome_name", "dispersal_type_phase1",
+                      "dispersal_type_phase2", "natural_selection_model",
+                      "population_size_phase1", "population_size_phase2",
+                      "local_adap", "clinal_adap")),
+      envir = environment())
     
     # -------------------------------
     # EXTRACT REFERENCE TABLE INFORMATION
@@ -195,6 +231,7 @@ gl.sim.WF.run <- function(file_var,
     # Combine mutation loci positions and sort them.
     mutation_loci_location <- c(mutation_loci_adv, mutation_loci_del, mutation_loci_neu)
     mutation_loci_location <- mutation_loci_location[order(mutation_loci_location)]
+    mutation_loci_types <- mutation_loci_location
     
     # Identify loci with real data.
     real <- which(reference$type == "real")
@@ -205,26 +242,22 @@ gl.sim.WF.run <- function(file_var,
     # Check consistency between simulation variables and reference table variables.
     real_freq_table <- ref_vars[ref_vars$variable=="real_freq", "value"]
     if (real_freq_table != real_freq) {
-      message(error(
-        "  The value for the real_freq parameter was set differently in the simulations
-   and in the creation of the reference table. They should be the same. 
-   Please check it.\n"))
-      stop()
+      stop(error("  The value for the real_freq parameter was set differently",
+                 "in the simulations and in the creation of the reference",
+                 "table. They should be the same. Please check it.\n"))
     }
     
     real_loc_table <- ref_vars[ref_vars$variable=="real_loc", "value"]
     if (real_loc_table != real_loc) {
-      message(error("  The value for the real_loc parameter was set differently in 
-                the simulations and in the creation of the reference table. 
-                They should be the same. Please check it.\n"))
-      stop()
+      stop(error("  The value for the real_loc parameter was set differently",
+                 "in the simulations and in the creation of the reference",
+                 "table. They should be the same. Please check it.\n"))
     }
     
     # Ensure that if real dataset values are required, the 'x' parameter is provided.
     if ((real_pops == TRUE | real_pop_size == TRUE | real_loc == TRUE | 
          real_freq == TRUE) && is.null(x)) {
-      message(error(" The real dataset to extract information is missing\n"))
-      stop()
+      stop(error("  The real dataset to extract information is missing\n"))
     }
     
     # If phase1 is disabled, set its generation count to zero.
@@ -239,7 +272,9 @@ gl.sim.WF.run <- function(file_var,
     
     # Define at which generations to store output genlight objects.
     gen_store <- c(seq(1, number_generations, every_gen), number_generations)
-    final_res <- rep(list(as.list(rep(NA, length(gen_store)))), number_iterations)
+    ## Each iteration is a list of genlight objects named by the generation
+    ## they hold
+    final_res <- rep(list(list()), number_iterations)
     
     # -------------------------------
     # SET UP LOCI AND RECOMBINATION MAP
@@ -262,55 +297,64 @@ gl.sim.WF.run <- function(file_var,
     plink_map[, 4] <- reference$loc_bp
     
     # -------------------------------
-    # CLEAN UP STRING VARIABLES
+    # SPLIT LISTS OF VALUES
     # -------------------------------
-    # Remove extra quotes from character parameters.
-    dispersal_type_phase2 <- gsub('\"', "", dispersal_type_phase2, fixed = TRUE)
-    dispersal_type_phase1 <- gsub('\"', "", dispersal_type_phase1, fixed = TRUE)
-    natural_selection_model <- gsub('\"', "", natural_selection_model, fixed = TRUE)
-    chromosome_name <- gsub('\"', "", chromosome_name, fixed = TRUE)
-    population_size_phase2 <- gsub('\"', "", population_size_phase2, fixed = TRUE)
-    population_size_phase2 <- as.numeric(unlist(strsplit(population_size_phase2, " ")))
-    population_size_phase1 <- gsub('\"', "", population_size_phase1, fixed = TRUE)
-    population_size_phase1 <- as.numeric(unlist(strsplit(population_size_phase1, " ")))
-    local_adap <- gsub('\"', "", local_adap, fixed = TRUE)
-    local_adap <- as.numeric(unlist(strsplit(local_adap, " ")))
-    clinal_adap <- gsub('\"', "", clinal_adap, fixed = TRUE)
-    clinal_adap <- as.numeric(unlist(strsplit(clinal_adap, " ")))
+    # Space-delimited strings become numeric vectors. An empty local_adap or
+    # clinal_adap stays NULL: numeric(0) is not NULL and used to switch on
+    # local adaptation in no population, silencing advantageous selection
+    split_num <- function(v) {
+      v <- as.numeric(unlist(strsplit(trimws(v), " +")))
+      if (length(v) == 0) NULL else v
+    }
+    population_size_phase2 <- split_num(population_size_phase2)
+    population_size_phase1 <- split_num(population_size_phase1)
+    local_adap <- split_num(local_adap)
+    clinal_adap <- split_num(clinal_adap)
     
     # -------------------------------
     # DETERMINE NUMBER OF POPULATIONS
     # -------------------------------
-    if (phase1 == TRUE & real_pops == FALSE) {
-      number_pops <- number_pops_phase1
+    if (real_pops == TRUE) {
+      number_pops_phase1 <- number_pops_phase2 <- nPop(x)
     }
-    if (phase1 == TRUE & real_pops == TRUE & !is.null(x)) {
-      number_pops <- nPop(x)
-    }
-    if (phase1 == FALSE & real_pops == FALSE) {
-      number_pops <- number_pops_phase2
-    }
-    if (phase1 == FALSE & real_pops == TRUE & !is.null(x)) {
-      number_pops <- number_pops_phase2 <- nPop(x)
+    number_pops <- if (phase1 == TRUE) number_pops_phase1 else number_pops_phase2
+    
+    ## Real census sizes (rounded up to even numbers) replace the sizes of
+    ## the first phase simulated
+    if (real_pop_size == TRUE) {
+      real_sizes <- unname(unlist(table(pop(x))))
+      real_sizes <- (real_sizes %% 2 != 0) + real_sizes
+      if (phase1 == TRUE) {
+        population_size_phase1 <- real_sizes
+      } else {
+        population_size_phase2 <- real_sizes
+      }
     }
     
     # -------------------------------
     # EXTRACT FREQUENCY INFORMATION FROM THE REAL DATA (IF APPLICABLE)
     # -------------------------------
-    if (real_freq == TRUE & !is.null(x) & real_loc == TRUE) {
-      pop_list_freq_temp <- seppop(x)
-      loc_to_keep <- locNames(pop_list_freq_temp[[1]])[
-        which(pop_list_freq_temp[[1]]$chromosome == chromosome_name)
-      ]
-      pop_list_freq_temp <- lapply(pop_list_freq_temp, gl.keep.loc, loc.list = loc_to_keep, verbose = 0)
-      pop_list_freq <- lapply(pop_list_freq_temp, gl.alf)
-    } 
-    if (real_freq == TRUE & !is.null(x) & real_loc == FALSE) {
-      pop_list_freq_temp <- seppop(x)
-      pop_list_freq <- lapply(pop_list_freq_temp, gl.alf)
-    }
-    if (real_freq == FALSE) {
-      pop_list_freq <- rep(NA, number_pops)
+    # The simulated allele "1" is stored as genotype 2, so it takes the
+    # frequency of the alternative allele (alf2). Loci without calls in a
+    # population take the frequency across all populations, then q_neutral.
+    # With real_loc = TRUE the reference table orders real loci by position,
+    # so frequencies are ordered by position too
+    pop_list_freq <- rep(NA, number_pops)
+    if (real_freq == TRUE) {
+      x_freq <- x
+      if (real_loc == TRUE) {
+        loc_to_keep <- which(as.character(x@chromosome) == chromosome_name)
+        loc_to_keep <- loc_to_keep[order(x@position[loc_to_keep])]
+        x_freq <- x[, loc_to_keep]
+        x_freq@other$loc.metrics <- x@other$loc.metrics[loc_to_keep, , drop = FALSE]
+      }
+      freq_pooled <- suppressMessages(gl.alf(x_freq, verbose = 0))$alf2
+      freq_pooled[is.na(freq_pooled)] <- q_neutral
+      pop_list_freq <- lapply(seppop(x_freq), function(p) {
+        f <- suppressMessages(gl.alf(p, verbose = 0))$alf2
+        f[is.na(f)] <- freq_pooled[is.na(f)]
+        return(f)
+      })
     }
     
     # -------------------------------
@@ -323,10 +367,17 @@ gl.sim.WF.run <- function(file_var,
     density_mutations_per_cm <- (freq_deleterious_b * nrow(freq_deleterious)) /
       (recombination_map[loci_number, "loc_cM"] * 100)
     
+    # The weak-selection warning is printed once per run
+    warn_pool <- TRUE
+    
     # -------------------------------
     # START SIMULATION ITERATION LOOP
     # -------------------------------
     for (iteration in 1:number_iterations) {
+      # Each iteration starts with the full pool of mutation loci, so
+      # iterations are independent replicates
+      mutation_loci_location <- mutation_loci_types
+      
       if (iteration %% 1 == 0 & verbose >= 2) {
         message(report(" Starting iteration =", iteration, "\n"))
       }
@@ -335,14 +386,7 @@ gl.sim.WF.run <- function(file_var,
       # SETUP VARIABLES FOR PHASE 1 (IF APPLICABLE)
       # -------------------------------
       if (phase1 == TRUE) {
-        if (real_pop_size == TRUE & !is.null(x)) {
-          # Extract population sizes from the real data object.
-          population_size_phase1 <- unname(unlist(table(pop(x))))
-          # Ensure even population sizes by adjusting odd numbers.
-          population_size_phase1 <- (population_size_phase1 %% 2 != 0) + population_size_phase1
-        } else{
-          population_size <- population_size_phase1
-        }
+        population_size <- population_size_phase1
         
         # Assign phase 1 specific simulation parameters.
         selection <- selection_phase1
@@ -355,12 +399,7 @@ gl.sim.WF.run <- function(file_var,
         
         store_values <- store_phase1
         
-        # Initialize counters for storing phase 1 results if required.
-        if (store_phase1 == TRUE) {
-          gen <- 0
-          count_store <- 0
-        }
-        
+
         # Decide which sex(es) will be transferred based on number_transfers.
         if (number_transfers >= 2) {
           maletran <- TRUE
@@ -374,33 +413,25 @@ gl.sim.WF.run <- function(file_var,
         # -------------------------------
         # SETUP VARIABLES FOR PHASE 2
         # -------------------------------
-        if (real_pop_size == TRUE & !is.null(x)) {
-          population_size_phase2 <- unname(unlist(table(pop(x))))
-          population_size_phase2 <- (population_size_phase2 %% 2 != 0) + population_size_phase2
-          population_size <- population_size_phase2
-        } else{
-          population_size <- population_size_phase2
-        }
+        population_size <- population_size_phase2
       }
       
       # -------------------------------
       # ERROR CHECKS ON POPULATION NUMBERS BETWEEN PHASES
       # -------------------------------
       if (phase1 == TRUE & number_pops_phase1 != number_pops_phase2) {
-        message(error("  Number of populations in phase 1 and phase 2 must be the same\n"))
-        stop()
+        stop(error("  Number of populations in phase 1 and phase 2 must be the",
+                   "same\n"))
       }
       
       if (length(population_size_phase2) != number_pops_phase2) {
-        message(error("  Number of entries for population sizes do not agree with 
-           the number of populations for phase 2\n"))
-        stop()
+        stop(error("  Number of entries for population sizes do not agree with",
+                   "the number of populations for phase 2\n"))
       }
       
       if (length(population_size_phase1) != number_pops_phase1 & phase1 == TRUE) {
-        message(error("  Number of entries for population sizes do not agree with 
-                  the number of populations for phase 1\n"))
-        stop()
+        stop(error("  Number of entries for population sizes do not agree with",
+                   "the number of populations for phase 1\n"))
       }
       
       # -------------------------------
@@ -410,31 +441,8 @@ gl.sim.WF.run <- function(file_var,
         message(report("  Initialising populations\n"))
       }
       
-      # Create a dummy function to bypass package checking.
-      make_chr <- function(){}  
-      
-      # Define a C++ function to create chromosomes based on allele frequencies.
-      Rcpp::cppFunction(plugins="cpp11",
-                        
-                        'StringVector make_chr(int j, NumericVector q) {
-          StringVector out(j);
-          int size = 1;
-          IntegerVector x = IntegerVector::create(1, 0);
-          bool rep = false;
-          for (int i = 0; i < j; i++) {
-            std::ostringstream temp;
-            for (int z = 0; z < q.length(); z++) {
-              NumericVector p = NumericVector::create(q[z], 1 - q[z]);
-              temp << sample(x, size, rep, p);
-            }
-            out[i] = temp.str();
-          }
-          return out;
-        }'
-      )
-      
       # Generate chromosomes for all individuals (each individual has two chromosomes).
-      chr_temp <- make_chr(j = sum(population_size) * 2, q = reference$q)
+      chr_temp <- utils.wf.cpp()$make_chr(j = sum(population_size) * 2, q = reference$q)
       # Split chromosomes among populations.
       chr_pops_temps <- split(chr_temp, rep(1:number_pops, (c(population_size) * 2)))
       chr_pops <- lapply(chr_pops_temps, split, c(1:2))
@@ -451,38 +459,14 @@ gl.sim.WF.run <- function(file_var,
         pop[, 4] <- chr_pops[[pop_n]][2]  # Second chromosome
         pop$id <- paste0("0_",pop_n,"_",1:nrow(pop)) # ID
         
-        # If real frequency data is provided and location information is used:
-        if (real_freq == TRUE & real_loc == TRUE) {
+        # Real loci take the real allele frequencies of this population
+        if (real_freq == TRUE) {
+          q_real <- pop_list_freq[[pop_n]]
           for (individual_pop in 1:population_size[pop_n]) {
-            q_prob_t <- pop_list_freq[[pop_n]]$alf1
-            q_prob_t2 <- cbind(q_prob_t, 1 - q_prob_t)
-            q_prob <- split(q_prob_t2, row(q_prob_t2))
-            
-            # Update chromosome 1 using allele frequency probabilities.
-            stringi::stri_sub_all(pop[individual_pop, 3], from = real, length = 1) <- 
-              mapply(function(y) { sample(x = c(1, 0), size = 1, prob = y, replace = FALSE) },
-                     q_prob, USE.NAMES = FALSE)
-            
-            # Update chromosome 2 using allele frequency probabilities.
-            stringi::stri_sub_all(pop[individual_pop, 4], from = real, length = 1) <- 
-              mapply(function(y) { sample(x = c(1, 0), size = 1, prob = y, replace = FALSE) },
-                     q_prob, USE.NAMES = FALSE)
-          }
-        }
-        
-        # If only real frequency (without location) is used.
-        if (real_freq == TRUE & real_loc == FALSE) {
-          for (individual_pop in 1:population_size[pop_n]) {
-            q_prob_t <- pop_list_freq[[pop_n]]$alf1
-            q_prob_t2 <- cbind(q_prob_t, 1 - q_prob_t)
-            q_prob <- split(q_prob_t2, row(q_prob_t2))
-            
-            stringi::stri_sub_all(pop[individual_pop, 3], from = real, length = 1) <- 
-              mapply(function(y) { sample(x = c(1, 0), size = 1, prob = y, replace = FALSE) },
-                     q_prob, USE.NAMES = FALSE)
-            stringi::stri_sub_all(pop[individual_pop, 4], from = real, length = 1) <- 
-              mapply(function(y) { sample(x = c(1, 0), size = 1, prob = y, replace = FALSE) },
-                     q_prob, USE.NAMES = FALSE)
+            stringi::stri_sub_all(pop[individual_pop, 3], from = real, length = 1) <-
+              as.character(as.integer(runif(length(q_real)) < q_real))
+            stringi::stri_sub_all(pop[individual_pop, 4], from = real, length = 1) <-
+              as.character(as.integer(runif(length(q_real)) < q_real))
           }
         }
         
@@ -536,47 +520,31 @@ gl.sim.WF.run <- function(file_var,
             femaletran <- FALSE
           }
           
-          # Initialize counters for storing phase 2 results.
-          if (!exists("count_store")) {
-            count_store <- 0
-          }
-          gen <- 0
-          
-          # Resample populations if the simulation requires it.
+
+          # Phase-2 founders are sampled from phase 1: from one phase-1
+          # population for all (same_line = TRUE) or each from its own.
+          # Sampling is without replacement unless phase 2 needs more
+          # individuals of a sex than phase 1 has, so founders are not
+          # cloned
           if (phase1 == TRUE) {
-            if (same_line == TRUE) {
-              # Sample from one population and apply to all.
-              pop_sample <- sample(pops_vector, 1)
-              pop_list_temp <- lapply(pops_vector, function(x) {
-                pop_temp <- rbind(
-                  pop_list[[pop_sample]][sample(which(pop_list[[pop_sample]]$V1 == "Male"),
-                                                size = population_size[x] / 2, replace = TRUE),],
-                  pop_list[[pop_sample]][sample(which(pop_list[[pop_sample]]$V1 == "Female"),
-                                                size = population_size[x] / 2, replace = TRUE),]
-                )
-                pop_temp$V2 <- x
-                return(pop_temp)
-              })
-              pop_list <- pop_list_temp
+            sample_founders <- function(source, size) {
+              males <- which(source$V1 == "Male")
+              females <- which(source$V1 == "Female")
+              rbind(
+                source[males[sample.int(length(males), size = size / 2,
+                                        replace = size / 2 > length(males))], ],
+                source[females[sample.int(length(females), size = size / 2,
+                                          replace = size / 2 > length(females))], ]
+              )
             }
-            if (same_line == FALSE) {
-              pop_list <- lapply(pops_vector, function(x) {
-                pop_temp <- rbind(
-                  pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Male"),
-                                       size = population_size[x] / 2, replace = TRUE),],
-                  pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Female"),
-                                       size = population_size[x] / 2, replace = TRUE),]
-                )
-                pop_temp$V2 <- x
-                return(pop_temp)
-              })
-            }
+            pop_sample <- if (same_line == TRUE) sample(pops_vector, 1) else NULL
+            pop_list <- lapply(pops_vector, function(x) {
+              source_pop <- if (same_line == TRUE) pop_sample else x
+              pop_temp <- sample_founders(pop_list[[source_pop]], population_size[x])
+              pop_temp$V2 <- x
+              return(pop_temp)
+            })
           }
-        }
-        
-        # Increment generation counter if storing values.
-        if (store_values == TRUE) {
-          gen <- gen + 1
         }
         
         # -------------------------------
@@ -609,6 +577,12 @@ gl.sim.WF.run <- function(file_var,
               colnames(dispersal_pairs) <- c("pop1", "pop2")
             }
             
+            # migration() swaps individuals in both directions, so each
+            # connected pair is processed once
+            pair_key <- paste(pmin(dispersal_pairs$pop1, dispersal_pairs$pop2),
+                              pmax(dispersal_pairs$pop1, dispersal_pairs$pop2))
+            dispersal_pairs <- dispersal_pairs[!duplicated(pair_key), ]
+            
             # Set additional dispersal parameters.
             dispersal_pairs$number_transfers <- number_transfers
             dispersal_pairs$transfer_each_gen <- transfer_each_gen
@@ -618,14 +592,9 @@ gl.sim.WF.run <- function(file_var,
             dispersal_pairs <- suppressWarnings(read.csv(file_dispersal))
           }
           
-          # Define population sizes for each pair.
-          if (real_pop_size == TRUE) {
-            dispersal_pairs$size_pop1 <- unname(unlist(table(pop(x))))[dispersal_pairs$pop1]
-            dispersal_pairs$size_pop2 <- unname(unlist(table(pop(x))))[dispersal_pairs$pop2]
-          } else {
-            dispersal_pairs$size_pop1 <- population_size[dispersal_pairs$pop1]
-            dispersal_pairs$size_pop2 <- population_size[dispersal_pairs$pop2]
-          }
+          # Population sizes for each pair (even-adjusted, as simulated)
+          dispersal_pairs$size_pop1 <- population_size[dispersal_pairs$pop1]
+          dispersal_pairs$size_pop2 <- population_size[dispersal_pairs$pop2]
           
           # Process each dispersal pair.
           for (dis_pair in 1:nrow(dispersal_pairs)) {
@@ -669,9 +638,28 @@ gl.sim.WF.run <- function(file_var,
             gen = generation,
             rep_parents = replace_parents
           )
-          tmp_rep$id <- paste0(generation,"_",x,"_",1:nrow(tmp_rep))
+          if (!is.null(tmp_rep)) {
+            tmp_rep$id <- paste0(generation, "_", x, "_", 1:nrow(tmp_rep))
+          }
           return(tmp_rep)
         })
+        
+        # Relative selection samples parents without replacement in
+        # proportion to fitness; when the offspring pool is not much larger
+        # than N, most offspring are kept and selection is weakened
+        if (selection == TRUE & natural_selection_model == "relative" &
+            warn_pool == TRUE & verbose >= 1) {
+          pool_ratio <- sapply(pops_vector, function(x) {
+            NROW(offspring_list[[x]]) / population_size[x]
+          })
+          if (any(pool_ratio < 3)) {
+            cat(warn("  Warning: the offspring pool is less than 3 times the",
+                     "population size (minimum ratio", round(min(pool_ratio), 2),
+                     "), which weakens relative selection. Increase",
+                     "number_offspring for stronger selection.\n"))
+            warn_pool <- FALSE
+          }
+        }
         
         # -------------------------------
         # MUTATION PHASE
@@ -679,18 +667,25 @@ gl.sim.WF.run <- function(file_var,
         if (mutation == TRUE) {
           for (off_pop in 1:length(offspring_list)) {
             offspring_pop <- offspring_list[[off_pop]]
+            if (is.null(offspring_pop)) {
+              next
+            }
             # Add a uniform random number to each offspring for mutation decision.
             offspring_pop$runif <- runif(nrow(offspring_pop))
             
             for (offspring_ind in 1:nrow(offspring_pop)) {
-              if (length(mutation_loci_location) == 0 & verbose >= 2) {
-                message(important("  No more locus to mutate\n"))
+              if (length(mutation_loci_location) == 0) {
+                if (verbose >= 2) {
+                  message(important("  No more locus to mutate\n"))
+                }
                 break()
               }
               
               # Determine if a mutation occurs based on the mutation rate.
               if (offspring_pop[offspring_ind, "runif"] < mut_rate) {
-                locus_to_mutate <- sample(mutation_loci_location, 1)
+                # Sample by index: sample() on a single number n draws from 1:n
+                locus_to_mutate <- mutation_loci_location[
+                  sample.int(length(mutation_loci_location), 1)]
                 # Remove the mutated locus from available mutation loci.
                 mutation_loci_location <- mutation_loci_location[-which(mutation_loci_location == locus_to_mutate)]
                 chromosomes <- c(offspring_pop[offspring_ind, 3], offspring_pop[offspring_ind, 4])
@@ -740,16 +735,22 @@ gl.sim.WF.run <- function(file_var,
             })
             
           } else if (!is.null(clinal_adap)) {
-            pops_clinal <- seq(clinal_adap[1], clinal_adap[2], 1)
-            reference_clinal_temp <- replicate(length(pops_vector), 
-                                               reference[, c("s", "h")], 
-                                               simplify = FALSE)
-            # Calculate clinal selection coefficients.
-            clinal_s <- 1 - c(0, (1:(length(pops_clinal)-1) * (clinal_strength / 100)))
-            reference_clinal <- lapply(pops_clinal, function(y) {
-              reference_clinal_temp[[y]][adv_loci, "s"] <-  
-                reference_clinal_temp[[y]][adv_loci, "s"] * clinal_s[y]
-              return(reference_clinal_temp[[y]])
+            # Populations clinal_adap[1] to clinal_adap[2] form the cline.
+            # Along it, advantageous s is multiplied by 1, 1 - k, 1 - 2k, ...
+            # (k = clinal_strength / 100, floored at 0); populations outside
+            # the cline get advantageous s = 0, as in local adaptation
+            pops_clinal <- seq(clinal_adap[1], clinal_adap[2])
+            clinal_s <- pmax(0, 1 - (seq_along(pops_clinal) - 1) *
+                               (clinal_strength / 100))
+            reference_clinal <- lapply(pops_vector, function(y) {
+              ref_pop <- reference[, c("s", "h")]
+              position_cline <- match(y, pops_clinal)
+              ref_pop[adv_loci, "s"] <- if (is.na(position_cline)) {
+                0
+              } else {
+                ref_pop[adv_loci, "s"] * clinal_s[position_cline]
+              }
+              return(ref_pop)
             })
             
             offspring_list <- lapply(pops_vector, function(x) {
@@ -779,56 +780,24 @@ gl.sim.WF.run <- function(file_var,
         # -------------------------------
         # SAMPLING OF THE NEXT GENERATION
         # -------------------------------
-        # Check if any population went extinct (e.g., insufficient males or females).
-        test_extinction <- unlist(lapply(pops_vector, function(x) {
-          length(which(offspring_list[[x]]$V1 == "Male")) < population_size / 2 |
-            length(which(offspring_list[[x]]$V1 == "Female")) < population_size / 2
-        }))
+        # A population goes extinct when its offspring (after selection)
+        # include fewer males or fewer females than half its size. The
+        # iteration stops; generations stored so far are kept
+        test_extinction <- sapply(pops_vector, function(x) {
+          sexes <- offspring_list[[x]]$V1
+          sum(sexes == "Male") < population_size[x] / 2 |
+            sum(sexes == "Female") < population_size[x] / 2
+        })
         
-        if (any(test_extinction == TRUE) & verbose >= 2) {
-          message(important(" One Population became EXTINCT at generation", generation, "\n"))
-          message(important("  Breaking this iteration and passing to the next iteration", "\n"))
-          
-          if (sample_percent != 100) {
-            population_size_temp <- round(population_size * (sample_percent / 100))
-            # Ensure even numbers after subsampling.
-            population_size_temp <- (population_size_temp %% 2 != 0) + population_size_temp
-            pop_list_temp <- lapply(pops_vector, function(x) {
-              rbind(
-                pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Male"), size = population_size_temp[x] / 2),],
-                pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Female"), size = population_size_temp[x] / 2),]
-              )
-            })
-          } else {
-            population_size_temp <- population_size
-            pop_list_temp <- pop_list
+        if (any(test_extinction)) {
+          if (verbose >= 1) {
+            cat(important("  Population(s)",
+                          paste(pops_vector[test_extinction], collapse = ", "),
+                          "became extinct at generation", generation,
+                          "of iteration", iteration, ". Stopping this",
+                          "iteration; generations stored so far are kept.\n"))
           }
-          
-          # Combine simulation and reference variables for saving.
-          s_vars_temp <- rbind(ref_vars, sim_vars)
-          s_vars_temp <- setNames(data.frame(t(s_vars_temp[,-1])), s_vars_temp[, 1])
-          s_vars_temp$generation <- generation
-          s_vars_temp$iteration <- iteration
-          s_vars_temp$seed <- seed
-          s_vars_temp$del_ind_cM <- density_mutations_per_cm
-          s_vars_temp$sample_percent <- sample_percent
-          s_vars_temp$file_dispersal <- file_dispersal
-          
-          # Store the current generation's results.
-          final_res[[iteration]][[count_store]] <- store(
-            p_vector = pops_vector,
-            p_size = population_size_temp,
-            p_list = pop_list_temp,
-            n_loc_1 = loci_number,
-            ref = reference,
-            p_map = plink_map,
-            s_vars = s_vars_temp
-          )
-          
-          if (real_pops == TRUE) {
-            popNames(final_res[[iteration]][[count_store]]) <- popNames(x)
-          }
-          break()  # End the current iteration if extinction occurs.
+          break()
         }
         
         # -------------------------------
@@ -876,40 +845,21 @@ gl.sim.WF.run <- function(file_var,
           pops_merge <- rbindlist(pop_list)
           pops_seqs <- c(pops_merge$V3, pops_merge$V4)
           
-          # Define a dummy function to bypass package checking.
-          make_freqs <- function(){}  
-          
-          # Define a C++ function to compute allele frequencies across loci.
-          Rcpp::cppFunction(plugins="cpp11",
-                            "NumericVector make_freqs(StringVector seqs) {
-              int seqN = seqs.length();
-              int locN = strlen(seqs(0));
-              NumericMatrix freq_mat = NumericMatrix(seqN, locN);
-              NumericVector out(locN);
-              for (int i = 0; i < seqN; i++) {
-                for (int j = 0; j < locN; j++) {
-                  freq_mat(i, j) = seqs(i)[j] - '0';
-                }
-              }
-              for (int y = 0; y < locN; y++){
-                out[y] = sum(freq_mat(_, y));
-              }
-              return out;
-            }"
-          )
-          
+
           # Get frequencies for each locus.
-          freqs <- make_freqs(pops_seqs)
-          deleterious_eliminated <- which(freqs == 0)
-          # Recycle loci with no deleterious mutations.
-          mutation_loci_location <- union(mutation_loci_location, deleterious_eliminated)
+          freqs <- utils.wf.cpp()$make_freqs(pops_seqs)
+          # Mutation loci whose new allele was lost return to the pool; other
+          # loci (neutral, real, selected) never receive mutations
+          mutation_eliminated <- intersect(which(freqs == 0),
+                                           mutation_loci_types)
+          mutation_loci_location <- union(mutation_loci_location, mutation_eliminated)
         }
         
         # -------------------------------
         # STORE GENERATION RESULTS INTO GENLIGHT OBJECTS
         # -------------------------------
-        if (generation %in% gen_store & exists("count_store")) {
-          count_store <- count_store + 1
+        if (generation %in% gen_store & store_values == TRUE) {
+          gen_name <- paste0("generation_", generation)
           
           # Subsample individuals if sample_percent is less than 100.
           if (sample_percent < 100) {
@@ -942,7 +892,7 @@ gl.sim.WF.run <- function(file_var,
           }
           
           # Store the generation output.
-          final_res[[iteration]][[count_store]] <- store(
+          final_res[[iteration]][[gen_name]] <- store(
             p_vector = pops_vector,
             p_size = population_size_temp,
             p_list = pop_list_temp,
@@ -955,9 +905,9 @@ gl.sim.WF.run <- function(file_var,
           
           # Assign population names to the stored object.
           if (real_pops == TRUE) {
-            popNames(final_res[[iteration]][[count_store]]) <- popNames(x)
+            popNames(final_res[[iteration]][[gen_name]]) <- popNames(x)
           } else {
-            popNames(final_res[[iteration]][[count_store]]) <- as.character(pops_vector)
+            popNames(final_res[[iteration]][[gen_name]]) <- as.character(pops_vector)
           }
         }
       }  # End generation loop
@@ -966,17 +916,9 @@ gl.sim.WF.run <- function(file_var,
     # -------------------------------
     # FINALIZE RESULTS
     # -------------------------------
-    # Name the elements of the final results list.
+    # Name the elements of the final results list; each iteration's
+    # elements are already named by the generation they hold
     names(final_res) <- paste0("iteration_", 1:number_iterations)
-    final_res <- lapply(final_res, function(x) {
-      names(x) <- paste0("generation_", gen_store)
-      return(x)
-    })
-    
-    # Remove any NA entries from the results.
-    final_res <- lapply(final_res, function(x) {
-      x[!is.na(x)]
-    })
     
     # -------------------------------
     # FLAG THE END OF THE FUNCTION EXECUTION
