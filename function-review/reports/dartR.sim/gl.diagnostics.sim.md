@@ -115,7 +115,7 @@ Proposed change (separate PR, `gl.sim.WF.run`): build the factor with `levels = 
 
 A1: `R CMD check` dependencies NOTE resolved.
 Tests: `test-gl.diagnostics.sim.R` 14 expectations pass; full suite passes. Callers: none in other `dartR.*` packages or dartr2shiny. NEWS.md updated.
-PR: pending.
+PR: #51.
 
 ```json
 {
@@ -137,7 +137,7 @@ PR: pending.
     {"id": "F8", "severity": "HIGH", "confidence": "high", "rule": "out-of-scope:gl.sim.WF.run", "status": "approved", "change": 8}
   ],
   "coverage_skipped": ["He with migration: not simulated", "line/circle dispersal: not simulated", "plot.file saving: read only", "forum/issues search: not run"],
-  "status": "applied",
-  "pr": null
+  "status": "pr-open",
+  "pr": 51
 }
 ```
