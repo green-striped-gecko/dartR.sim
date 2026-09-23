@@ -1,2 +1,2 @@
-function,package,family,claimed_by,status
-gl.sim.WF.table,dartR.sim,analysis,Luis,applied
+function,package,family,claimed_by,status,pr
+gl.sim.WF.table,dartR.sim,analysis,Luis,pr-open,47

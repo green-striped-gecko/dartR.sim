@@ -144,7 +144,7 @@ With `real_freq = TRUE` and a genlight containing loci with no calls (e.g. `test
 
 Before/after comparison on nine seeded scenarios (default; mixed selected/mutation loci; `real_loc`; 99 deleterious; aligned 100 kb map; fly map; fly targets; fly map + targets; equation `h`/`q` with equal advantageous `s`): identical `reference` (by `all.equal`) except the two fly-map scenarios, which fall under change 3.
 Tests: `tests/testthat/test-gl.sim.WF.table.R` 28 expectations pass. Callers checked: `dartR.captive` (`utils.classes.diagnostics.relatedness.r`, passes `file_var`, `x`, `interactive_vars`) and `dartr2shiny` template (`file_var`, `interactive_vars`) — no `...` use, unaffected. NEWS.md created with the entry.
-PR: pending.
+PR: #47.
 
 ```json
 {
@@ -169,7 +169,7 @@ PR: pending.
     {"id": "F11", "severity": "INFO", "confidence": "high", "rule": "FS3", "status": "approved", "change": 11}
   ],
   "coverage_skipped": ["interactive Shiny route: needs browser", "targets file route: no example file", "q_equilibrium numerics: in utils.sims.r", "forum/issues search: not run"],
-  "status": "applied",
-  "pr": null
+  "status": "pr-open",
+  "pr": 47
 }
 ```
