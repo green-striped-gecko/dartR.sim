@@ -1,5 +1,12 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.apply (new)
+
+* `gl.sim.apply()` runs any function over the output of `gl.sim.WF.run()`
+  and tags each result with its iteration and generation (read from
+  `@other$sim.vars$generation`). Data frames and vectors are bound into one
+  tidy data frame; other results are returned as a nested, tagged list.
+
 ## gl.sim.WF.table
 
 * Arguments passed through `...` no longer put quotes around
