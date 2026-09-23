@@ -19,7 +19,7 @@ gl.sim.WF.table(
 \item{file_var}{Path of the variables file 'ref_variables.csv' (see details) 
 [required if interactive_vars = FALSE].}
 
-\item{x}{Name of the genlight object containing the SNP data to extract
+\item{x}{Genlight object containing the SNP data to extract
 values for some simulation variables (see details) [default NULL].}
 
 \item{file_targets_sel}{Path of the file with the targets for selection (see 
@@ -31,15 +31,18 @@ details) [default NULL].}
 \item{interactive_vars}{Run a shiny app to input interactively the values of
 simulation variables [default TRUE].}
 
-\item{seed}{Set the seed for the simulations [default NULL].}
+\item{seed}{Set the seed for the simulations. This calls set.seed(), so it
+also sets the random number stream of the R session for any code run
+afterwards [default NULL].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-progress log; 3, progress and results summary; 5, full report
+brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 
-\item{...}{Any variable and its value can be added separately within the 
-function, will be changed over the input value supplied by the csv file. See 
-tutorial.}
+\item{...}{Any simulation variable of 'ref_variables.csv' and its value,
+e.g. chunk_number = 20. The value replaces the one in the csv file or the
+Shiny app. Names that are not simulation variables stop the function with
+an error.}
 }
 \value{
 Returns a list with the reference table used as input for the function
@@ -61,10 +64,7 @@ This function creates a reference table to be used as input for the function
 \item type - SNP type.
 } 
 
-The reference table can be further modified as required. 
-
-See documentation and tutorial for a complete description of the simulations.
-These documents can be accessed at http://georges.biomatix.org/dartR
+The reference table can be further modified as required.
 }
 \details{
 Values for the variables to create the reference table can be submitted into 
@@ -72,21 +72,31 @@ the function interactively through a Shiny app if interactive_vars = TRUE.
 Optionally, if interactive_vars = FALSE, values for variables can be 
 submitted by using the csv file 'ref_variables.csv' which can be found by 
 typing in the R console:
- system.file('extdata', 'ref_variables.csv', package ='dartR.data').
+ system.file('extdata', 'ref_variables.csv', package = 'dartR.sim').
  
-The values of the variables can be modified using the third column (“value”) 
+The values of the variables can be modified using the third column ("value") 
 of this file. 
 
-If a genlight object is used as input for some of the simulation variables, 
-this function access the information stored in the slots x$position and 
-x$chromosome.
+If a genlight object is used as input (real_loc = TRUE or real_freq = TRUE),
+this function uses the slots x@position and x@chromosome. x@chromosome must
+contain the value of the variable chromosome_name.
 
-Examples of the format required for the recombination map file and the 
-targets for selection file can be found by typing in the R console:
+The recombination map file needs the columns Chr (chromosome name), from and
+to (start and end of each interval in bp) and cM (centiMorgans in the
+interval). Intervals can have any size; intervals with cM = NA are treated
+as not recombining. The targets of selection file needs the columns
+chr_name, start and end (in bp) and targets (number of targets of selection
+in the region). Examples of both files can be found by typing in the R
+console:
 \itemize{ 
-\item system.file('extdata', 'fly_recom_map.csv', package ='dartR.data')
-\item system.file('extdata', 'fly_targets_of_selection.csv', package ='dartR.data')
+\item system.file('extdata', 'fly_recom_map.csv', package = 'dartR.sim')
+\item system.file('extdata', 'fly_targets_of_selection.csv', package = 'dartR.sim')
 }
+
+Values drawn from distributions or equations are capped: q at 0.5,
+deleterious s at 0.99 and advantageous s at -0.5. Each class is capped only
+when its own distribution setting is not "equal". The number of capped loci
+is reported when verbose >= 1.
 
 To show further information of the variables in interactive mode, it might be
  necessary to call first: 'library(shinyBS)' for the information to be 
@@ -109,7 +119,7 @@ Other simulation functions:
 \code{\link{gl.sim.create_dispersal}()}
 }
 \author{
-Custodian: Luis Mijangos -- Post to
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 \url{https://groups.google.com/d/forum/dartr}
 }
 \concept{simulation functions}

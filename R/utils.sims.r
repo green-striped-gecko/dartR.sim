@@ -19,6 +19,35 @@ q_equilibrium <- function(a, b, c) {
   return(x_1)
 }
 
+###############################################################################
+####################### REFERENCE TABLE VARIABLES #############################
+###############################################################################
+
+# Converts the variable/value table used by gl.sim.WF.table into a named list
+# of R values. Character variables are stored quoted in ref_variables.csv
+# ("gamma") but bare in the Shiny app and in ... overrides (gamma), so their
+# quotes are stripped instead of evaluated. Every other value is evaluated,
+# which allows entries such as sqrt(0.001) or 5*10^-5; values are evaluated in
+# order in one environment, so a value can refer to an earlier variable.
+utils.wf.ref.values <- function(ref_vars) {
+  char_vars <- c("chromosome_name",
+                 "h_distribution_del", "s_distribution_del",
+                 "q_distribution_del", "h_distribution_adv",
+                 "s_distribution_adv", "q_distribution_adv")
+  env <- new.env(parent = globalenv())
+  for (i in seq_len(nrow(ref_vars))) {
+    var <- as.character(ref_vars$variable[i])
+    val <- as.character(ref_vars$value[i])
+    if (var %in% char_vars) {
+      val <- gsub("[\"']", "", val)
+    } else {
+      val <- eval(parse(text = val), envir = env)
+    }
+    assign(var, val, envir = env)
+  }
+  return(mget(as.character(ref_vars$variable), envir = env))
+}
+
 
 ###############################################################################
 ################################ MIGRATION ####################################

@@ -1,5 +1,6 @@
 #' @name gl.sim.WF.table
 #' @title Creates the reference table for running gl.sim.WF.run
+#' @family simulation functions
 #' @description
 #' This function creates a reference table to be used as input for the function
 #'  \code{\link{gl.sim.WF.run}}. The created table has eight columns with the 
@@ -17,12 +18,9 @@
 #' 
 #' The reference table can be further modified as required. 
 #' 
-#' See documentation and tutorial for a complete description of the simulations.
-#' These documents can be accessed at http://georges.biomatix.org/dartR 
-#' 
 #' @param file_var Path of the variables file 'ref_variables.csv' (see details) 
 #' [required if interactive_vars = FALSE].
-#' @param x Name of the genlight object containing the SNP data to extract
+#' @param x Genlight object containing the SNP data to extract
 #' values for some simulation variables (see details) [default NULL].
 #' @param file_targets_sel Path of the file with the targets for selection (see 
 #' details) [default NULL].
@@ -30,34 +28,47 @@
 #' [default NULL].
 #' @param interactive_vars Run a shiny app to input interactively the values of
 #'  simulation variables [default TRUE].
-#' @param seed Set the seed for the simulations [default NULL].
+#' @param seed Set the seed for the simulations. This calls set.seed(), so it
+#' also sets the random number stream of the R session for any code run
+#' afterwards [default NULL].
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-#' progress log; 3, progress and results summary; 5, full report
+#' brief progress messages; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
-#' @param ... Any variable and its value can be added separately within the 
-#' function, will be changed over the input value supplied by the csv file. See 
-#' tutorial. 
+#' @param ... Any simulation variable of 'ref_variables.csv' and its value,
+#' e.g. chunk_number = 20. The value replaces the one in the csv file or the
+#' Shiny app. Names that are not simulation variables stop the function with
+#' an error.
 #' @details
 #' Values for the variables to create the reference table can be submitted into 
 #' the function interactively through a Shiny app if interactive_vars = TRUE. 
 #' Optionally, if interactive_vars = FALSE, values for variables can be 
 #' submitted by using the csv file 'ref_variables.csv' which can be found by 
 #' typing in the R console:
-#'  system.file('extdata', 'ref_variables.csv', package ='dartR.data').
+#'  system.file('extdata', 'ref_variables.csv', package = 'dartR.sim').
 #'  
-#' The values of the variables can be modified using the third column (“value”) 
+#' The values of the variables can be modified using the third column ("value") 
 #' of this file. 
 #' 
-#' If a genlight object is used as input for some of the simulation variables, 
-#' this function access the information stored in the slots x$position and 
-#' x$chromosome.
+#' If a genlight object is used as input (real_loc = TRUE or real_freq = TRUE),
+#' this function uses the slots x@position and x@chromosome. x@chromosome must
+#' contain the value of the variable chromosome_name.
 #' 
-#' Examples of the format required for the recombination map file and the 
-#' targets for selection file can be found by typing in the R console:
+#' The recombination map file needs the columns Chr (chromosome name), from and
+#' to (start and end of each interval in bp) and cM (centiMorgans in the
+#' interval). Intervals can have any size; intervals with cM = NA are treated
+#' as not recombining. The targets of selection file needs the columns
+#' chr_name, start and end (in bp) and targets (number of targets of selection
+#' in the region). Examples of both files can be found by typing in the R
+#' console:
 #' \itemize{ 
-#' \item system.file('extdata', 'fly_recom_map.csv', package ='dartR.data')
-#' \item system.file('extdata', 'fly_targets_of_selection.csv', package ='dartR.data')
+#' \item system.file('extdata', 'fly_recom_map.csv', package = 'dartR.sim')
+#' \item system.file('extdata', 'fly_targets_of_selection.csv', package = 'dartR.sim')
 #' }
+#' 
+#' Values drawn from distributions or equations are capped: q at 0.5,
+#' deleterious s at 0.99 and advantageous s at -0.5. Each class is capped only
+#' when its own distribution setting is not "equal". The number of capped loci
+#' is reported when verbose >= 1.
 #' 
 #' To show further information of the variables in interactive mode, it might be
 #'  necessary to call first: 'library(shinyBS)' for the information to be 
@@ -65,7 +76,7 @@
 #' @return Returns a list with the reference table used as input for the function
 #'  \code{\link{gl.sim.WF.run}} and a table with the values variables used to 
 #'  create the reference table.
-#' @author Custodian: Luis Mijangos -- Post to
+#' @author Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
 #' ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
@@ -76,7 +87,6 @@
 #'  interactive_vars = FALSE)
 #'  
 #' @seealso \code{\link{gl.sim.WF.run}}
-#' @family simulation functions
 #' @rawNamespace import(fields, except = flame)
 #' @export
 
@@ -96,147 +106,95 @@ gl.sim.WF.table <- function(file_var,
   
   ## Set the verbosity level using a helper function
   verbose <- gl.check.verbosity(verbose)
-  
+
   ## Flag the start of the function execution (for logging purposes)
   funname <- match.call()[[1]]
   utils.flag.start(func = funname,
-                   build = "Jody",
                    verbose = verbose)
-  
+
+  ## CHECK INPUTS
+  if (interactive_vars == FALSE &&
+      (missing(file_var) || !file.exists(file_var))) {
+    stop(error("  When interactive_vars = FALSE, file_var must be the path to",
+               "an existing 'ref_variables.csv' file\n"))
+  }
+  if (!is.null(x) && !is(x, "genlight")) {
+    stop(error("  x must be a genlight object\n"))
+  }
+
   ## LOADING VARIABLES
-  ##### If running interactively, open a shiny app to input simulation variables #####
+  ## Variables come from the Shiny app or from the CSV file; either way
+  ## ref_vars is a two-column table (variable, value) of character values
   if (interactive_vars == TRUE) {
     ref_vars <- interactive_reference()
-    
-    # For certain variables, wrap the values in single quotes (for later evaluation)
-    ref_vars[ref_vars$variable=="chromosome_name", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="chromosome_name", "value"], "'")
-    ref_vars[ref_vars$variable=="h_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="h_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="s_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="s_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="q_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="q_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="h_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="h_distribution_adv", "value"], "'")
-    ref_vars[ref_vars$variable=="s_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="s_distribution_adv", "value"], "'")
-    ref_vars[ref_vars$variable=="q_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="q_distribution_adv", "value"], "'")
-    
-    ## Order the variables alphabetically
-    ref_vars <- ref_vars[order(ref_vars$variable),]
-    
-    ## Create assignment strings (e.g., variable <- value) for each simulation variable
-    vars_assign <- unlist(unname(
-      mapply(paste, ref_vars$variable, "<-",
-             ref_vars$value, SIMPLIFY = F)
-    ))
-    ## Evaluate the assignments to set variables in the environment
-    eval(parse(text = vars_assign))
-    
   } else {
-    ## If not interactive, read the variables from a CSV file
     ref_vars <- suppressWarnings(read.csv(file_var))
-    ref_vars <- ref_vars[, 2:3]  # select only the variable names and their values
-    ref_vars <- ref_vars[order(ref_vars$variable),]
-    
-    ## Create and evaluate assignment strings from the CSV file values
-    vars_assign <- unlist(unname(
-      mapply(paste, ref_vars$variable, "<-",
-             ref_vars$value, SIMPLIFY = F)
-    ))
-    eval(parse(text = vars_assign))
+    ref_vars <- ref_vars[, c("variable", "value")]
   }
-  
-  ## Process additional input arguments passed through ...
+  ref_vars <- ref_vars[order(ref_vars$variable), ]
+
+  ## Values passed through ... replace the values in ref_vars. Names that are
+  ## not simulation variables are refused, so a misspelt name cannot be
+  ## silently ignored
   input_list <- list(...)
   if (length(input_list) > 0) {
-    ref_vars <- ref_vars[order(ref_vars$variable),]
-    input_list <- input_list[order(names(input_list))]
-    ## Identify which variables in ref_vars are being overridden
-    val_change <- which(ref_vars$variable %in% names(input_list))
-    ref_vars[val_change, "value"] <- unlist(input_list)
-    
-    ## Ensure certain variables have values wrapped in single quotes
-    ref_vars[ref_vars$variable=="chromosome_name", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="chromosome_name", "value"], "'")
-    ref_vars[ref_vars$variable=="h_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="h_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="s_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="s_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="q_distribution_del", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="q_distribution_del", "value"], "'")
-    ref_vars[ref_vars$variable=="h_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="h_distribution_adv", "value"], "'")
-    ref_vars[ref_vars$variable=="s_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="s_distribution_adv", "value"], "'")
-    ref_vars[ref_vars$variable=="q_distribution_adv", "value"] <-
-      paste0("'", ref_vars[ref_vars$variable=="q_distribution_adv", "value"], "'")
-    
-    ## Reassign the variables with updated values
-    vars_assign <- unlist(unname(
-      mapply(paste, ref_vars$variable, "<-",
-             ref_vars$value, SIMPLIFY = F)
-    ))
-    eval(parse(text = vars_assign))
+    unknown <- setdiff(names(input_list), ref_vars$variable)
+    if (is.null(names(input_list)) || any(names(input_list) == "") ||
+        length(unknown) > 0) {
+      stop(error("  Arguments passed through ... must be named simulation",
+                 "variables. Unknown:", paste(unknown, collapse = ", "),
+                 "\n"))
+    }
+    for (var in names(input_list)) {
+      ref_vars[ref_vars$variable == var, "value"] <-
+        as.character(input_list[[var]])
+    }
   }
-  
-  ## Clean up any extra quotation marks from the distribution parameters
-  s_distribution_del <- gsub('\"', "", s_distribution_del, fixed = TRUE)
-  s_distribution_adv <- gsub('\"', "", s_distribution_adv, fixed = TRUE)
-  h_distribution_del <- gsub('\"', "", h_distribution_del, fixed = TRUE)
-  h_distribution_adv <- gsub('\"', "", h_distribution_adv, fixed = TRUE)
-  q_distribution_del <- gsub('\"', "", q_distribution_del, fixed = TRUE)
-  q_distribution_adv <- gsub('\"', "", q_distribution_adv, fixed = TRUE)
-  
+
+  ## Create one R variable per simulation variable in this environment
+  list2env(utils.wf.ref.values(ref_vars), envir = environment())
+
   ##### LOADING INFORMATION #####
   ## RECOMBINATION MAP: load recombination data if provided
   if (!is.null(file_r_map)) {
-    map <- read.csv(file_r_map)
+    map <- read.csv(file_r_map, check.names = FALSE)
+    ## Header names can carry stray spaces (e.g. "to " in fly_recom_map.csv)
+    colnames(map) <- trimws(colnames(map))
     map$Chr <- as.character(map$Chr)
-    
+
     ## Check that the chromosome name is present in the recombination map
     if (!chromosome_name %in% map$Chr) {
-      message(error("  Chromosome name is not in the recombination map file\n"))
-      stop()
+      stop(error("  Chromosome name is not in the recombination map file\n"))
     }
-    ## Subset the map for the given chromosome and adjust units for cM
-    map <- map[which(map$Chr == chromosome_name),]
+    ## Subset the map for the given chromosome and convert cM to Morgans
+    map <- map[which(map$Chr == chromosome_name), ]
+    map <- map[order(map$from), ]
+    ## Intervals without an estimate are treated as not recombining
+    map$cM[is.na(map$cM)] <- 0
     map$cM <- map$cM / 100
-    ## Replace any NA values with 0
-    map[is.na(map$cM), ] <- 0
-  } else {
-    ## If no recombination map file is provided, create a default map using chunk data
-    map <- as.data.frame(matrix(nrow = chunk_number))
-    map[, 1] <- chunk_cM / 100
-    colnames(map) <- "cM"
   }
-  
+
   ## TARGETS OF SELECTION: load targets file if provided
   targets_temp <- NULL
   if (!is.null(file_targets_sel)) {
     targets_temp <- read.csv(file_targets_sel)
     targets_temp$chr_name <- as.character(targets_temp$chr_name)
-    
+
     ## Check that the chromosome name exists in the targets file
     if (!chromosome_name %in% targets_temp$chr_name) {
-      message(error("  Chromosome name is not in the targets of selection file\n"))
-      stop()
+      stop(error("  Chromosome name is not in the targets of selection file\n"))
     }
     targets_temp <- targets_temp[which(targets_temp$chr_name == chromosome_name),]
   }
-  
+
   ## REAL DATA: ensure that if real location or frequency info is needed, the dataset is provided
   if ((real_loc == TRUE | real_freq == TRUE) && is.null(x)) {
-    message(error(" The real dataset to extract information is missing\n"))
-    stop()
+    stop(error("  The real dataset to extract information is missing\n"))
   }
   location_real_temp <- NULL
   if (real_loc == TRUE & !is.null(x)) {
     if (!chromosome_name %in% x@chromosome) {
-      message(error("  Chromosome name is not in the genlight object\n"))
-      stop()
+      stop(error("  Chromosome name is not in the genlight object\n"))
     }
     ## Extract chromosome and position data from the genlight object
     location_real_temp <- as.data.frame(cbind(as.character(x$chromosome), x$position))
@@ -251,6 +209,9 @@ gl.sim.WF.table <- function(file_var,
   ## Determine chromosome length based on recombination map or default chunks
   if (!is.null(file_r_map)) {
     chr_length <- tail(map$to, 1)
+    ## Neutral loci are spread over the whole mapped chromosome, whatever
+    ## the size of the map intervals
+    chunk_bp <- chr_length / chunk_number
   } else {
     chr_length <- chunk_number * chunk_bp
   }
@@ -318,11 +279,18 @@ gl.sim.WF.table <- function(file_var,
         del[row_targets, "targets"] <- 1
         del[is.na(del$targets), "targets"] <- 0
       } else {
-        del$targets <- round(loci_deleterious / chunk_number)
+        ## Spread the loci evenly and give the remainder to random chunks,
+        ## so the total equals loci_deleterious
+        del$targets <- floor(loci_deleterious / chunk_number)
+        extra <- loci_deleterious %% chunk_number
+        if (extra > 0) {
+          row_targets <- sample(1:chunk_number, size = extra)
+          del[row_targets, "targets"] <- del[row_targets, "targets"] + 1
+        }
       }
       del$distance <-  del$end - del$start
     }
-    sample_resolution <- round(mean(del$distance) / max(del$targets) / 10)
+    sample_resolution <- max(1, round(mean(del$distance) / max(del$targets) / 10))
     ## For each interval, sample positions for deleterious loci
     for (i in 1:nrow(del)) {
       location_deleterious_temp <- mapply(
@@ -333,7 +301,9 @@ gl.sim.WF.table <- function(file_var,
         b = unname(unlist(del[i, "end"]))
       )
       location_deleterious_temp <- as.vector(round(location_deleterious_temp))
-      location_deleterious_temp <- sample(location_deleterious_temp, size = del[i, "targets"])
+      ## Sample by index: sample() on a single number n would draw from 1:n
+      location_deleterious_temp <- location_deleterious_temp[
+        sample.int(length(location_deleterious_temp), size = del[i, "targets"])]
       location_deleterious_bp <- c(location_deleterious_bp, location_deleterious_temp)
     }
     location_deleterious_bp <- location_deleterious_bp[order(location_deleterious_bp)]
@@ -368,7 +338,7 @@ gl.sim.WF.table <- function(file_var,
       mutations$targets <- ceiling(loci_mutation / chunk_number)
       mutations$distance <-  mutations$end - mutations$start
     }
-    sample_resolution <- round(mean(mutations$distance) / max(mutations$targets) / 20)
+    sample_resolution <- max(1, round(mean(mutations$distance) / max(mutations$targets) / 20))
     ## Sample mutation positions for each interval
     for (i in 1:nrow(mutations)) {
       location_mutations_temp <- mapply(
@@ -379,7 +349,8 @@ gl.sim.WF.table <- function(file_var,
         b = unname(unlist(mutations[i, "end"]))
       )
       location_mutations_temp <- as.vector(round(location_mutations_temp))
-      location_mutations_temp <- sample(location_mutations_temp, size = mutations[i, "targets"])
+      location_mutations_temp <- location_mutations_temp[
+        sample.int(length(location_mutations_temp), size = mutations[i, "targets"])]
       location_mutations_bp <- c(location_mutations_bp, location_mutations_temp)
     }
     location_mutations_bp <- location_mutations_bp[order(location_mutations_bp)]
@@ -404,29 +375,40 @@ gl.sim.WF.table <- function(file_var,
   
   ## Check that the number of loci exceeds the number of genome chunks
   if (chunk_number > length(location_loci_bp)) {
-    message(error("  Number of loci should be more than the number of genome chunks\n"))
-    stop()
+    stop(error("  Number of loci should be more than the number of genome chunks\n"))
   }
   
   total_loci <- length(location_loci_bp)
   
   ##### RECOMBINATION MAP #####
-  ## Build a recombination map by cross-multiplying loci positions with the map data
-  recombination_map_temp <- map
-  recombination_map_temp$midpoint <- seq(chunk_bp / 2, chr_length, chunk_bp)[1:nrow(recombination_map_temp)]
-  recombination_temp <- unlist(lapply(location_loci_bp, findInterval, vec = as.numeric(paste(unlist(recombination_map_temp$midpoint)))))
+  ## Without a map file, the chromosome is split into chunk_number intervals
+  ## of chunk_bp bp, each with chunk_cM cM. This is built here, after chunk_bp
+  ## may have been rescaled to the real data or the targets file
+  if (is.null(file_r_map)) {
+    map <- data.frame(from = (0:(chunk_number - 1)) * chunk_bp + 1,
+                      to = (1:chunk_number) * chunk_bp,
+                      cM = chunk_cM / 100)
+  }
+  ## Each map interval has its own length and midpoint, taken from its from
+  ## and to columns, so maps need not have chunk_bp-sized intervals
+  map_length <- map$to - map$from + 1
+  map_midpoint <- map$to - map_length / 2
+  ## Each locus takes the rate (Morgans per bp) of the interval whose midpoint
+  ## is the closest one at or below it
+  recombination_temp <- findInterval(location_loci_bp, map_midpoint)
   
   ## Correct intervals that fall before the first midpoint
   recombination_temp[recombination_temp == 0] <- 1
-  recombination_2 <- recombination_map_temp[recombination_temp, "cM"]
+  recombination_2 <- map[recombination_temp, "cM"] /
+    map_length[recombination_temp]
   recombination_map <- as.data.frame(cbind(location_loci_bp, recombination_2))
   recombination_map$c <- NA
   
-  ## Calculate recombination rates for each interval (except the last)
+  ## Recombination between each locus and the next one (except the last)
   for (target_row in 1:(nrow(recombination_map) - 1)) {
-    recombination_map[target_row, "c"] <- ((recombination_map[target_row + 1, "location_loci_bp"] - 
+    recombination_map[target_row, "c"] <- (recombination_map[target_row + 1, "location_loci_bp"] - 
                                               recombination_map[target_row, "location_loci_bp"]) * 
-                                             recombination_map[target_row, "recombination_2"]) / chunk_bp
+                                             recombination_map[target_row, "recombination_2"]
   }
   ## Set recombination rate for the last locus to zero (to avoid function crash)
   recombination_map[nrow(recombination_map), "c"] <- 0
@@ -507,7 +489,7 @@ gl.sim.WF.table <- function(file_var,
   if (chunk_neutral_loci > 0) {
     s[location_neutral_row] <- 0
   }
-  if (real_loc == TRUE) {
+  if (real_loc == TRUE | real_freq == TRUE) {
     s[location_real_row] <- 0
   }
   if (loci_deleterious > 0) {
@@ -557,7 +539,7 @@ gl.sim.WF.table <- function(file_var,
   if (chunk_neutral_loci > 0) {
     h[location_neutral_row] <- 0
   }
-  if (real_loc == TRUE) {
+  if (real_loc == TRUE | real_freq == TRUE) {
     h[location_real_row] <- 0
   }
   if (loci_deleterious > 0) {
@@ -613,7 +595,7 @@ gl.sim.WF.table <- function(file_var,
   if (chunk_neutral_loci > 0) {
     q[location_neutral_row] <- q_neutral
   }
-  if (real_loc == TRUE) {
+  if (real_loc == TRUE | real_freq == TRUE) {
     q[location_real_row] <- q_neutral
   }
   if (loci_deleterious > 0) {
@@ -664,7 +646,7 @@ gl.sim.WF.table <- function(file_var,
   reference <- reference[, -1]  # remove the first temporary column
   
   ## Label each row in the reference table based on the type of locus
-  if (real_loc == TRUE) {
+  if (real_loc == TRUE | real_freq == TRUE) {
     reference[location_real_row, "type"] <- "real"
   }
   if (chunk_neutral_loci > 0) {
@@ -686,16 +668,27 @@ gl.sim.WF.table <- function(file_var,
     reference[location_mut_adv_row, "type"] <- "mutation_adv"
   }
   
-  ## Adjust values: cap q at 0.5 for non-equal distributions and adjust extreme s values
-  if (q_distribution_del != "equal") {
-    q_more_than_point5 <- as.numeric(row.names(reference[reference$q > 0.5, ]))
-    reference[q_more_than_point5, "q"] <- 0.5
-  }
-  if (s_distribution_del != "equal") {
-    s_more_than_one <- as.numeric(row.names(reference[reference$s > 1, ]))
-    reference[s_more_than_one, "s"] <- 0.99
-    s_less_minus_one <- as.numeric(row.names(reference[reference$s < -0.5, ]))
-    reference[s_less_minus_one, "s"] <- -0.5
+  ## Cap values drawn from distributions or equations: q at 0.5, deleterious
+  ## s at 0.99 and advantageous s at -0.5. Each class is capped only when its
+  ## own setting is not "equal", so values set by the user are kept
+  del_rows <- which(reference$type %in% c("deleterious", "mutation_del"))
+  adv_rows <- which(reference$type %in% c("advantageous", "mutation_adv"))
+  cap_q <- c(if (q_distribution_del != "equal") del_rows,
+             if (q_distribution_adv != "equal") adv_rows)
+  cap_q <- cap_q[reference$q[cap_q] > 0.5]
+  reference[cap_q, "q"] <- 0.5
+  cap_s_del <- if (s_distribution_del != "equal") del_rows
+  cap_s_del <- cap_s_del[reference$s[cap_s_del] > 1]
+  reference[cap_s_del, "s"] <- 0.99
+  cap_s_adv <- if (s_distribution_adv != "equal") adv_rows
+  cap_s_adv <- cap_s_adv[reference$s[cap_s_adv] < -0.5]
+  reference[cap_s_adv, "s"] <- -0.5
+  n_capped <- length(cap_q) + length(cap_s_del) + length(cap_s_adv)
+  if (verbose >= 1 && n_capped > 0) {
+    cat(warn("  Values capped: q > 0.5 set to 0.5 in", length(cap_q),
+             "loci; deleterious s > 1 set to 0.99 in", length(cap_s_del),
+             "loci; advantageous s < -0.5 set to -0.5 in", length(cap_s_adv),
+             "loci\n"))
   }
   
   ## Prepare the result list containing the reference table and the variable values table
