@@ -15,7 +15,9 @@
 #' @param number_pops Number of populations [required].
 #' @param dispersal_type One of: "all_connected", "circle" or "line"
 #' [default "all_connected"].
-#' @param number_transfers Number of dispersing individuals. This value can be .
+#' @param number_transfers Number of individuals swapped in each direction
+#' between the two populations of a row at each dispersal event. Each
+#' connected pair of populations is written once. This value can be
 #' modified by hand after the file has been created [default 1].
 #' @param transfer_each_gen Interval of number of generations in which dispersal
 #' occur. This value can be modified by hand after the file has been created
@@ -82,6 +84,12 @@ gl.sim.create_dispersal <- function(number_pops,
     )))
     colnames(dispersal_pairs) <- c("pop1", "pop2")
   }
+  
+  # gl.sim.WF.run() swaps individuals in both directions for each row, so
+  # each connected pair is written once
+  pair_key <- paste(pmin(dispersal_pairs$pop1, dispersal_pairs$pop2),
+                    pmax(dispersal_pairs$pop1, dispersal_pairs$pop2))
+  dispersal_pairs <- dispersal_pairs[!duplicated(pair_key), ]
   
   dispersal_pairs <-
     cbind(dispersal_pairs[, 1:2], number_transfers,transfer_each_gen)

@@ -29,23 +29,123 @@ q_equilibrium <- function(a, b, c) {
 # quotes are stripped instead of evaluated. Every other value is evaluated,
 # which allows entries such as sqrt(0.001) or 5*10^-5; values are evaluated in
 # order in one environment, so a value can refer to an earlier variable.
-utils.wf.ref.values <- function(ref_vars) {
-  char_vars <- c("chromosome_name",
-                 "h_distribution_del", "s_distribution_del",
-                 "q_distribution_del", "h_distribution_adv",
-                 "s_distribution_adv", "q_distribution_adv")
+utils.wf.ref.values <- function(ref_vars,
+                                char_vars = c("chromosome_name",
+                                              "h_distribution_del",
+                                              "s_distribution_del",
+                                              "q_distribution_del",
+                                              "h_distribution_adv",
+                                              "s_distribution_adv",
+                                              "q_distribution_adv")) {
   env <- new.env(parent = globalenv())
   for (i in seq_len(nrow(ref_vars))) {
     var <- as.character(ref_vars$variable[i])
     val <- as.character(ref_vars$value[i])
     if (var %in% char_vars) {
       val <- gsub("[\"']", "", val)
+      ## An empty or NULL entry (e.g. local_adap) means "not set"
+      if (is.na(val) || val %in% c("", "NULL")) {
+        val <- NULL
+      }
     } else {
       val <- eval(parse(text = val), envir = env)
     }
     assign(var, val, envir = env)
   }
   return(mget(as.character(ref_vars$variable), envir = env))
+}
+
+###############################################################################
+############################ C++ HELPERS ######################################
+###############################################################################
+
+# The C++ helpers of the Wright-Fisher simulator are compiled once per R
+# session and kept in this environment; compiling them inside the generation
+# loop cost ~0.07 s per call even with Rcpp's cache.
+.wf_cpp <- new.env(parent = baseenv())
+
+utils.wf.cpp <- function() {
+  if (!is.null(.wf_cpp$make_fit)) {
+    return(.wf_cpp)
+  }
+  
+  # Chromosomes for the initial generation: allele "1" with probability q
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    'StringVector make_chr(int j, NumericVector q) {
+          StringVector out(j);
+          int size = 1;
+          IntegerVector x = IntegerVector::create(1, 0);
+          bool rep = false;
+          for (int i = 0; i < j; i++) {
+            std::ostringstream temp;
+            for (int z = 0; z < q.length(); z++) {
+              NumericVector p = NumericVector::create(q[z], 1 - q[z]);
+              temp << sample(x, size, rep, p);
+            }
+            out[i] = temp.str();
+          }
+          return out;
+        }')
+  
+  # Number of "1" alleles per locus across chromosomes
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    "NumericVector make_freqs(StringVector seqs) {
+              int seqN = seqs.length();
+              int locN = strlen(seqs(0));
+              NumericMatrix freq_mat = NumericMatrix(seqN, locN);
+              NumericVector out(locN);
+              for (int i = 0; i < seqN; i++) {
+                for (int j = 0; j < locN; j++) {
+                  freq_mat(i, j) = seqs(i)[j] - '0';
+                }
+              }
+              for (int y = 0; y < locN; y++){
+                out[y] = sum(freq_mat(_, y));
+              }
+              return out;
+            }")
+  
+  # Multiplicative fitness across loci: 1 - s ("11"), 1 - hs (heterozygote)
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    "NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
+  int loc_number = strlen(seqs(0,0));
+  int indN = seqs.nrow();
+  NumericVector out(indN);
+  for (int i = 0; i < indN; i++) {
+    NumericVector fit_ind(loc_number);
+    fit_ind.fill(1);
+    for (int loc = 0; loc < loc_number; loc++){
+      char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
+      if (chr1 == chr2 && chr1=='1')
+        fit_ind[loc] = 1 - s[loc];
+      if (chr1 != chr2)
+        fit_ind[loc] = 1 - (h[loc] * s[loc]);
+    }
+    out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
+  }
+  return(out);
+}")
+  
+  # Genotype strings ("00", "01", "10", "11") per individual and locus
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    'List make_geno(StringMatrix mat) {
+    int ind = mat.nrow();
+    int loc = strlen(mat(0,0));
+    List out(ind);
+    for (int i = 0; i < ind; i++) {
+      std::string chr1 (mat(i,0));
+      std::string chr2 (mat(i,1));
+      StringVector temp(loc);
+      for (int j = 0; j < loc; j++) {
+        StringVector geno = StringVector::create(chr1[j],chr2[j]);
+        temp[j] = collapse(geno);
+      }
+      out[i] = temp;
+    }
+    return out;
+  }')
+  
+  return(.wf_cpp)
 }
 
 
@@ -172,8 +272,8 @@ reproduction <- function(pop,
                                 size = pop_size / 2,
                                 replace = rep_parents)
   
-  # Initialize an empty data frame to store all offspring
-  offspring <- NULL
+  # Offspring of each pair are collected in a list and bound once
+  offspring <- vector("list", nrow(parents_matrix))
   
   # Loop over each mating pair to generate offspring
   for (parent in 1:dim(parents_matrix)[1]) {
@@ -201,54 +301,36 @@ reproduction <- function(pop,
     female_chromosomes <- list(pop[parents_matrix[parent, 2], 3], 
                                pop[parents_matrix[parent, 2], 4])
     
-    # Loop through each offspring produced by the pair
+    # Loop through each offspring produced by the pair. Each gamete starts
+    # from the parent's own chromosomes, so siblings recombine independently.
+    # The number of recombination events is Poisson(r_event); each event
+    # places a chiasma with probability sum(c) / r_event (see gamete()), so
+    # the mean number of crossovers per gamete equals the map length in
+    # Morgans
     for (offs in 1:pairing_offspring) {
-      # Generate recombination event counts using a Poisson distribution for both sexes
-      males_recom_events <- rpois(1, r_event)
-      females_recom_events <- rpois(1, r_event)
-      
-      # For males: if recombination is enabled and enough events occur, recombine chromosomes
-      if (recom == TRUE & r_males == TRUE & males_recom_events > 1) {
-        for (event in males_recom_events) {
-          male_chromosomes <- recomb(
-            chr1 = male_chromosomes[[1]],
-            chr2 = male_chromosomes[[2]],
-            r_map = r_map_1,
-            loci = n_loc
-          )
-        }
-        # Randomly select one of the recombined male chromosomes for the offspring
-        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-      } else {
-        # Without recombination, randomly select one of the male chromosomes
-        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-      }
-      
-      # For females: if recombination is enabled and enough events occur, recombine chromosomes
-      if (recom == TRUE & females_recom_events > 1) {
-        for (event in females_recom_events) {
-          female_chromosomes <- recomb(
-            chr1 = female_chromosomes[[1]],
-            chr2 = female_chromosomes[[2]],
-            r_map = r_map_1,
-            loci = n_loc
-          )
-        }
-        # Randomly select one of the recombined female chromosomes for the offspring
-        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-      } else {
-        # Without recombination, randomly select one of the female chromosomes
-        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-      }
+      offspring_temp[offs, 3] <- gamete(
+        chr1 = male_chromosomes[[1]],
+        chr2 = male_chromosomes[[2]],
+        n_events = if (recom == TRUE & r_males == TRUE) rpois(1, r_event) else 0,
+        r_map = r_map_1,
+        loci = n_loc
+      )
+      offspring_temp[offs, 4] <- gamete(
+        chr1 = female_chromosomes[[1]],
+        chr2 = female_chromosomes[[2]],
+        n_events = if (recom == TRUE) rpois(1, r_event) else 0,
+        r_map = r_map_1,
+        loci = n_loc
+      )
     }
     # Record the parent IDs: father (column 5) and mother (column 6)
     offspring_temp[, 5] <- pop[parents_matrix[parent,1],"id"]
     offspring_temp[, 6] <- pop[parents_matrix[parent,2],"id"]
     
-    # Combine the offspring from this pair with the overall offspring data
-    offspring <- rbind(offspring, offspring_temp)
+    offspring[[parent]] <- offspring_temp
   }
-  # Return the complete offspring data frame
+  # Return the complete offspring data frame (NULL if no offspring)
+  offspring <- do.call(rbind, offspring)
   return(offspring)
 }
 
@@ -282,6 +364,41 @@ recomb <- function(chr1,
 }
 
 
+# Function to make one gamete from a parent's two chromosomes.
+# chr1, chr2: the parent's chromosomes (strings of 0/1, one character per locus).
+# n_events: number of recombination events in this meiosis.
+# r_map: recombination map; row i (i <= loci) is the probability weight of a
+#   chiasma between loci i and i + 1, row loci + 1 is "no chiasma".
+# loci: number of loci.
+# All chiasmata are drawn at once (equivalent to applying recomb() n_events
+# times: a chiasma drawn twice at the same place cancels out). One of the two
+# recombinant products is returned at random.
+gamete <- function(chr1,
+                   chr2,
+                   n_events,
+                   r_map,
+                   loci) {
+  chiasmata <- integer(0)
+  if (n_events > 0) {
+    chiasmata <- sample.int(nrow(r_map), size = n_events, replace = TRUE,
+                            prob = r_map[, "c"])
+    chiasmata <- chiasmata[chiasmata < loci]
+    odd <- table(chiasmata) %% 2 == 1
+    chiasmata <- sort(as.integer(names(odd)[odd]))
+  }
+  first <- sample(c(1, 2), 1)
+  if (length(chiasmata) == 0) {
+    return(if (first == 1) chr1 else chr2)
+  }
+  starts <- c(1, chiasmata + 1)
+  ends <- c(chiasmata, loci)
+  seg1 <- substring(chr1, starts, ends)
+  seg2 <- substring(chr2, starts, ends)
+  from_chr1 <- (seq_along(starts) %% 2 == 1) == (first == 1)
+  return(paste(ifelse(from_chr1, seg1, seg2), collapse = ""))
+}
+
+
 ###############################################################################
 ########################## SELECTION ##########################################
 ###############################################################################
@@ -298,36 +415,15 @@ selection_fun <- function(offspring,
                           sel_model,
                           g_load) {
   
-  # Dummy function to satisfy package checking (will be replaced by the C++ implementation below)
-  make_fit <- function(){}  
-  
-  # Define a C++ function using Rcpp that calculates individual fitness.
-  # The function iterates over each offspring's loci, comparing allele pairs,
-  # and computes the product of fitness values across loci.
-  Rcpp::cppFunction(plugins="cpp11",
-                    
-                    "NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
-  int loc_number = strlen(seqs(0,0));
-  int indN = seqs.nrow();
-  NumericVector out(indN);
-  for (int i = 0; i < indN; i++) {
-    NumericVector fit_ind(loc_number);
-    fit_ind.fill(1);
-    for (int loc = 0; loc < loc_number; loc++){
-      char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
-      if (chr1 == chr2 && chr1=='1')
-        fit_ind[loc] = 1 - s[loc];
-      if (chr1 != chr2)
-        fit_ind[loc] = 1 - (h[loc] * s[loc]);
-    }
-    out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
+  # A population without offspring is returned as is (extinction is
+  # detected by the caller); the C++ code needs at least one row
+  if (is.null(offspring) || nrow(offspring) == 0) {
+    return(offspring)
   }
-  return(out);
-}"
-  )
   
-  # Calculate fitness for each offspring by passing their genetic data to the C++ function.
-  offspring$fitness <- make_fit(as.matrix(offspring[,3:4]),h,s)
+  # Calculate fitness for each offspring (product across loci, see
+  # utils.wf.cpp())
+  offspring$fitness <- utils.wf.cpp()$make_fit(as.matrix(offspring[,3:4]),h,s)
   
   # Apply selection based on the specified model.
   if (sel_model == "absolute") {
@@ -385,35 +481,10 @@ store <- function(p_vector,
   # df_genotypes$id <- paste0(unlist(unname(df_genotypes[, 2])), "_", 
   #                           unlist(lapply(p_size, function(x) { 1:x })))
   
-  # Dummy function for package checking (will be replaced by the C++ function below)
-  make_geno <- function(){}  
-  
-  # Define a C++ function using Rcpp that generates genotype information.
-  # It converts two chromosome strings into a combined genotype per locus.
-  Rcpp::cppFunction(plugins="cpp11",
-                    
-                    'List make_geno(StringMatrix mat) {
-    int ind = mat.nrow();
-    int loc = strlen(mat(0,0));
-    List out(ind);
-    for (int i = 0; i < ind; i++) {
-      std::string chr1 (mat(i,0));
-      std::string chr2 (mat(i,1));
-      StringVector temp(loc);
-      for (int j = 0; j < loc; j++) {
-        StringVector geno = StringVector::create(chr1[j],chr2[j]);
-        temp[j] = collapse(geno);
-      }
-      out[i] = temp;
-    }
-    return out;
-  }'
-  )
-  
   # Extract genotype columns (assumed to be columns V3 and V4) and convert them to a matrix.
   plink_temp <- as.matrix(df_genotypes[,3:4])
   # Use the C++ function to process the genotype strings.
-  plink_ped <- make_geno(plink_temp)
+  plink_ped <- utils.wf.cpp()$make_geno(plink_temp)
   # Convert the genotype strings:
   # "11" becomes 2 (homozygous for allele 1),
   # "00" becomes 0 (homozygous for allele 0),
