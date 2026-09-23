@@ -206,6 +206,11 @@ Proposed change: reset the pool at the start of each iteration. **Consequence: m
 `R/gl.sim.create.dispersal.r` writes both (i, j) and (j, i). Change 10 was applied to the built-in dispersal types only, because a user file may list directions on purpose.
 Proposed change: have `gl.sim.create_dispersal()` write each unordered pair once and document that a row means a two-way swap. **Consequence: migration halves for runs that use a generated dispersal file.** This touches another function, so it may belong in its own review.
 
+**F20 [HIGH, confidence: high] — population labels scrambled with 10 or more populations (found in the gl.diagnostics.sim review as F8; approved there as a separate PR)**
+`R/utils.sims.r` `store()` — `pop()` was set from character labels, so the factor levels sorted as "1", "10", "11", "2", …; `gl.sim.WF.run()` then renamed the levels by position.
+Failure scenario: 12 populations without dispersal: 220 of 230 individuals carried another population's label (population 10 labelled "2", 2 labelled "5", …).
+Change: the factor is built with `levels = as.character(p_vector)`. Test "population labels are right with 10 or more populations" (fails before, passes after); `real_pops = TRUE` with 12 populations of `testset.gl` labels every individual with its birth population's name. **Consequence: labels change for runs with 10 or more populations.**
+
 ## Outcome
 
 | Change | Evidence | Snapshot result |

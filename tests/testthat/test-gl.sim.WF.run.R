@@ -247,3 +247,16 @@ test_that("[addendum] gl.sim.create_dispersal writes each pair once (F19)", {
   expect_false(anyDuplicated(paste(pmin(d$pop1, d$pop2),
                                    pmax(d$pop1, d$pop2))) > 0)
 })
+
+test_that("population labels are right with 10 or more populations (F20)", {
+  r <- wf_run(wf_ref(), seed = 1, number_pops_phase2 = 12,
+              population_size_phase2 = paste(c(10, rep(20, 11)), collapse = " "),
+              dispersal_phase2 = FALSE, sample_percent = 100, every_gen = 1,
+              gen_number_phase2 = 2)
+  g <- r[[1]][[2]]
+  born <- sapply(strsplit(g@other$ind.metrics$pat, "_"), "[", 2)
+  # without dispersal, every parent was born in its offspring's population
+  expect_identical(as.character(pop(g)), born)
+  expect_identical(popNames(g), as.character(1:12))
+  expect_equal(as.vector(table(pop(g))), c(10, rep(20, 11)))
+})

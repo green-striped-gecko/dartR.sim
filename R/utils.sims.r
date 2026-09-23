@@ -532,7 +532,11 @@ store <- function(p_vector,
   
   # Assign individual names and population IDs to the genlight object.
   indNames(res) <- misc.info$IID
-  pop(res) <- misc.info$FID
+  # Levels in population order: a factor built from the character labels
+  # would sort them as "1", "10", "11", "2", ..., and gl.sim.WF.run() then
+  # renames levels by position, mislabelling populations 2 onwards when
+  # there are 10 or more
+  pop(res) <- factor(misc.info$FID, levels = as.character(p_vector))
   locNames(res) <- loc.names
   
   # Store additional individual metrics (sex, phenotype, parent IDs).
