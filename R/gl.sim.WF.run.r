@@ -348,10 +348,14 @@ gl.sim.WF.run <- function(file_var,
         x_freq <- x[, loc_to_keep]
         x_freq@other$loc.metrics <- x@other$loc.metrics[loc_to_keep, , drop = FALSE]
       }
-      freq_pooled <- suppressMessages(gl.alf(x_freq, verbose = 0))$alf2
+      # Alternative-allele frequency (as gl.alf()$alf2), computed here so
+      # it does not depend on the gl.alf() signature of the installed
+      # dartR.base (the CRAN release has no verbose argument)
+      alt_freq <- function(g) colMeans(as.matrix(g), na.rm = TRUE) / 2
+      freq_pooled <- alt_freq(x_freq)
       freq_pooled[is.na(freq_pooled)] <- q_neutral
       pop_list_freq <- lapply(seppop(x_freq), function(p) {
-        f <- suppressMessages(gl.alf(p, verbose = 0))$alf2
+        f <- alt_freq(p)
         f[is.na(f)] <- freq_pooled[is.na(f)]
         return(f)
       })
