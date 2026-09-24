@@ -1,4 +1,4 @@
-# dartR.sim 1.2.2.9000
+# dartR.sim 1.2.6
 
 ## gl.sim.apply
 
