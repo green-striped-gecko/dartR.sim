@@ -211,6 +211,24 @@ Proposed change: have `gl.sim.create_dispersal()` write each unordered pair once
 Failure scenario: 12 populations without dispersal: 220 of 230 individuals carried another population's label (population 10 labelled "2", 2 labelled "5", …).
 Change: the factor is built with `levels = as.character(p_vector)`. Test "population labels are right with 10 or more populations" (fails before, passes after); `real_pops = TRUE` with 12 populations of `testset.gl` labels every individual with its birth population's name. **Consequence: labels change for runs with 10 or more populations.**
 
+## Addendum findings (post-review, from the gl.sim.create_dispersal review)
+
+Found on 2026-09-24 while reviewing `gl.sim.create_dispersal` (PR #58); reviewed on `origin/dev` 085a0b2. Baseline: three tests in `tests/testthat/test-gl.sim.WF.run.R` marked (F21), which run the current `migration()` through a copy of the dispersal loop.
+
+**F21 [HIGH, confidence: high] — which sexes migrate depends on the phase setting and on the other rows, not on each row (principle: model correctness)**
+`R/gl.sim.WF.run.r:403–410, 515–520, 600–620`; `R/utils.sims.r:163–230` — two switches (move males, move females) are set once per phase from the phase's `number_transfers` and carried from row to row; `migration()` flips both after every row with 1 transfer, and moves one male and one female when both are on.
+Failure scenario (10 individuals per population, immigrants counted by sex):
+- Phase set to 1, a dispersal-file row of 3: 2 males and 0 females move per direction each generation.
+- Phase set to 2, rows of 1, 2, 2: in generation 2 the row of 1 moves a male and a female and the two rows of 2 move nobody; in generation 3 the row of 1 moves nobody and the others move 2 each.
+- Every row at 1 with two pairs (3 populations in a line, no file needed): pair 1 swaps a male and pair 2 a female in every generation (4 of 4). With an even number of pairs each pair always swaps the same sex; sexes alternate only with an odd number.
+Proposed change: decide sexes per row from the row's own value. 2 or more: ceil(n/2) males and floor(n/2) females, as now. 1: one individual, alternating male/female from one dispersal event to the next for that pair (a per-row state kept across generations and reset at each phase). 0: no transfer. Remove the phase-level switches. Move the dispersal loop into an internal helper so it can be tested directly. **Consequence: seeded outputs change for runs with one transfer per pair and more than one pair, and for dispersal files whose values differ from the phase setting. Runs with one pair, or with 2 or more transfers everywhere, are unchanged.**
+
+| Change | Decision | By | Note |
+|---|---|---|---|
+| F21 | approved | Luis | consequence approved (2026-09-24) |
+
+F21 outcome: `migration()` takes the row's `n_transfer` and a per-pair `next_male` state; the dispersal loop is the internal helper `dispersal_event()` (`R/utils.sims.r`); the phase-level switches are removed. Tests (F21) flipped: a row of 3 moves 2 males and 1 female (was 2 and 0); rows of 1, 2, 2 move 1, 2, 2 in every generation (was 2, 0, 0 then 0, 2, 2); a row of 0 moves nobody; two pairs of 1 each alternate male, female, male, female (were fixed at male and female); no transfer outside dispersal generations. All earlier `gl.sim.WF.run` tests unchanged (single-pair seeded outputs identical). End to end: 4 populations with a file of 0, 1, 2, 3, 1, 2 runs; the pair set to 0 exchanges no fathers. Tests: `test-gl.sim.WF.run.R` 48 expectations pass; full suite 347 pass. PR: pending.
+
 ## Outcome
 
 | Change | Evidence | Snapshot result |

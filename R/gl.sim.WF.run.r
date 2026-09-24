@@ -400,14 +400,9 @@ gl.sim.WF.run <- function(file_var,
         store_values <- store_phase1
         
 
-        # Decide which sex(es) will be transferred based on number_transfers.
-        if (number_transfers >= 2) {
-          maletran <- TRUE
-          femaletran <- TRUE
-        } else if (number_transfers == 1) {
-          maletran <- TRUE
-          femaletran <- FALSE
-        }
+        # Sex of the next single-individual transfer of each dispersal pair,
+        # reset at the start of each phase (see dispersal_event())
+        next_male <- NULL
         
       } else {
         # -------------------------------
@@ -511,14 +506,8 @@ gl.sim.WF.run <- function(file_var,
           
           store_values <- TRUE
           
-          # Set transfer flags for phase 2.
-          if (number_transfers >= 2) {
-            maletran <- TRUE
-            femaletran <- TRUE
-          } else if (number_transfers == 1) {
-            maletran <- TRUE
-            femaletran <- FALSE
-          }
+          # Reset the sex of the next single-individual transfer of each pair
+          next_male <- NULL
           
 
           # Phase-2 founders are sampled from phase 1: from one phase-1
@@ -596,28 +585,12 @@ gl.sim.WF.run <- function(file_var,
           dispersal_pairs$size_pop1 <- population_size[dispersal_pairs$pop1]
           dispersal_pairs$size_pop2 <- population_size[dispersal_pairs$pop2]
           
-          # Process each dispersal pair.
-          for (dis_pair in 1:nrow(dispersal_pairs)) {
-            res <- migration(
-              population1 = pop_list[[dispersal_pairs[dis_pair, "pop1"]]],
-              population2 = pop_list[[dispersal_pairs[dis_pair, "pop2"]]],
-              gen = generation,
-              size_pop1 = dispersal_pairs$size_pop1[dis_pair],
-              size_pop2 = dispersal_pairs$size_pop2[dis_pair],
-              trans_gen = dispersal_pairs$transfer_each_gen[dis_pair],
-              n_transfer = dispersal_pairs$number_transfers[dis_pair],
-              male_tran = maletran,
-              female_tran = femaletran
-            )
-            
-            # Update populations after migration.
-            pop_list[[dispersal_pairs[dis_pair, "pop1"]]] <- res[[1]]
-            pop_list[[dispersal_pairs[dis_pair, "pop1"]]]$V2 <- dispersal_pairs[dis_pair, "pop1"]
-            pop_list[[dispersal_pairs[dis_pair, "pop2"]]] <- res[[2]]
-            pop_list[[dispersal_pairs[dis_pair, "pop2"]]]$V2 <- dispersal_pairs[dis_pair, "pop2"]
-            maletran <- res[[3]]
-            femaletran <- res[[4]]
-          }
+          # Process each dispersal pair; which sexes move is decided per row
+          # from its number_transfers
+          res <- dispersal_event(pop_list, dispersal_pairs, generation,
+                                 next_male)
+          pop_list <- res[[1]]
+          next_male <- res[[2]]
         }
         
         # -------------------------------
