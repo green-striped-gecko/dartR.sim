@@ -8,7 +8,7 @@ gl.report.nall(
   x,
   simlevels = seq(1, nInd(x), 5),
   reps = 10,
-  plot.colors.pop = gl.colors("dis"),
+  plot.colors.pop = gl.colors("dis", verbose = 0),
   ncores = 2,
   plot.display = TRUE,
   plot.theme = theme_dartR(),
@@ -18,22 +18,24 @@ gl.report.nall(
 )
 }
 \arguments{
-\item{x}{Name of the genlight/dartR object containing the SNP data.
-The object needs to have no missing data as subsampling from missing data
-is not possible. So we recommend to filter by callrate using a threshold
-of 1 [required].}
+\item{x}{Name of the genlight/dartR object containing the SNP data. Loci
+with no calls in any one population are removed before the analysis;
+otherwise missing data are allowed, as allele frequencies are computed from
+the called genotypes [required].}
 
-\item{simlevels}{A vector that defines the different levels the combined
-population should be subsampled [default seq(1,nInd(x),5)].}
+\item{simlevels}{A vector of whole numbers of at least 1 with the sample
+sizes (numbers of individuals) to simulate [default seq(1,nInd(x),5)].}
 
-\item{reps}{Number of replicate subsamples per sample size [default 10].}
+\item{reps}{Number of replicate simulated samples per sample size, a whole
+number of at least 1 [default 10].}
 
 \item{plot.colors.pop}{A color palette for population plots or a list with
 as many colors as there are populations in the dataset 
 [default gl.colors("dis")].}
 
-\item{ncores}{Number of cores to be used for parallel processing 
-[default 10].}
+\item{ncores}{Number of cores to be used for parallel processing, a whole
+number of at least 1. With 1, the simulations run in the current R session
+without starting a cluster [default 2].}
 
 \item{plot.display}{Specify if plot is to be produced [default TRUE].}
 
@@ -51,7 +53,7 @@ progress log; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A list with three elements:
+A list with three elements (the input object is not modified):
 \itemize{
   \item `sim`: `data.frame` with columns `Npop` (sample size),
   `mnall` (mean proportion retained), `low` (minimum), and `high` (maximum)
@@ -64,19 +66,27 @@ A list with three elements:
 }
 \description{
 This function reports per-population allele counts and simulates a
-rarefaction-style curve showing the proportion of the dataset’s total allelic
-diversity captured as progressively more individuals are sampled.
+rarefaction-style curve showing the proportion of the dataset's total allelic
+diversity expected as progressively more individuals are sampled.
 }
 \details{
-The function estimates how sampling effort affects observed allelic diversity
-by repeatedly subsampling individuals from the pooled set of all
-individuals at user-defined sample sizes (`simlevels`), with each subsample
-replicated (`reps` times). The maximum attainable allele count is first
-determined by pooling all individuals into a single group; all simulation
-outputs and per-population observations are then normalized to this pooled
-maximum and expressed as a proportion of alleles retained.
+The function estimates how sampling effort affects observed allelic diversity.
+All individuals are pooled into a single group, and the allele frequencies of
+the pool are computed. For each sample size in `simlevels`, `reps` samples of
+that many individuals are simulated from the pooled frequencies with
+\code{\link{gl.sim.ind}}, i.e. under Hardy-Weinberg and linkage equilibrium.
+The curve is therefore the expectation for a panmictic population with the
+allele frequencies of the whole dataset, not a subsampling of the real
+individuals: structure between populations is not part of it, and alleles
+that are rare in the pool can be missed even at the full sample size, so the
+curve need not reach 1.
 
-For each target sample size, replicated subsamples are aggregated to yield
+The number of alleles counts 1 for a fixed locus and 2 for a polymorphic
+one. The maximum is the count in the pooled real data; all simulation
+outputs and per-population observations are divided by this maximum and
+expressed as a proportion of alleles retained.
+
+For each target sample size, replicated samples are aggregated to yield
 the mean, minimum, and maximum proportions of alleles retained. A plot is
 produced showing (i) the mean rarefaction curve with an uncertainty ribbon
 (min–max across replicates) and (ii) points for each empirical population at
@@ -92,8 +102,8 @@ How to use the output
     \item Above the curve: population retains more allelic diversity than
     expected for its sample size (e.g., unusually high diversity or more
     private/low-frequency alleles).
-    \item On/within the ribbon: diversity consistent with random sampling
-    from the pooled dataset at that size.
+    \item On/within the ribbon: diversity consistent with a sample of that
+    size from a panmictic population with the pooled allele frequencies.
     \item Below the curve: population retains fewer alleles than expected,
     suggesting reduced diversity (e.g., drift, bottleneck), uneven missingness,
     or data-quality issues.
@@ -105,7 +115,22 @@ dummy <- gl.report.nall(possums.gl[c(1:5,31:35),], simlevels=seq(1,10,3),
 reps=5, ncores=2)
 }
 }
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.emigration}()},
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.mutate}()},
+\code{\link{gl.sim.offspring}()}
+}
 \author{
-Custodian: Bernd Gruber -- Post to
+Author(s): Bernd Gruber. Custodian: Bernd Gruber -- Post to
 \url{https://groups.google.com/d/forum/dartr}
 }
+\concept{simulation functions}
