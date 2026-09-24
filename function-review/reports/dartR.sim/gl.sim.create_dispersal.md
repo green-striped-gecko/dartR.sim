@@ -81,7 +81,7 @@ Proposed change: point to `dartR.sim`, ASCII quotes; document the returned table
 | 5 | `devtools::document()`; `man/gl.sim.create_dispersal.Rd` regenerated | docs only |
 
 Unchanged and passing: pairs for `all_connected`, `line` and `circle`; columns and values read by `gl.sim.WF.run()`; the `gl.sim.WF.run()` test that runs a simulation on a table from this function. Tests: `test-gl.sim.create_dispersal.R` 24 expectations pass; full suite 223 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #58.
 
 ```json
 {
@@ -101,6 +101,6 @@ PR: pending.
   ],
   "coverage_skipped": ["input-data checks: no genlight input", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 58
 }
 ```
