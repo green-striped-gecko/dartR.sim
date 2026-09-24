@@ -95,7 +95,7 @@ Proposed change: describe the model in `@details`; fix the tags.
 | 7 | `devtools::document()`; `@family` adds `gl.sim.mutate` to the "Other simulation functions" links | docs only |
 
 Unchanged and passing: transitions (no 0 <-> 2 jumps), missing genotypes untouched, rate calibration at 1e-3, documented example on `bandicoot.gl`. Tests: `test-gl.sim.mutate.R` 22 expectations pass; full suite 221 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #56.
 
 ```json
 {
@@ -117,6 +117,6 @@ PR: pending.
   ],
   "coverage_skipped": ["FBM path: fbm argument disabled; SNPbin writes incompatible, not proposed", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 56
 }
 ```
