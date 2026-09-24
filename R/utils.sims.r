@@ -154,83 +154,92 @@ utils.wf.cpp <- function() {
 ###############################################################################
 
 # Function to simulate migration (or transfer) of individuals between two populations.
-# population1, population2: data frames representing the two populations.
+# population1, population2: data frames representing the two populations
+#   (males in the first half, females in the second half).
 # gen: current generation.
 # size_pop1, size_pop2: sizes of the populations.
 # trans_gen: migration event interval (only migrate if generation is a multiple of this).
-# male_tran, female_tran: Boolean flags indicating whether migration should occur for males and/or females.
-# n_transfer: number of individuals to transfer.
+# n_transfer: number of individuals swapped in each direction. With 2 or more,
+#   ceiling(n / 2) males and floor(n / 2) females are swapped; with 1, one
+#   individual whose sex is given by next_male; with 0, none.
+# next_male: with n_transfer == 1, whether this event swaps a male; it is
+#   flipped after each event so that the pair alternates sexes over time.
+# Returns list(population1, population2, next_male).
 migration <- function(population1,
                       population2,
                       gen,
                       size_pop1,
                       size_pop2,
                       trans_gen,
-                      male_tran,
-                      female_tran,
-                      n_transfer) {
-  # Check if it is not the first generation and if the current generation is a migration event
-  if (gen != 1 & gen %% trans_gen == 0) {
-    
-    # Case: transferring one individual at a time
+                      n_transfer,
+                      next_male = TRUE) {
+  # Only migrate if it is not the first generation and the current
+  # generation is a migration event
+  if (gen != 1 && gen %% trans_gen == 0 && n_transfer > 0) {
     if (n_transfer == 1) {
-      if (male_tran) {
-        # For males, sample one individual from the first half of each population
-        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = 1)
-        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = 1)
-        # Temporarily store the individuals and then swap them between populations
-        temppop1 <- population1[malepoptran_pop1, ]
-        temppop2 <- population2[malepoptran_pop2, ]
-        population2[malepoptran_pop2, ] <- temppop1
-        population1[malepoptran_pop1, ] <- temppop2
-      }
-      if (female_tran) {
-        # For females, sample one individual from the second half of each population
-        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = 1)
-        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = 1)
-        # Temporarily store the individuals and then swap them between populations
-        temppop1 <- population1[fempoptran_pop1, ]
-        temppop2 <- population2[fempoptran_pop2, ]
-        population2[fempoptran_pop2, ] <- temppop1
-        population1[fempoptran_pop1, ] <- temppop2
-      }
+      n_males <- as.integer(next_male)
+      n_females <- 1L - n_males
+      next_male <- !next_male
+    } else {
+      n_males <- ceiling(n_transfer / 2)
+      n_females <- floor(n_transfer / 2)
     }
-    
-    # Case: transferring two or more individuals
-    if (n_transfer >= 2) {
-      # Determine how many males and females to transfer
-      size_malepoptran <- ceiling(n_transfer / 2)
-      size_femalepoptran <- floor(n_transfer / 2)
-      if (male_tran) {
-        # Sample male individuals from the first half of each population
-        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = size_malepoptran)
-        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = size_malepoptran)
-        # Swap the selected male individuals between populations
-        temppop1 <- population1[malepoptran_pop1, ]
-        temppop2 <- population2[malepoptran_pop2, ]
-        population2[malepoptran_pop2, ] <- temppop1
-        population1[malepoptran_pop1, ] <- temppop2
-      }
-      if (female_tran) {
-        # Sample female individuals from the second half of each population
-        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = size_femalepoptran)
-        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = size_femalepoptran)
-        # Swap the selected female individuals between populations
-        temppop1 <- population1[fempoptran_pop1, ]
-        temppop2 <- population2[fempoptran_pop2, ]
-        population2[fempoptran_pop2, ] <- temppop1
-        population1[fempoptran_pop1, ] <- temppop2
-      }
+    if (n_males > 0) {
+      # Males are sampled from the first half of each population
+      pick1 <- sample(seq_len(size_pop1 / 2), size = n_males)
+      pick2 <- sample(seq_len(size_pop2 / 2), size = n_males)
+      temppop1 <- population1[pick1, ]
+      population1[pick1, ] <- population2[pick2, ]
+      population2[pick2, ] <- temppop1
     }
-    # For one individual transfer, flip the migration flags to alternate migration types
-    if (n_transfer == 1) {
-      male_tran <- !male_tran
-      female_tran <- !female_tran
+    if (n_females > 0) {
+      # Females are sampled from the second half of each population
+      pick1 <- size_pop1 / 2 + sample(seq_len(size_pop1 / 2), size = n_females)
+      pick2 <- size_pop2 / 2 + sample(seq_len(size_pop2 / 2), size = n_females)
+      temppop1 <- population1[pick1, ]
+      population1[pick1, ] <- population2[pick2, ]
+      population2[pick2, ] <- temppop1
     }
   }
-  
-  # Return the updated populations along with the (possibly toggled) migration flags
-  return (list(population1, population2, male_tran, female_tran))
+  return(list(population1, population2, next_male))
+}
+
+# Function to run one dispersal event over all rows of a dispersal table.
+# pop_list: list of population data frames.
+# dispersal_pairs: data frame with pop1, pop2, number_transfers,
+#   transfer_each_gen, size_pop1 and size_pop2 (one row per connected pair).
+# generation: current generation.
+# next_male: logical vector, one element per row of dispersal_pairs, with the
+#   sex of the next single-individual transfer of each pair; NULL (or the
+#   wrong length) starts every pair with a male.
+# Returns list(pop_list, next_male).
+dispersal_event <- function(pop_list,
+                            dispersal_pairs,
+                            generation,
+                            next_male = NULL) {
+  if (is.null(next_male) || length(next_male) != nrow(dispersal_pairs)) {
+    next_male <- rep(TRUE, nrow(dispersal_pairs))
+  }
+  for (i in seq_len(nrow(dispersal_pairs))) {
+    p1 <- dispersal_pairs$pop1[i]
+    p2 <- dispersal_pairs$pop2[i]
+    res <- migration(
+      population1 = pop_list[[p1]],
+      population2 = pop_list[[p2]],
+      gen = generation,
+      size_pop1 = dispersal_pairs$size_pop1[i],
+      size_pop2 = dispersal_pairs$size_pop2[i],
+      trans_gen = dispersal_pairs$transfer_each_gen[i],
+      n_transfer = dispersal_pairs$number_transfers[i],
+      next_male = next_male[i]
+    )
+    pop_list[[p1]] <- res[[1]]
+    pop_list[[p1]]$V2 <- p1
+    pop_list[[p2]] <- res[[2]]
+    pop_list[[p2]]$V2 <- p2
+    next_male[i] <- res[[3]]
+  }
+  return(list(pop_list, next_male))
 }
 
 

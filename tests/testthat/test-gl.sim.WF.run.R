@@ -260,3 +260,72 @@ test_that("population labels are right with 10 or more populations (F20)", {
   expect_identical(popNames(g), as.character(1:12))
   expect_equal(as.vector(table(pop(g))), c(10, rep(20, 11)))
 })
+
+# --- Dispersal: which sexes migrate (addendum F21) ---------------------------
+# Populations as simulated: males in the first half, females in the second;
+# V3 labels each individual with its population of origin.
+disp_pop <- function(p, n = 10) {
+  data.frame(V1 = rep(c("Male", "Female"), each = n / 2), V2 = p,
+             V3 = paste0("p", p, "_", seq_len(n)), V4 = "x")
+}
+disp_table <- function(p1, p2, nt) {
+  data.frame(pop1 = p1, pop2 = p2, number_transfers = nt,
+             transfer_each_gen = 1)
+}
+# Individuals arriving in pop1 of each row, by sex, for each generation and
+# row, using the dispersal step of gl.sim.WF.run() (dispersal_event()).
+# Rows must not share populations, so arrivals belong to one row.
+disp_moves <- function(pairs, gens) {
+  pop_list <- lapply(seq_len(max(unlist(pairs[, 1:2]))), disp_pop)
+  pairs$size_pop1 <- 10
+  pairs$size_pop2 <- 10
+  next_male <- NULL
+  out <- NULL
+  for (generation in gens) {
+    before <- lapply(pop_list, function(p) p$V3)
+    res <- dispersal_event(pop_list, pairs, generation, next_male)
+    pop_list <- res[[1]]
+    next_male <- res[[2]]
+    for (i in seq_len(nrow(pairs))) {
+      p1 <- pop_list[[pairs$pop1[i]]]
+      new <- p1[!p1$V3 %in% before[[pairs$pop1[i]]], ]
+      out <- rbind(out, data.frame(gen = generation, row = i,
+                                   males = sum(new$V1 == "Male"),
+                                   females = sum(new$V1 == "Female")))
+    }
+  }
+  out
+}
+
+test_that("[approved diff] a row of 3 moves 2 males and 1 female (F21)", {
+  set.seed(1)
+  m <- disp_moves(disp_table(1, 2, 3), gens = 2:3)
+  expect_identical(m$males, c(2L, 2L))
+  expect_identical(m$females, c(1L, 1L))
+})
+
+test_that("[approved diff] rows move their own number whatever the others are (F21)", {
+  set.seed(1)
+  m <- disp_moves(disp_table(c(1, 3, 5), c(2, 4, 6), c(1, 2, 2)), gens = 2:3)
+  expect_identical(m$males + m$females, c(1L, 2L, 2L, 1L, 2L, 2L))
+  # rows of 2: one male and one female each
+  expect_true(all(m$males[m$row > 1] == 1 & m$females[m$row > 1] == 1))
+  # row of 0 moves nobody
+  set.seed(1)
+  m0 <- disp_moves(disp_table(c(1, 3), c(2, 4), c(0, 2)), gens = 2:3)
+  expect_identical(m0$males[m0$row == 1] + m0$females[m0$row == 1], c(0L, 0L))
+})
+
+test_that("[approved diff] each pair of 1 alternates sexes over time (F21)", {
+  set.seed(1)
+  m <- disp_moves(disp_table(c(1, 3), c(2, 4), 1), gens = 2:5)
+  expect_identical(m$males[m$row == 1], c(1L, 0L, 1L, 0L))
+  expect_identical(m$males[m$row == 2], c(1L, 0L, 1L, 0L))
+  expect_true(all(m$males + m$females == 1))
+  # no transfer outside dispersal generations
+  set.seed(1)
+  t5 <- disp_table(1, 2, 2)
+  t5$transfer_each_gen <- 5
+  m5 <- disp_moves(t5, gens = 2:6)
+  expect_identical(m5$males + m5$females, c(0L, 0L, 0L, 2L, 0L))
+})

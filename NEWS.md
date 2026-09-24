@@ -1,5 +1,20 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.WF.run (dispersal)
+
+* Which sexes migrate is decided for each row of the dispersal table from its
+  own `number_transfers`: 2 or more swap ceiling(n/2) males and floor(n/2)
+  females in each direction; 1 swaps one individual, alternating male and
+  female from one dispersal event to the next for that pair; 0 switches the
+  pair off. Before, two switches set from the phase's `number_transfers`
+  were carried from row to row: a file row of 3 with the phase at 1 moved 2
+  males and no females, a row of 1 with the phase at 2 switched the later
+  rows off every other generation, and with an even number of pairs each
+  pair always swapped the same sex. **Seeded outputs change for runs with
+  one transfer and more than one pair, and for dispersal files whose values
+  differ from the phase setting**; single-pair runs (the default example)
+  and runs with 2 or more transfers everywhere are unchanged.
+
 ## gl.report.nall
 
 * The documentation describes the null model: the curve comes from
