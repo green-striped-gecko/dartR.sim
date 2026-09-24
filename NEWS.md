@@ -1,5 +1,17 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.mutate
+
+* No mutations are applied when none are drawn. Before, a `1:0` loop applied
+  1-2 mutations in every such call, so `mut.rate = 0` still mutated and the
+  default rate gave `testset.gl` about 1.7 mutations per call instead of
+  0.13. **Output changes whenever the draw is 0.**
+* SilicoDArT input stops with an error (it got presence/absence scores of 2).
+* Locus metrics flags are reset after mutation.
+* Only the mutated individual is converted, not the whole matrix: 40
+  mutations on 500 individuals x 20,000 loci take 0.04 s instead of 7.9 s.
+  Seeded results are unchanged.
+* `mut.rate` is validated; new `verbose` argument; history is recorded.
 ## gl.sim.emigration
 
 * `emi.m` moves individuals from column to row, as documented. Before, the
