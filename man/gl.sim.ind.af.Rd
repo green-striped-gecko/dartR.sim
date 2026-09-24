@@ -2,52 +2,60 @@
 % Please edit documentation in R/gl.sim.ind.af.r
 \name{gl.sim.ind.af}
 \alias{gl.sim.ind.af}
-\title{Simulate diploid genotypes from per-population allele frequencies}
+\title{Simulates diploid genotypes from per-population allele frequencies}
 \usage{
-gl.sim.ind.af(df, pop.sizes)
+gl.sim.ind.af(df, pop.sizes, verbose = NULL)
 }
 \arguments{
-\item{df}{A `data.frame` with **three** columns: (1) population name,
-(2) locus name, and (3) frequency of the first allele (numeric in \[0, 1\]).
-The function internally renames these to `popn`, `locus`, and `frequency`.}
+\item{df}{A data.frame with three columns: (1) population name,
+(2) locus name, and (3) frequency of the alternate allele (numeric in
+[0, 1]) [required].}
 
-\item{pop.sizes}{A numeric (integer) vector of population sizes, with one
-element **per unique population** in `df`, in the same order as
-`unique(df$popn)`.}
+\item{pop.sizes}{A vector of whole numbers of at least 1, with the number of
+individuals to simulate in each population. If unnamed, one element per
+population in the order in which the populations first appear in df; if
+named, the names must match the population names in df [required].}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A `genlight` object with:
-\itemize{
-  \item diploid SNP genotypes encoded as allele counts (0, 1, 2 for copies of
-        the first allele),
-  \item `pop()` set to population names,
-  \item individual IDs of the form `"0_<popIndex>_<i>"`,
-  \item `other$ind.metrics` containing `sex` (`"m"`/`"f"`) and `phenotype`
-        (`"control"`).
-}
+A genlight object with sum(pop.sizes) individuals and one locus per
+locus in df, with diploid SNP genotypes (0, 1, 2 copies of the alternate
+allele), pop() set to population names, and the metadata described in
+Details.
 }
 \description{
 This function generates a diploid SNP dataset by sampling genotypes for a
 specified number of individuals per population from user-provided allele
-frequencies. The result is returned as an `adegenet::genlight` object with
-population and individual metadata.
+frequencies. The result is returned as a genlight object with population
+and individual metadata.
 }
 \details{
-The input `df` must have three columns: population name, locus name, and the
-frequency of the first allele for that population–locus
-combination. For each population, the function simulates two haploid
-chromosomes per individual by independently drawing alleles at each locus
-according to the provided allele frequency, then merges the two chromosomes
-into diploid genotypes (0, 1, 2 copies of the first allele). The procedure
-assumes Hardy–Weinberg proportions and linkage equilibrium (i.e., loci are
-sampled independently and there is no within-population structure beyond the
-supplied allele frequencies).  
+The input df must have three columns: population name, locus name, and the
+frequency of the alternate allele for that population-locus combination.
+The alternate allele is the allele counted in the genotypes of a genlight
+object, and its frequency is the column frequency returned by
+gl.allele.freq(x, by = "popxloc").
 
-Sex labels are assigned as "Male"/"Female" in alternating blocks (stored as
-factors `"m"`/`"f"` in the returned object), and a placeholder phenotype is
-set to `"control"` for all individuals. Locus allele labels are initialized
-to `"G/C"` as a placeholder. Computation of chromosomes and genotype strings
-is implemented with `Rcpp` for speed.
+For each individual, the genotype at each locus is the number of copies of
+the alternate allele in two gametes drawn independently with the supplied
+frequency. The procedure assumes Hardy-Weinberg proportions and linkage
+equilibrium (loci are sampled independently and there is no
+within-population structure beyond the supplied allele frequencies).
+
+Populations are matched to their frequencies and sizes by name, so the rows
+of df can be in any order. Every population must provide each locus exactly
+once.
+
+Individual IDs have the form "0_<population name>_<i>". Sex alternates
+between individuals ("m", "f", "m", ...) and a placeholder phenotype is set
+to "control" for all individuals; both are stored in
+other$ind.metrics, together with id, pop, fid (population) and iid
+(individual ID). Locus alleles are set to the placeholder "G/C", and
+other$loc.metrics holds the locus names (AlleleID) with all metrics flags
+reset.
 }
 \examples{
 t1 <- gl.filter.callrate(platypus.gl,threshold = 1, mono.rm = TRUE)
@@ -55,7 +63,17 @@ r1 <- gl.allele.freq(t1, by='popxloc' )
 r2 <- r1[,c("popn",'locus',"frequency")]
 res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
 }
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()}
+}
 \author{
-Custodian: Luis Mijangos -- Post to
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 \url{https://groups.google.com/d/forum/dartr}
 }
+\concept{simulation functions}
