@@ -101,7 +101,7 @@ Proposed change: document `perc.mig` as a proportion in [0, 1], keeping the argu
 | 7 | `devtools::document()`; `@family` adds `gl.sim.emigration` to the "Other simulation functions" links in the other `.Rd` files | docs only |
 
 Unchanged and passing: `emi.table` direction and counts; genotypes, `ind.metrics` ids and `latlon` stay with their individuals. Stepping-stone run on all of `testset.gl` at `verbose = 3` completes, and the result goes through `gl.report.heterozygosity()`. Tests: `test-gl.sim.emigration.R` 43 expectations pass; full suite 201 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #55.
 
 ```json
 {
@@ -123,6 +123,6 @@ PR: pending.
   ],
   "coverage_skipped": ["FBM path: fbm argument disabled", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 55
 }
 ```
