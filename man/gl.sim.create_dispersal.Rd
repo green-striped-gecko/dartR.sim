@@ -67,7 +67,8 @@ Other simulation functions:
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.ind}()},
-\code{\link{gl.sim.ind.af}()}
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.mutate}()},
 \code{\link{gl.sim.offspring}()}
 }
 \author{
