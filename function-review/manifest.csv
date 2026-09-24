@@ -2,8 +2,10 @@ function,package,family,claimed_by,status,pr
 gl.sim.WF.table,dartR.sim,analysis,Luis,done,47
 gl.sim.WF.run,dartR.sim,analysis,Luis,done,48
 gl.sim.ind,dartR.sim,analysis,Luis,done,50
-gl.diagnostics.sim,dartR.sim,report,Luis,pr-open,51
-gl.sim.ind.af,dartR.sim,analysis,Luis,pr-open,54
 gl.diagnostics.sim,dartR.sim,report,Luis,done,51
 gl.sim.offspring,dartR.sim,analysis,Luis,pr-open,53
 gl.sim.Neconst,dartR.sim,analysis,Luis,pr-open,57
+gl.sim.offspring,dartR.sim,analysis,Luis,done,53
+gl.sim.ind.af,dartR.sim,analysis,Luis,done,54
+gl.sim.mutate,dartR.sim,analysis,Luis,pr-open,56
+gl.sim.emigration,dartR.sim,analysis,Luis,pr-open,55

@@ -4,22 +4,34 @@
 \alias{gl.sim.emigration}
 \title{Simulates emigration between populations}
 \usage{
-gl.sim.emigration(x, perc.mig = NULL, emi.m = NULL, emi.table = NULL)
+gl.sim.emigration(
+  x,
+  perc.mig = NULL,
+  emi.m = NULL,
+  emi.table = NULL,
+  verbose = NULL
+)
 }
 \arguments{
-\item{x}{A genlight or list of genlight objects [required].}
+\item{x}{A genlight object, or a list of genlight objects with one element
+per population (NULL for an empty population) [required].}
 
-\item{perc.mig}{Percentage of individuals that migrate
-(emigrates = nInd times perc.mig) [default NULL].}
+\item{perc.mig}{Proportion of individuals that emigrate, between 0 and 1
+(each individual emigrates with this probability) [default NULL].}
 
-\item{emi.m}{Probabilistic emigration matrix (emigrate from=column to=row)
-[default NULL]}
+\item{emi.m}{Probabilistic emigration matrix (emigrate from = column,
+to = row), a square matrix with one row and one column per population
+[default NULL].}
 
-\item{emi.table}{If presented emi.m matrix is ignored. Deterministic
+\item{emi.table}{If provided, emi.m and perc.mig are ignored. Deterministic
 emigration as specified in the matrix (a square matrix of dimension of the
 number of populations). e.g. an entry in the 'emi.table[2,1]<- 5' means that
 five individuals emigrate from population 1 to population 2 (from=columns and
  to=row) [default NULL].}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
 A list or a single [depends on the input] genlight object, where
@@ -28,22 +40,32 @@ emigration between population has happened
 \description{
 A function that allows to exchange individuals of populations within a
 genlight object (=simulate emigration between populations).
-
+}
+\details{
 There are two ways to specify emigration. If an emi.table is provided (a
 square matrix of dimension of the populations that specifies the emigration
 from column x to row y), then emigration is deterministic in terms of numbers
 of individuals as specified in the table. If perc.mig and emi.m are provided,
-then emigration is probabilistic. The number of emigrants is determined by
-the population size times the perc.mig and then the population where to
-migrate to is taken from the relative probability in the columns of the emi.m
-table.
+then emigration is probabilistic: each individual emigrates with probability
+perc.mig, and the population it moves to is drawn from the relative
+probabilities in the column of emi.m of its population (from = column,
+to = row). A column of zeros means that no individual leaves that
+population.
 
-Be aware if the diagonal is non zero then migration can occur into the same
-patch. So most often you want to set the diagonal of the emi.m matrix to
-zero. Which individuals is moved is random, but the order is in the order of
-populations. It is possible that an individual moves twice within an
-emigration call(as there is no check, so an individual moved from population
-1 to 2 can move again from population 2 to 3).
+If the diagonal of emi.m is non zero, emigrants can be assigned to their own
+population, where they stay. So most often you want to set the diagonal of
+the emi.m matrix to zero. The diagonal of emi.table is ignored.
+
+Emigrants are drawn at random from the individuals present in each
+population at the start of the call, and all move at the same time, so an
+individual moves at most once per call. The returned object is grouped by
+population; the population of each moved individual is updated in pop() and
+in other$ind.metrics$pop.
+
+A population can lose all its individuals. In a returned genlight object it
+no longer appears in popNames(); in a returned list its element is NULL.
+A list with NULL elements is accepted as input, so repeated calls can use
+the same matrices.
 }
 \examples{
 x <- possums.gl
@@ -54,7 +76,18 @@ diag(emi.tab)<- 0
 np <- gl.sim.emigration(x, emi.table=emi.tab)
 np
 }
-\author{
-Custodian: Bernd Gruber (Post to
-\url{https://groups.google.com/d/forum/dartr})
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.offspring}()}
 }
+\author{
+Author(s): Bernd Gruber. Custodian: Bernd Gruber -- Post to
+\url{https://groups.google.com/d/forum/dartr}
+}
+\concept{simulation functions}
