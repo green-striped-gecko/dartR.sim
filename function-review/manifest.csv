@@ -10,6 +10,6 @@ gl.sim.mutate,dartR.sim,analysis,Luis,done,56
 gl.sim.Neconst,dartR.sim,analysis,Luis,done,57
 gl.sim.create_dispersal,dartR.sim,io,Luis,done,58
 gl.report.nall,dartR.sim,report,Luis,done,59
-gl.sim.apply,dartR.sim,analysis,Luis,pr-open,
+gl.sim.apply,dartR.sim,analysis,Luis,pr-open,61
 gl.Ho,dartR.sim,utility,arthur,done,dartR.base#273
 gl.He,dartR.sim,utility,arthur,done,dartR.base#273

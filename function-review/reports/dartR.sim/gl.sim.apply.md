@@ -61,7 +61,7 @@ Proposed change: stop before `fun` runs when an iteration has repeated generatio
 | 3 | test "repeated generations stop; repeated iterations run once" | flipped: "iteration 1, generation 10 appears more than once" before `fun` runs (was one result kept); `iteration = c(1, 1)` runs once |
 
 Unchanged and passing: the 24 existing expectations (vector and data-frame binding, nested lists, flat lists and single genlights, tagging from `sim.vars`, checks, located errors). Tests: `test-gl.sim.apply.R` 35 expectations pass; full suite 358 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #61.
 
 ```json
 {
@@ -79,6 +79,6 @@ PR: pending.
   ],
   "coverage_skipped": ["forum/issues search: not applicable, function added 2026-09-23"],
   "status": "pr-open",
-  "pr": null
+  "pr": 61
 }
 ```
