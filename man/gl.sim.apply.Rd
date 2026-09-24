@@ -37,8 +37,9 @@ result with its iteration and generation.
 The generation of each genlight object is read from
 x@other$sim.vars$generation, which gl.sim.WF.run() stores, not from the
 names of the list. The iteration is the position of the element in x. If
-any genlight object lacks sim.vars$generation, the function stops before
-running fun.
+any genlight object lacks sim.vars$generation, or an iteration holds the
+same generation twice, the function stops before running fun. Repeated
+values in iteration are used once.
 
 How results are returned depends on what fun returns:
 \itemize{
@@ -54,6 +55,12 @@ iterations, each a list of generations, named "iteration_1", ... and
 "generation_1", ...; each result also carries the attributes iteration
 and generation.
 }
+When results are bound, a column missing from some results is filled with
+NA (for example a statistic that is absent in generations where a
+population is extinct). NULL results (from a fun run for its side effect,
+such as saving a file) add no rows to a bound data frame and are NULL in
+the nested list.
+
 A tidy data frame makes it easy to summarise across replicates, e.g. the
 mean He per generation over iterations.
 

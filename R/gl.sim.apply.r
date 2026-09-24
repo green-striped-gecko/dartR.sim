@@ -22,8 +22,9 @@
 #' The generation of each genlight object is read from
 #' x@other$sim.vars$generation, which gl.sim.WF.run() stores, not from the
 #' names of the list. The iteration is the position of the element in x. If
-#' any genlight object lacks sim.vars$generation, the function stops before
-#' running fun.
+#' any genlight object lacks sim.vars$generation, or an iteration holds the
+#' same generation twice, the function stops before running fun. Repeated
+#' values in iteration are used once.
 #'
 #' How results are returned depends on what fun returns:
 #' \itemize{
@@ -39,6 +40,12 @@
 #' "generation_1", ...; each result also carries the attributes iteration
 #' and generation.
 #' }
+#' When results are bound, a column missing from some results is filled with
+#' NA (for example a statistic that is absent in generations where a
+#' population is extinct). NULL results (from a fun run for its side effect,
+#' such as saving a file) add no rows to a bound data frame and are NULL in
+#' the nested list.
+#'
 #' A tidy data frame makes it easy to summarise across replicates, e.g. the
 #' mean He per generation over iterations.
 #'
@@ -98,28 +105,40 @@ gl.sim.apply <- function(x,
       stop(error("  iteration must be numbers between 1 and", length(x),
                  "\n"))
     }
-    iterations <- iteration
+    iterations <- unique(iteration)
   }
 
-  ## Every element must be a genlight with sim.vars$generation, so fun is
-  ## not run on data it cannot be tagged for
+  ## Every element must be a genlight with sim.vars$generation, and each
+  ## generation must appear once per iteration, so fun is not run on data it
+  ## cannot be tagged for
   problems <- NULL
   for (it in iterations) {
+    gens <- NULL
     for (i in seq_along(x[[it]])) {
       g <- x[[it]][[i]]
       if (!is(g, "genlight") || is.null(g@other$sim.vars$generation)) {
         problems <- c(problems, paste0("iteration ", it, ", element ", i))
+      } else {
+        gens <- c(gens, as.numeric(g@other$sim.vars$generation))
       }
+    }
+    if (anyDuplicated(gens)) {
+      problems <- c(problems,
+                    paste0("iteration ", it, ", generation ",
+                           paste(unique(gens[duplicated(gens)]),
+                                 collapse = ", "), " appears more than once"))
     }
   }
   if (!is.null(problems)) {
     stop(error("  These elements are not genlight objects with",
-               "@other$sim.vars$generation (as stored by gl.sim.WF.run()):",
+               "@other$sim.vars$generation (as stored by gl.sim.WF.run()),",
+               "or repeat a generation:",
                paste(problems, collapse = "; "), "\n"))
   }
 
   # DO THE JOB
   results <- list()
+  records <- list() # iteration, generation and result of each call
   for (it in iterations) {
     if (length(x[[it]]) == 0) {
       if (verbose >= 2) {
@@ -137,9 +156,13 @@ gl.sim.apply <- function(x,
                      ":", conditionMessage(e), "\n"), call. = FALSE)
         }
       )
-      attr(res, "iteration") <- it
-      attr(res, "generation") <- gen
-      res_it[[paste0("generation_", gen)]] <- res
+      # NULL results (functions run for their side effect) are kept as NULL
+      if (!is.null(res)) {
+        attr(res, "iteration") <- it
+        attr(res, "generation") <- gen
+      }
+      res_it[paste0("generation_", gen)] <- list(res)
+      records[[length(records) + 1]] <- list(it = it, gen = gen, res = res)
     }
     results[[paste0("iteration_", it)]] <- res_it
     if (verbose >= 2) {
@@ -148,33 +171,37 @@ gl.sim.apply <- function(x,
     }
   }
 
-  ## Bind into one data frame when every result is a data frame or a vector
-  flat <- unlist(results, recursive = FALSE, use.names = FALSE)
-  tabular <- length(flat) > 0 &&
-    all(vapply(flat, function(r) {
-      is.data.frame(r) || (is.atomic(r) && is.null(dim(r)))
+  ## Bind into one data frame when every (non-NULL) result is a data frame or
+  ## a vector; columns missing from some results are filled with NA
+  non_null <- Filter(function(r) !is.null(r$res), records)
+  tabular <- length(non_null) > 0 &&
+    all(vapply(non_null, function(r) {
+      is.data.frame(r$res) || (is.atomic(r$res) && is.null(dim(r$res)))
     }, logical(1)))
 
   if (tabular) {
-    results <- do.call(rbind, lapply(flat, function(r) {
-      tags <- data.frame(iteration = attr(r, "iteration"),
-                         generation = attr(r, "generation"))
+    pieces <- lapply(non_null, function(rec) {
+      r <- rec$res
+      attr(r, "iteration") <- NULL
+      attr(r, "generation") <- NULL
       if (is.data.frame(r)) {
-        attr(r, "iteration") <- NULL
-        attr(r, "generation") <- NULL
+        if (nrow(r) == 0) {
+          return(NULL)
+        }
         rn <- rownames(r)
         if (!identical(rn, as.character(seq_len(nrow(r))))) {
           r <- cbind(name = rn, r)
         }
-        if (nrow(r) == 0) {
-          return(NULL)
-        }
-        return(cbind(tags[rep(1, nrow(r)), ], r))
+        return(cbind(data.frame(iteration = rep(rec$it, nrow(r)),
+                                generation = rep(rec$gen, nrow(r))), r))
       }
       nm <- if (is.null(names(r))) seq_along(r) else names(r)
-      data.frame(tags[rep(1, length(r)), ], name = nm,
-                 value = as.vector(r))
-    }))
+      data.frame(iteration = rep(rec$it, length(r)),
+                 generation = rep(rec$gen, length(r)),
+                 name = nm, value = as.vector(r))
+    })
+    results <- as.data.frame(data.table::rbindlist(pieces, use.names = TRUE,
+                                                   fill = TRUE))
     rownames(results) <- NULL
   }
 
