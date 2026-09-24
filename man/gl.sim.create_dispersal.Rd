@@ -15,19 +15,21 @@ gl.sim.create_dispersal(
 )
 }
 \arguments{
-\item{number_pops}{Number of populations [required].}
+\item{number_pops}{Number of populations, a whole number of at least 2
+[required].}
 
 \item{dispersal_type}{One of: "all_connected", "circle" or "line"
 [default "all_connected"].}
 
 \item{number_transfers}{Number of individuals swapped in each direction
-between the two populations of a row at each dispersal event. Each
-connected pair of populations is written once. This value can be
-modified by hand after the file has been created [default 1].}
+between the two populations of a row at each dispersal event, a whole
+number of at least 0. Each connected pair of populations is written once.
+This value can be modified by hand after the file has been created
+[default 1].}
 
 \item{transfer_each_gen}{Interval of number of generations in which dispersal
-occur. This value can be modified by hand after the file has been created
- [default 1].}
+occur, a whole number of at least 1. This value can be modified by hand after
+the file has been created [default 1].}
 
 \item{outpath}{Path where to save the output file. Use outpath=getwd() or
 outpath='.' when calling this function to direct output files to your working
@@ -40,8 +42,10 @@ progress log; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A csv file containing the dispersal variables for each pair of
-populations to be used as input for the function \code{\link{gl.sim.WF.run}}.
+Writes a csv file containing the dispersal variables for each pair
+of populations to be used as input for the function
+\code{\link{gl.sim.WF.run}}, and returns the same table invisibly as a
+data.frame.
 }
 \description{
 This function writes a csv file called "dispersal_table.csv" which contains
@@ -53,7 +57,15 @@ The values of the variables can be modified using the columns
 
 See documentation and tutorial for a complete description of the simulations.
 These documents can be accessed by typing in the R console:
-browseVignettes(package="dartR”)
+browseVignettes(package = "dartR.sim")
+}
+\details{
+With "all_connected", every pair of populations is connected; with "line",
+each population is connected to the next one (1-2, 2-3, ...); with
+"circle", the last population is also connected to the first one.
+
+A number_transfers of 0 in a row switches dispersal off for that pair. If
+outpath does not exist, the file is written to tempdir() with a warning.
 }
 \examples{
 gl.sim.create_dispersal(number_pops=10)
@@ -75,7 +87,7 @@ Other simulation functions:
 \code{\link{gl.sim.offspring}()}
 }
 \author{
-Custodian: Luis Mijangos -- Post to
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 \url{https://groups.google.com/d/forum/dartr}
 }
 \concept{simulation functions}

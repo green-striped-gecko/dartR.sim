@@ -17,6 +17,17 @@
   the `possums.gl` example).
 * `sim` is returned as a `data.frame`, as documented (it was a tibble).
 
+## gl.sim.create_dispersal
+
+* Arguments are validated: `number_pops` of 0, 1 or fractional,
+  `transfer_each_gen = 0`, negative or fractional `number_transfers` and an
+  unknown `dispersal_type` now stop with an error. Before, they gave opaque
+  errors or wrote tables that `gl.sim.WF.run()` could not use (a pair with
+  population 0; `transfer_each_gen = 0` stopped the simulation later).
+* A missing `outpath` falls back to `tempdir()` with a warning.
+* Returns the dispersal table invisibly (it returned `NULL`); messages use
+  `cat()` like other dartR functions, and the saved path is printed without a
+  trailing "/".
 ## gl.sim.Neconst
 
 * Allele counts are drawn on the population's 2N gene copies, conditioned on
