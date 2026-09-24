@@ -73,6 +73,8 @@ Other simulation functions:
 \code{\link{gl.sim.ind}()},
 \code{\link{gl.sim.ind.af}()},
 \code{\link{gl.sim.mutate}()}
+\code{\link{gl.sim.emigration}()},
+\code{\link{gl.sim.ind}()}
 }
 \author{
 Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to

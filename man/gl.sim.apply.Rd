@@ -81,6 +81,7 @@ Other simulation functions:
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.emigration}()},
 \code{\link{gl.sim.ind}()},
 \code{\link{gl.sim.ind.af}()},
 \code{\link{gl.sim.mutate}()},

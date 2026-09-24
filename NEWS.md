@@ -12,6 +12,27 @@
   mutations on 500 individuals x 20,000 loci take 0.04 s instead of 7.9 s.
   Seeded results are unchanged.
 * `mut.rate` is validated; new `verbose` argument; history is recorded.
+## gl.sim.emigration
+
+* `emi.m` moves individuals from column to row, as documented. Before, the
+  direction was reversed: a matrix sending the emigrants of A to B moved B
+  individuals into A. **Output of every `emi.m` run changes**; `emi.table`
+  runs keep their direction.
+* Emigrants are drawn from the residents at the start of the call and all
+  move at once, so an individual moves at most once (before, a migrant could
+  move again in the same call). **Seeded outputs change**, and the order of
+  individuals changes (still grouped by population). About 35 times faster
+  (0.39 s -> 0.011 s for the `possums.gl` example).
+* A population can lose all its individuals (before, the function stopped).
+  Asking for more emigrants than a population holds stops with an error
+  naming it.
+* `ind.metrics$pop` is updated for moved individuals.
+* Inputs are validated: matrices of the wrong dimension and `perc.mig`
+  outside 0-1 now stop with an error; data frames are accepted; an all-zero
+  `emi.m` column means nobody leaves; a list of length 1 is handled as a
+  list, and unnamed list elements are named after their population.
+* `perc.mig` is documented as a proportion (it always was one).
+* New `verbose` argument; one history entry per call.
 
 ## gl.sim.ind.af
 
