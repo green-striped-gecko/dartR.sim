@@ -1,5 +1,23 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.ind.af
+
+* Frequencies and sizes are matched to populations by name. Before, a table
+  not sorted alphabetically gave some populations another population's
+  frequencies (Z listed before A: Z simulated at 0.10 instead of 0.90), and a
+  factor `popn` with named `pop.sizes` swapped the sizes. **Output changes
+  for those inputs**; sorted tables such as `gl.allele.freq()` output are
+  unaffected.
+* `frequency` is documented as the alternate-allele frequency (the allele
+  counted in the genotypes), which is what the code has always used.
+* Returns a `dartR` object; `loc.metrics` holds `AlleleID` (it had a column
+  named `array(NA, nLoc(x))`), and `ind.metrics` gains `id` and `pop`.
+* Fractional or `NA` `pop.sizes`, and duplicate population-locus rows, stop
+  with an error (they were truncated or dropped silently).
+* Genotypes are drawn with `rbinom()` in R instead of C++ compiled at run
+  time: no compiler is needed and the first call no longer takes ~3 s.
+  **Seeded outputs change**; the genotype distribution is unchanged.
+* New `verbose` argument; history is recorded.
 ## gl.sim.offspring
 
 * Loci are inherited independently. Before, `ifelse()` recycled the random
