@@ -67,6 +67,7 @@ Other simulation functions:
 \code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.create_dispersal}()},
 \code{\link{gl.sim.ind.af}()}
+\code{\link{gl.sim.offspring}()}
 }
 \author{
 Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to

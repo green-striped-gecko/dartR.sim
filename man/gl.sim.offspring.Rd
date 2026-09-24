@@ -16,30 +16,45 @@ gl.sim.offspring(
 \arguments{
 \item{fathers}{Genlight object of potential fathers [required].}
 
-\item{mothers}{Genlight object of potential mothers simulated [required].}
+\item{mothers}{Genlight object of mothers [required].}
 
 \item{noffpermother}{Number of offspring per mother [required].}
 
 \item{sexratio}{The sex ratio of simulated offspring 
-(females / females +males, 1 equals 100 percent females) [default 0.5.].}
+(females / (females + males); 1 equals 100 percent females) [default 0.5].}
 
-\item{popname}{population name of the returned genlight object 
+\item{popname}{Population name of the returned genlight object 
 [default "offspring"].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-progress log; 3, progress and results summary; 5, full report
+brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A genlight object with n individuals.
+A genlight object with nInd(mothers) * noffpermother individuals.
 }
 \description{
-This takes a population (or a single individual) of fathers (provided as a
-genlight object) and mother(s) and simulates offspring based on 'random'
- mating. It can be used to simulate population dynamics and check the effect
- of those dynamics and allele frequencies, number of alleles. Another
- application is to simulate relatedness of siblings and compare it to actual
- relatedness found in the population to determine kinship.
+This function takes a population (or a single individual) of fathers and
+of mothers (provided as genlight objects) and simulates offspring by
+Mendelian inheritance. It can be used to simulate population dynamics and
+check their effect on allele frequencies and number of alleles, or to
+simulate the relatedness of siblings and compare it with the relatedness
+found in a population.
+}
+\details{
+Each mother has exactly noffpermother offspring. The father of each
+offspring is drawn at random from fathers, so offspring of the same mother
+are full siblings only when a single father is given; otherwise most are
+half siblings.
+
+Each parent passes on one of its two alleles at every locus with
+probability 1/2, independently across loci (no linkage). Missing
+genotypes in a parent give missing genotypes in its offspring.
+
+fathers and mothers must be SNP data with the same loci in the same
+order. The offspring keep the locus metadata of the mothers (the metrics
+flags are reset), and @other$ind.metrics records each offspring's sex,
+mother and father (their individual names).
 }
 \examples{
 #Simulate 10 potential fathers
@@ -48,6 +63,17 @@ gl.fathers <- glSim(10, 20, ploidy=2)
 gl.mothers <- glSim(10, 20, ploidy=2)
 res <- gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
 }
-\author{
-Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()}
 }
+\author{
+Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to
+\url{https://groups.google.com/d/forum/dartr}
+}
+\concept{simulation functions}
