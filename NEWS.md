@@ -1,5 +1,21 @@
 # dartR.sim 1.2.2.9000
 
+## gl.sim.Neconst
+
+* Allele counts are drawn on the population's 2N gene copies, conditioned on
+  polymorphism, and placed at random among individuals. Before, frequencies
+  came from a grid of 4N + 1 points and were resampled, so about 19% of the
+  requested SNPs were monomorphic and singletons were 18% short of the
+  neutral spectrum. **Output changes: every locus is polymorphic and the
+  spectrum matches the neutral expectation.**
+* Title and documentation describe the model: theta = 4 * ninds *
+  mutation_rate, `ninds` is Ne, and `mutation_rate` changes the output only
+  when theta approaches 1.
+* Inputs are validated (fractional `nlocs` now stops with an error).
+* `verbose` follows the dartR default: start/end messages print at the
+  default verbosity. The history records this call; `loc.metrics` holds
+  `AlleleID` and `ind.metrics` gains `pop`.
+
 ## gl.sim.ind.af
 
 * Frequencies and sizes are matched to populations by name. Before, a table

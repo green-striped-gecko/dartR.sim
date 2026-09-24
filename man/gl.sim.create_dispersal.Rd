@@ -63,11 +63,12 @@ gl.sim.create_dispersal(number_pops=10)
 
 Other simulation functions: 
 \code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.ind}()},
-\code{\link{gl.sim.ind.af}()}
+\code{\link{gl.sim.ind.af}()},
 \code{\link{gl.sim.offspring}()}
 }
 \author{

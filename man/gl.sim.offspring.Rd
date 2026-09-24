@@ -66,11 +66,13 @@ res <- gl.sim.offspring(gl.fathers, gl.mothers, 2, sexratio=0.5)
 \seealso{
 Other simulation functions: 
 \code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.create_dispersal}()},
-\code{\link{gl.sim.ind}()}
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()}
 }
 \author{
 Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to
