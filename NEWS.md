@@ -1,5 +1,22 @@
 # dartR.sim 1.2.2.9000
 
+## gl.report.nall
+
+* The documentation describes the null model: the curve comes from
+  individuals simulated under Hardy-Weinberg from the pooled allele
+  frequencies (`gl.sim.ind()`), not from subsampling the real individuals,
+  so it need not reach 1 at the full sample size.
+* `verbose = 0` is silent (it printed the messages of `gl.filter.allna()` and
+  `gl.colors()`).
+* SilicoDArT input stops at the start with a clear error (it failed inside a
+  parallel worker).
+* A single simulation job (one sample size, `reps = 1`) no longer crashes;
+  `simlevels`, `reps` and `ncores` are validated (`reps = 0` ran two
+  replicates and now stops with an error).
+* `ncores = 1` runs without starting a cluster (0.55 s instead of 3.7 s for
+  the `possums.gl` example).
+* `sim` is returned as a `data.frame`, as documented (it was a tibble).
+
 ## gl.sim.Neconst
 
 * Allele counts are drawn on the population's 2N gene copies, conditioned on
