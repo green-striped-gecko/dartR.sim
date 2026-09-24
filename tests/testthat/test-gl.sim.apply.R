@@ -72,3 +72,44 @@ test_that("empty iterations are skipped; errors in fun are located", {
   expect_error(gl.sim.apply(sims, function(g) stop("boom"), verbose = 0),
                "iteration 1 , generation 1 : boom")
 })
+
+# --- Review baseline (review-gl.sim.apply), bugs included ---------------------
+# Assertions marked [approved diff] were flipped in Phase C under the finding
+# named in the test title; see function-review/reports/dartR.sim/.
+
+test_that("[approved diff] fun returning NULL is allowed (F1)", {
+  res <- gl.sim.apply(sims, function(g) NULL, verbose = 0)
+  expect_named(res, c("iteration_1", "iteration_2"))
+  expect_named(res[[1]], c("generation_1", "generation_10"))
+  expect_null(res[[1]][[1]])
+  # NULL mixed with vectors: NULLs add no rows
+  f <- function(g) if (g@other$sim.vars$generation == 1) NULL else nInd(g)
+  r2 <- gl.sim.apply(sims, f, verbose = 0)
+  expect_identical(r2$generation, c(10, 10))
+})
+
+test_that("[approved diff] results with different columns are bound with NA (F2)", {
+  f <- function(g) {
+    if (g@other$sim.vars$generation == 1) data.frame(a = 1) else
+      data.frame(b = 2)
+  }
+  res <- gl.sim.apply(sims, f, verbose = 0)
+  expect_s3_class(res, "data.frame")
+  expect_named(res, c("iteration", "generation", "a", "b"))
+  expect_identical(is.na(res$a), res$generation == 10)
+  f2 <- function(g) {
+    if (g@other$sim.vars$generation == 1) data.frame(a = 1) else c(a = 1)
+  }
+  res2 <- gl.sim.apply(sims, f2, verbose = 0)
+  expect_named(res2, c("iteration", "generation", "a", "name", "value"))
+  expect_identical(nrow(res2), 4L)
+})
+
+test_that("[approved diff] repeated generations stop; repeated iterations run once (F3)", {
+  s <- sims
+  s[[1]][[3]] <- s[[1]][[2]]
+  expect_error(gl.sim.apply(s, nInd, verbose = 0),
+               "iteration 1, generation 10 appears more than once")
+  expect_identical(nrow(gl.sim.apply(sims, nInd, iteration = c(1, 1),
+                                     verbose = 0)), 2L)
+})
