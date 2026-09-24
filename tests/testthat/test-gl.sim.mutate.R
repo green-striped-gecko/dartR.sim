@@ -65,8 +65,28 @@ test_that("[approved diff] flags reset and history added (F3, F6)", {
 })
 
 test_that("seeded results unchanged by reading one individual (F4)", {
-  # snapshot of the pre-review output for this seed
+  # the pre-review algorithm (whole-matrix read per mutation), run on the
+  # same data and seed; compared with the function rather than with a fixed
+  # count, which depends on the installed version of testset.gl
+  mutate_pre_review <- function(x, mut.rate) {
+    nm <- rbinom(1, nInd(x) * nLoc(x) * 2, mut.rate)
+    for (ii in seq_len(nm)) {
+      ri <- sample(1:nInd(x), 1)
+      rl <- sample(1:nLoc(x), 1)
+      cs <- as.matrix(x)[ri, rl]
+      if (!is.na(cs)) {
+        xx <- as.matrix(x[ri, ])
+        nv <- if (!cs %% 2) 1 else sample(c(0, 2), 1)
+        xx[rl] <- nv
+        x@gen[[ri]] <- new("SNPbin", xx)
+      }
+    }
+    x
+  }
+  set.seed(11)
+  a <- mutate_pre_review(x, 1e-3)
   set.seed(11)
   b <- gl.sim.mutate(x, mut.rate = 1e-3, verbose = 0)
-  expect_identical(n_diff(x, b), 122L)
+  expect_gt(n_diff(x, b), 0)
+  expect_identical(as.matrix(b), as.matrix(a))
 })
