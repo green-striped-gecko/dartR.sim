@@ -107,6 +107,7 @@ the finite island model. Genetics. 1983;104(3):497-512.
 }
 \seealso{
 Other simulation functions: 
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},

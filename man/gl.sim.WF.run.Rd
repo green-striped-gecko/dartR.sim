@@ -149,6 +149,7 @@ res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
 
 Other simulation functions: 
 \code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.create_dispersal}()},

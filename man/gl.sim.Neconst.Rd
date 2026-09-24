@@ -2,38 +2,72 @@
 % Please edit documentation in R/gl.sim.Neconst.r
 \name{gl.sim.Neconst}
 \alias{gl.sim.Neconst}
-\title{Simulate a population with constant mutation rate}
+\title{Simulates a population at mutation-drift equilibrium with constant Ne}
 \usage{
-gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = 0)
+gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = NULL)
 }
 \arguments{
-\item{ninds}{Number of individuals in the population [required].}
+\item{ninds}{Number of individuals in the population, which is also its
+effective population size (Ne); a whole number of at least 2 [required].}
 
-\item{nlocs}{Number of loci in the population [required].}
+\item{nlocs}{Number of loci (SNPs) to simulate, a whole number of at least 1
+[required].}
 
-\item{mutation_rate}{Mutation rate per generation (default is 1e-8) 
-[default 1e-8].}
+\item{mutation_rate}{Mutation rate per locus per generation, a number
+greater than 0 [default 1e-8].}
 
-\item{verbose}{Verbosity level (default is 0).}
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
 A genlight object representing the simulated population.
 }
 \description{
-This function simulates a population with a constant mutation 
-rate using a beta distribution for allele frequencies.
+This function simulates SNP genotypes of a population of
+constant effective size at mutation-drift equilibrium, using Wright's beta
+distribution for allele frequencies.
 }
 \details{
-The function generates a genlight object with the specified number 
-of individuals and loci, simulating allele frequencies based on a beta 
-distribution. The mutation rate is used to calculate theta, which in turn is 
-the parameter in the beta function.
+At mutation-drift equilibrium under symmetric mutation between two
+alleles, the allele frequency p of a locus follows Wright's beta
+distribution, with density proportional to (p(1 - p))^(theta - 1), where
+theta = 4 * ninds * mutation_rate.
+
+The population has 2 * ninds gene copies. For each locus, the number of
+copies k of one allele is drawn from 1 to 2 * ninds - 1 with probability
+proportional to (k/2N (1 - k/2N))^(theta - 1), i.e. conditioned on the locus
+being polymorphic, and the k copies are placed at random among the gene
+copies of the individuals. Every locus is therefore a SNP.
+
+When theta is much smaller than 1 (e.g. mutation_rate = 1e-8 for any
+realistic ninds), the spectrum is the neutral site frequency spectrum,
+proportional to 1/k + 1/(2N - k), and does not depend on mutation_rate.
+mutation_rate changes the output only when theta approaches 1 or more, when
+intermediate frequencies become more common.
+
+Individuals are named "1", "2", ..., loci "Loc1", "Loc2", ..., all
+individuals belong to population "pop1", and alleles are set to the
+placeholder "A/C".
 }
 \examples{
 # Simulate a population with 50 individuals and 4000 loci
 gg <- gl.sim.Neconst(ninds = 50, nlocs = 4000, mutation_rate = 1e-8, verbose = 0)
 dartR.popgen::gl.sfs(gg)
 }
-\author{
-Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.offspring}()}
 }
+\author{
+Author(s): Bernd Gruber. Custodian: Bernd Gruber -- Post to
+\url{https://groups.google.com/d/forum/dartr}
+}
+\concept{simulation functions}

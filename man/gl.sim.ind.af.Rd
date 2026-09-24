@@ -66,6 +66,7 @@ res <- gl.sim.ind.af(df = r2, pop.sizes= c(50,50,50))
 \seealso{
 Other simulation functions: 
 \code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.apply}()},

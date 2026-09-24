@@ -78,6 +78,7 @@ aggregate(value ~ generation, data = he, FUN = mean)
 
 Other simulation functions: 
 \code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
 \code{\link{gl.sim.WF.table}()},
 \code{\link{gl.sim.create_dispersal}()},
