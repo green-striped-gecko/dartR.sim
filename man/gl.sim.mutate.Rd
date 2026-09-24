@@ -4,30 +4,59 @@
 \alias{gl.sim.mutate}
 \title{Simulates mutations within a genlight object}
 \usage{
-gl.sim.mutate(x, mut.rate = 1e-06)
+gl.sim.mutate(x, mut.rate = 1e-06, verbose = NULL)
 }
 \arguments{
 \item{x}{Name of the genlight object containing the SNP data [required].}
 
-\item{mut.rate}{Constant mutation rate over nInd*nLoc*2 possible locations
-[default 1e-6].}
+\item{mut.rate}{Constant mutation rate per allele copy, a number between 0
+and 1 [default 1e-6].}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
 Returns a genlight object with the applied mutations
 }
 \description{
-This script is intended to be used within the simulation framework of dartR. 
-It adds the ability to add a constant mutation rate across all loci. Only 
-works currently for biallelic data sets (SNPs). Mutation rate is checking for 
-all alleles position and mutations at loci with missing values are ignored 
-and in principle 'double mutations' at the same loci can occur, but should be 
-rare.
+This function is intended to be used within the simulation framework of
+dartR. It adds the ability to add a constant mutation rate across all loci.
+Only works for biallelic SNP data.
+}
+\details{
+Each of the nInd * nLoc * 2 allele copies mutates with probability
+mut.rate, so the number of mutation events is drawn from a binomial
+distribution, and each event is placed at a random individual and locus.
+A mutation changes one allele: a homozygote (0 or 2) becomes a heterozygote
+(1), and a heterozygote becomes either homozygote with equal probability.
+
+Events that fall on a missing genotype are dropped, so the realised rate is
+lower than mut.rate by the proportion of missing data. In principle
+'double mutations' at the same locus of the same individual can occur, but
+should be rare.
+
+If any genotype changes, the locus metrics flags are reset so that metrics
+are recalculated by the functions that use them.
 }
 \examples{
 b2 <- gl.sim.mutate(bandicoot.gl,mut.rate=1e-4 )
 #check the mutations that have occurred
 table(as.matrix(bandicoot.gl), as.matrix(b2))
 }
-\author{
-Bernd Gruber (Post to \url{https://groups.google.com/d/forum/dartr})
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.apply}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.offspring}()}
 }
+\author{
+Author(s): Bernd Gruber. Custodian: Bernd Gruber -- Post to
+\url{https://groups.google.com/d/forum/dartr}
+}
+\concept{simulation functions}
