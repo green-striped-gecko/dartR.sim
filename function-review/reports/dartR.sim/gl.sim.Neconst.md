@@ -92,7 +92,7 @@ Proposed change: fix the tags.
 | 6 | `devtools::document()`; `@family` adds `gl.sim.Neconst` to the "Other simulation functions" links | docs only |
 
 Tests: `test-gl.sim.Neconst.R` 29 expectations pass; full suite 228 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #57.
 
 ```json
 {
@@ -113,6 +113,6 @@ PR: pending.
   ],
   "coverage_skipped": ["input-data checks: no genlight input", "FBM path: fbm argument disabled", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 57
 }
 ```
