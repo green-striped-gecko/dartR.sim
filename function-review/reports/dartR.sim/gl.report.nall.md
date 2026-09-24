@@ -95,7 +95,7 @@ Proposed change: correct the defaults and the return type (return `sim` as a `da
 | 6 | test "sim is a data.frame"; `devtools::document()` | flipped: `sim` is a `data.frame` with columns `Npop, mnall, low, high` (was a tibble); `ncores` default documented as 2; `build` dropped |
 
 Unchanged and passing: returned structure, input untouched, results with `plot.display = FALSE`, per-population points; documented example at `verbose = 3`. Tests: `test-gl.report.nall.R` 22 expectations pass; full suite 314 pass. `R CMD check` on the tracked files: 0 errors; 1 warning (installed packages built under R 4.4.3, local environment); 1 note (timestamps). NEWS.md updated.
-PR: pending.
+PR: #59.
 
 ```json
 {
@@ -116,6 +116,6 @@ PR: pending.
   ],
   "coverage_skipped": ["FBM path: not tested", "forum/issues search: not run"],
   "status": "pr-open",
-  "pr": null
+  "pr": 59
 }
 ```
