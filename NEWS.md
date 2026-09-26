@@ -1,3 +1,20 @@
+# dartR.sim (development version)
+
+## gl.sim.WF.run (inbreeding)
+
+* New variables `sib_mating_phase1` and `sib_mating_phase2`: the proportion
+  of pairs that are full siblings, one value or one per population. At
+  equilibrium F = b / (4 - 3b). NULL (the default) is random mating, and
+  seeded outputs are unchanged.
+* New variable `real_inbreeding`: F = 1 - Ho / He is estimated in each
+  population of `x`. The founders are made inbred (stretches of the
+  chromosome identical by descent, a fraction F of the map, mean 25 cM), and
+  phases whose `sib_mating` is NULL use the proportion of sib matings that
+  keeps F, b = 4F / (1 + 3F). A `sib_mating` value that is set wins.
+* A warning is printed when too few females have a brother to reach the
+  proportion of sib matings (small families).
+* `sim_variables.csv` files without the new variables still run.
+
 # dartR.sim 1.2.6
 
 ## gl.sim.apply

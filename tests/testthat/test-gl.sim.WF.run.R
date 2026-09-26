@@ -329,3 +329,123 @@ test_that("[approved diff] each pair of 1 alternates sexes over time (F21)", {
   m5 <- disp_moves(t5, gens = 2:6)
   expect_identical(m5$males + m5$females, c(0L, 0L, 0L, 2L, 0L))
 })
+
+# ---- Inbreeding: sib mating and real_inbreeding ----
+
+fis_pop <- function(g) {
+  m <- as.matrix(g)
+  q <- colMeans(m) / 2
+  1 - sum(colMeans(m == 1)) / sum(2 * q * (1 - q))
+}
+
+test_that("sib_pairs pairs the asked proportion of full siblings", {
+  # 50 families of 4 brothers and 4 sisters
+  n <- 400
+  fam <- rep(1:50, times = 2, each = 4)
+  pop <- data.frame(V1 = rep(c("Male", "Female"), each = n / 2),
+                    V5 = paste0("f", fam), V6 = paste0("m", fam))
+  rownames(pop) <- paste0("r", 1:n)
+  set.seed(1)
+  realised <- replicate(50, {
+    p <- sib_pairs(pop, n, sib = 0.3, rep_parents = FALSE)
+    expect_false(anyDuplicated(p$males) > 0)
+    expect_setequal(p$males, rownames(pop)[1:(n / 2)])
+    mean(pop[p$males, "V5"] == pop[p$females, "V5"])
+  })
+  # random pairing adds 1/50 sib pairs by chance
+  expect_equal(mean(realised), 0.3 + 0.7 / 50, tolerance = 0.05)
+  # no families: no sib pairs and flagged short
+  pop_nofam <- pop
+  pop_nofam$V5 <- pop_nofam$V6 <- NA
+  p <- sib_pairs(pop_nofam, n, sib = 0.3, rep_parents = FALSE)
+  expect_true(p$short)
+})
+
+test_that("reproduction with sib = 0 keeps the random-mating stream", {
+  rt <- wf_ref()
+  gens <- function(r) lapply(r[[1]], function(g) g@gen)
+  expect_identical(gens(wf_run(rt, seed = 1)),
+                   gens(wf_run(rt, seed = 1, sib_mating_phase2 = 0)))
+})
+
+test_that("ibd_loci: IBD fraction is F, in stretches along the map", {
+  cm <- seq(0, 10, length.out = 2000)
+  set.seed(1)
+  f <- replicate(500, mean(ibd_loci(cm, 0.2)))
+  expect_equal(mean(f), 0.2, tolerance = 0.05)
+  set.seed(1)
+  runs <- rle(ibd_loci(cm, 0.2))
+  # mean IBD stretch close to 25 cM = 100 loci here
+  expect_gt(mean(runs$lengths[runs$values]), 40)
+  expect_false(any(ibd_loci(cm, 0)))
+  expect_true(all(ibd_loci(cm, 1)))
+})
+
+test_that("inbreeding_real is 1 - Ho / He per population", {
+  x <- gl.keep.pop(testset.gl, pop.list = popNames(testset.gl)[1:2],
+                   verbose = 0)
+  f <- inbreeding_real(x)
+  expect_named(f, popNames(x))
+  g <- as.matrix(seppop(x)[[1]])
+  n <- colSums(!is.na(g))
+  q <- colMeans(g, na.rm = TRUE) / 2
+  he <- 2 * q * (1 - q) * 2 * n / (2 * n - 1)
+  ho <- colMeans(g == 1, na.rm = TRUE)
+  expect_equal(unname(f[1]), 1 - sum(ho, na.rm = TRUE) / sum(he, na.rm = TRUE))
+})
+
+test_that("sib_mating raises F towards b / (4 - 3b)", {
+  rt <- wf_ref(chunk_neutral_loci = 5)
+  f <- sapply(1:2, function(i) {
+    r <- wf_run(rt, seed = i, sib_mating_phase2 = 0.3,
+                population_size_phase2 = "200", gen_number_phase2 = 12,
+                every_gen = 12, sample_percent = 100,
+                dispersal_phase2 = FALSE)
+    fis_pop(r[[1]][[length(r[[1]])]])
+  })
+  # expected 0.3 / 3.1 = 0.097
+  expect_gt(mean(f), 0.05)
+  expect_lt(mean(f), 0.15)
+})
+
+test_that("sib_mating is validated", {
+  rt <- wf_ref()
+  expect_error(wf_run(rt, seed = 1, sib_mating_phase2 = 2), "sib_mating")
+  expect_error(wf_run(rt, seed = 1, sib_mating_phase2 = "0.1 0.2"),
+               "sib_mating")
+  expect_error(wf_run(rt, seed = 1, real_inbreeding = TRUE), "missing")
+})
+
+test_that("real_inbreeding: population check, estimate used, set value wins", {
+  x <- gl.keep.pop(testset.gl, pop.list = popNames(testset.gl)[1:2],
+                   verbose = 0)
+  x <- gl.filter.callrate(x, threshold = 1, verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE)
+  expect_error(wf_run(rt, x = x, seed = 1, real_freq = TRUE,
+                      real_inbreeding = TRUE), "real_pops")
+  expect_s4_class(
+    wf_run(rt, x = x, seed = 1, real_freq = TRUE, real_pops = TRUE,
+           real_inbreeding = TRUE, population_size_phase2 = "20 20",
+           gen_number_phase2 = 2)[[1]][[1]],
+    "genlight")
+  expect_output(
+    gl.sim.WF.run(file_var = fv_sim, ref_table = rt, x = x,
+                  interactive_vars = FALSE, verbose = 1, seed = 1,
+                  real_freq = TRUE, real_pops = TRUE, real_inbreeding = TRUE,
+                  sib_mating_phase2 = 0, population_size_phase2 = "20 20",
+                  gen_number_phase2 = 2),
+    "is not used")
+})
+
+test_that("CSV without the inbreeding variables runs", {
+  v <- read.csv(fv_sim)
+  v <- v[!v$variable %in% c("sib_mating_phase1", "sib_mating_phase2",
+                            "real_inbreeding"), ]
+  f <- tempfile(fileext = ".csv")
+  write.csv(v, f, row.names = FALSE)
+  rt <- wf_ref()
+  expect_identical(
+    gl.sim.WF.run(file_var = f, ref_table = rt, interactive_vars = FALSE,
+                  verbose = 0, seed = 1)[[1]][[2]]@gen,
+    wf_run(rt, seed = 1)[[1]][[2]]@gen)
+})
