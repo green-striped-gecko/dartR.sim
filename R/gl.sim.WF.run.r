@@ -55,7 +55,9 @@
 #' dispersal_type "line", "circle" or "all_connected", each pair of
 #' connected populations is processed once. A file from
 #' \code{\link{gl.sim.create_dispersal}} is used row by row.
-#' \item Reproduction. N/2 monogamous pairs are formed at random. The number
+#' \item Reproduction. N/2 monogamous pairs are formed at random, except that
+#' a proportion sib_mating of the pairs are full siblings (see Inbreeding
+#' below). The number
 #' of offspring per pair follows a negative binomial distribution with mean
 #' number_offspring and size variance_offspring: large values of
 #' variance_offspring give Poisson family sizes (Ne close to N), small values
@@ -92,11 +94,33 @@
 #' With phase1 = TRUE, phase 2 starts from individuals sampled from the
 #' phase-1 populations, without replacement unless phase 2 is larger.
 #' 
-#' If a genlight object is used (real_pops, real_pop_size, real_loc or
-#' real_freq), the simulated allele is the alternative allele of the
-#' genlight (genotype 2). Loci without calls in a population take the
-#' frequency across all populations. real_pop_size sets the sizes of the
-#' first phase simulated, rounded up to even numbers.
+#' If a genlight object is used (real_pops, real_pop_size, real_loc,
+#' real_freq or real_inbreeding), the simulated allele is the alternative
+#' allele of the genlight (genotype 2). Loci without calls in a population
+#' take the frequency across all populations. real_pop_size sets the sizes
+#' of the first phase simulated, rounded up to even numbers.
+#' 
+#' Inbreeding. sib_mating_phase1 and sib_mating_phase2 set the proportion of
+#' pairs that are full siblings (brother and sister with the same father and
+#' mother), one value or one per population (space delimited and in
+#' quotes); NULL or 0 is random mating. At equilibrium the inbreeding
+#' coefficient is F = b / (4 - 3b) for a proportion b of sib matings. Sib
+#' matings need females with a brother among the parents, so when families
+#' are small (low number_offspring) fewer sib matings than asked for can take
+#' place and a warning is printed at verbose >= 1. With real_inbreeding =
+#' TRUE, F = 1 - Ho / He is estimated in each population of x (on the loci
+#' of chromosome_name when real_loc = TRUE; negative values are set to 0)
+#' and x must have as many populations as the first phase simulated. The
+#' founders are then made inbred: along the chromosome they alternate
+#' between stretches whose two copies are identical by descent (a fraction F
+#' of the map, mean length 25 cM, as in the offspring of full siblings) and
+#' stretches drawn independently. In a phase whose sib_mating is NULL, the
+#' proportion of sib matings is set to b = 4F / (1 + 3F), which keeps F in
+#' the following generations; a sib_mating value that is set is used
+#' instead. Founders are unrelated to each other, so the first generation
+#' (their offspring) has F close to 0; F returns close to the value in x from
+#' the second generation. To store only generations at equilibrium, use
+#' phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -173,12 +197,17 @@ gl.sim.WF.run <- function(file_var,
       sim_vars <- suppressWarnings(read.csv(file_var))
       sim_vars <- sim_vars[, c("variable", "value")]
     }
-    ## The Shiny app does not ask for replace_parents; parents are then
-    ## sampled without replacement, as in sim_variables.csv
-    if (!"replace_parents" %in% sim_vars$variable) {
+    ## Variables absent from the Shiny app (replace_parents) or from
+    ## older sim_variables.csv files take their
+    ## defaults: parents sampled without replacement, random mating and no
+    ## inbreeding from the real data
+    defaults <- c(replace_parents = "FALSE", sib_mating_phase1 = "NULL",
+                  sib_mating_phase2 = "NULL", real_inbreeding = "FALSE")
+    missing_vars <- setdiff(names(defaults), sim_vars$variable)
+    if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
-                        data.frame(variable = "replace_parents",
-                                   value = "FALSE"))
+                        data.frame(variable = missing_vars,
+                                   value = unname(defaults[missing_vars])))
     }
     sim_vars <- sim_vars[order(sim_vars$variable), ]
     
@@ -211,7 +240,8 @@ gl.sim.WF.run <- function(file_var,
         char_vars = c("chromosome_name", "dispersal_type_phase1",
                       "dispersal_type_phase2", "natural_selection_model",
                       "population_size_phase1", "population_size_phase2",
-                      "local_adap", "clinal_adap")),
+                      "local_adap", "clinal_adap", "sib_mating_phase1",
+                      "sib_mating_phase2")),
       envir = environment())
     
     # -------------------------------
@@ -255,8 +285,8 @@ gl.sim.WF.run <- function(file_var,
     }
     
     # Ensure that if real dataset values are required, the 'x' parameter is provided.
-    if ((real_pops == TRUE | real_pop_size == TRUE | real_loc == TRUE | 
-         real_freq == TRUE) && is.null(x)) {
+    if ((real_pops == TRUE | real_pop_size == TRUE | real_loc == TRUE |
+         real_freq == TRUE | real_inbreeding == TRUE) && is.null(x)) {
       stop(error("  The real dataset to extract information is missing\n"))
     }
     
@@ -310,6 +340,8 @@ gl.sim.WF.run <- function(file_var,
     population_size_phase1 <- split_num(population_size_phase1)
     local_adap <- split_num(local_adap)
     clinal_adap <- split_num(clinal_adap)
+    sib_mating_phase1 <- split_num(sib_mating_phase1)
+    sib_mating_phase2 <- split_num(sib_mating_phase2)
     
     # -------------------------------
     # DETERMINE NUMBER OF POPULATIONS
@@ -360,6 +392,74 @@ gl.sim.WF.run <- function(file_var,
         return(f)
       })
     }
+
+    # -------------------------------
+    # INBREEDING FROM THE REAL DATA AND PROPORTION OF SIB MATINGS
+    # -------------------------------
+    # F = 1 - Ho / He of each real population, on the loci of chromosome_name
+    # when real_loc = TRUE. It makes the founders inbred and, in a phase
+    # whose sib_mating is not set, it sets the proportion of full-sib
+    # matings that keeps F at equilibrium, F = b / (4 - 3b), so
+    # b = 4F / (1 + 3F)
+    F_real <- NULL
+    sib_real <- NULL
+    if (real_inbreeding == TRUE) {
+      if (nPop(x) != number_pops) {
+        stop(error("  real_inbreeding needs as many populations in x as",
+                   "populations simulated in the first phase (", nPop(x),
+                   "in x,", number_pops, "simulated); use real_pops = TRUE\n"))
+      }
+      x_inb <- x
+      if (real_loc == TRUE) {
+        x_inb <- x[, which(as.character(x@chromosome) == chromosome_name)]
+      }
+      F_real <- inbreeding_real(x_inb)
+      if (anyNA(F_real) && verbose >= 1) {
+        cat(warn("  Warning: F cannot be estimated in population(s)",
+                 paste(names(F_real)[is.na(F_real)], collapse = ", "),
+                 "(no polymorphic loci); it is set to 0\n"))
+      }
+      F_real[is.na(F_real)] <- 0
+      if (any(F_real < 0) && verbose >= 1) {
+        cat(warn("  Warning: F is negative in population(s)",
+                 paste(names(F_real)[F_real < 0], collapse = ", "),
+                 "(excess of heterozygotes); it is set to 0\n"))
+      }
+      F_real <- pmax(F_real, 0)
+      sib_real <- unname(4 * F_real / (1 + 3 * F_real))
+      if (verbose >= 2) {
+        message(report("  Inbreeding from x (F) and proportion of sib",
+                       "matings:", paste0(names(F_real), " F = ",
+                                          round(F_real, 3), ", sib = ",
+                                          round(sib_real, 3),
+                                          collapse = "; "), "\n"))
+      }
+    }
+
+    # A phase's sib_mating is one value or one per population. When it is
+    # not set it is the value from the real data (real_inbreeding = TRUE)
+    # or 0 (random mating); a value that is set wins over the real data
+    resolve_sib <- function(v, n_pops, phase) {
+      if (is.null(v)) {
+        return(if (is.null(sib_real)) rep(0, n_pops) else sib_real)
+      }
+      if (anyNA(v) || any(v < 0 | v > 1) || !length(v) %in% c(1, n_pops)) {
+        stop(error("  sib_mating_", phase, " must be proportions between 0 ",
+                   "and 1, one value or one per population\n", sep = ""))
+      }
+      if (!is.null(sib_real) && verbose >= 1) {
+        cat(report("  sib_mating_", phase, " is set, so the proportion of sib ",
+                   "matings estimated from x is not used in ", phase, "\n",
+                   sep = ""))
+      }
+      return(rep_len(v, n_pops))
+    }
+    sib_mating_phase2 <- resolve_sib(sib_mating_phase2, number_pops,
+                                     "phase2")
+    if (phase1 == TRUE) {
+      sib_mating_phase1 <- resolve_sib(sib_mating_phase1, number_pops,
+                                       "phase1")
+    }
     
     # -------------------------------
     # CALCULATE MUTATION DENSITY
@@ -373,6 +473,8 @@ gl.sim.WF.run <- function(file_var,
     
     # The weak-selection warning is printed once per run
     warn_pool <- TRUE
+    # So is the warning that too few females have a brother for sib_mating
+    warn_sib <- TRUE
     
     # -------------------------------
     # START SIMULATION ITERATION LOOP
@@ -400,6 +502,7 @@ gl.sim.WF.run <- function(file_var,
         transfer_each_gen <- transfer_each_gen_phase1
         variance_offspring <- variance_offspring_phase1
         number_offspring <- number_offspring_phase1
+        sib_mating <- sib_mating_phase1
         
         store_values <- store_phase1
         
@@ -468,7 +571,20 @@ gl.sim.WF.run <- function(file_var,
               as.character(as.integer(runif(length(q_real)) < q_real))
           }
         }
-        
+
+        # Inbred founders: in the stretches of the map that are identical by
+        # descent, the second chromosome copies the first
+        if (real_inbreeding == TRUE && F_real[pop_n] > 0) {
+          for (individual_pop in 1:population_size[pop_n]) {
+            ibd <- which(ibd_loci(reference$loc_cM, F_real[pop_n]))
+            if (length(ibd) > 0) {
+              chr_2 <- strsplit(pop[individual_pop, 4], "")[[1]]
+              chr_2[ibd] <- strsplit(pop[individual_pop, 3], "")[[1]][ibd]
+              pop[individual_pop, 4] <- paste(chr_2, collapse = "")
+            }
+          }
+        }
+
         # Save the initialized population in the list.
         pop_list[[pop_n]] <- pop
       }
@@ -506,6 +622,7 @@ gl.sim.WF.run <- function(file_var,
           variance_offspring <- variance_offspring_phase2
           number_offspring <- number_offspring_phase2
           dispersal <- dispersal_phase2
+          sib_mating <- sib_mating_phase2
           population_size <- population_size_phase2
           
           store_values <- TRUE
@@ -613,14 +730,26 @@ gl.sim.WF.run <- function(file_var,
             r_map_1 = recombination_map,
             n_loc = loci_number,
             gen = generation,
-            rep_parents = replace_parents
+            rep_parents = replace_parents,
+            sib = sib_mating[x]
           )
           if (!is.null(tmp_rep)) {
             tmp_rep$id <- paste0(generation, "_", x, "_", 1:nrow(tmp_rep))
           }
           return(tmp_rep)
         })
-        
+
+        sib_short <- vapply(offspring_list, function(o) {
+          isTRUE(attr(o, "sib_short"))
+        }, logical(1))
+        if (any(sib_short) & warn_sib == TRUE & verbose >= 1) {
+          cat(warn("  Warning: in generation", generation, "fewer females",
+                   "had a brother than the proportion of sib matings",
+                   "(sib_mating), so fewer sib matings took place.",
+                   "Increase number_offspring to have larger families.\n"))
+          warn_sib <- FALSE
+        }
+
         # Relative selection samples parents without replacement in
         # proportion to fitness; when the offspring pool is not much larger
         # than N, most offspring are kept and selection is weakened

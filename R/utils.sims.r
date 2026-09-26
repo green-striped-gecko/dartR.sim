@@ -258,6 +258,7 @@ dispersal_event <- function(pop_list,
 # r_males: flag indicating if recombination occurs in males.
 # r_map_1: recombination map used by the recombination function.
 # n_loc: number of loci (genetic positions).
+# sib: proportion of matings between full siblings (0 = random mating).
 reproduction <- function(pop,
                          pop_number,
                          pop_size,
@@ -269,18 +270,27 @@ reproduction <- function(pop,
                          r_map_1,
                          n_loc,
                          gen,
-                         rep_parents) {
+                         rep_parents,
+                         sib = 0) {
   # Create a matrix to hold pairs of parents (male and female)
   parents_matrix <- as.data.frame(matrix(nrow = pop_size / 2, ncol = 2))
-  # Randomly select male parents from the first half of the population
-  parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), 
-                                size = pop_size / 2,
-                                replace = rep_parents)
-  # Randomly select female parents from the second half of the population
-  parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]), 
-                                size = pop_size / 2,
-                                replace = rep_parents)
-  
+  sib_short <- FALSE
+  if (sib > 0 && all(c("V5", "V6") %in% colnames(pop))) {
+    pairs <- sib_pairs(pop, pop_size, sib, rep_parents)
+    parents_matrix[, 1] <- pairs$males
+    parents_matrix[, 2] <- pairs$females
+    sib_short <- pairs$short
+  } else {
+    # Randomly select male parents from the first half of the population
+    parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]),
+                                  size = pop_size / 2,
+                                  replace = rep_parents)
+    # Randomly select female parents from the second half of the population
+    parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]),
+                                  size = pop_size / 2,
+                                  replace = rep_parents)
+  }
+
   # Offspring of each pair are collected in a list and bound once
   offspring <- vector("list", nrow(parents_matrix))
   
@@ -338,9 +348,104 @@ reproduction <- function(pop,
     
     offspring[[parent]] <- offspring_temp
   }
-  # Return the complete offspring data frame (NULL if no offspring)
+  # Return the complete offspring data frame (NULL if no offspring).
+  # Attribute sib_short flags that fewer females had a brother than the
+  # proportion of sib matings asked for
   offspring <- do.call(rbind, offspring)
+  if (!is.null(offspring)) {
+    attr(offspring, "sib_short") <- sib_short
+  }
   return(offspring)
+}
+
+# Pair parents when a proportion sib of matings is between full siblings.
+# Full siblings share father (V5) and mother (V6). The number of sib
+# matings is drawn as Binomial(pairs, sib); females, in random order, are
+# paired with a brother not yet paired until that number is reached. The
+# remaining females mate at random with the remaining males. short = TRUE
+# when too few females had a free brother to reach the number. Returns row
+# names of males and females, one pair per element.
+sib_pairs <- function(pop, pop_size, sib, rep_parents) {
+  n_pairs <- pop_size / 2
+  males <- rownames(pop[1:n_pairs, ])
+  females <- sample(rownames(pop[(n_pairs + 1):pop_size, ]), size = n_pairs,
+                    replace = rep_parents)
+  family <- paste(pop$V5, pop$V6)
+  family[is.na(pop$V5) | is.na(pop$V6)] <- NA
+  names(family) <- rownames(pop)
+  fam_males <- family[males]
+  n_sib <- rbinom(1, n_pairs, sib)
+  mates <- rep(NA_character_, n_pairs)
+  paired <- 0
+  for (i in sample.int(n_pairs)) {
+    if (paired >= n_sib) break
+    if (is.na(family[females[i]])) next
+    options <- males[which(fam_males == family[females[i]])]
+    if (!rep_parents) options <- setdiff(options, mates)
+    if (length(options) > 0) {
+      mates[i] <- options[sample.int(length(options), 1)]
+      paired <- paired + 1
+    }
+  }
+  random <- is.na(mates)
+  pool <- if (rep_parents) males else setdiff(males, mates)
+  mates[random] <- pool[sample.int(length(pool), sum(random),
+                                   replace = rep_parents)]
+  return(list(males = mates, females = females, short = paired < n_sib))
+}
+
+# Observed inbreeding coefficient of each population of a genlight,
+# F = 1 - Ho / He, with Ho and He summed over loci and He corrected for
+# sample size (2n / (2n - 1)). Returns a named numeric vector; NA for a
+# population without polymorphic loci.
+inbreeding_real <- function(x) {
+  vapply(seppop(x), function(p) {
+    g <- as.matrix(p)
+    n <- colSums(!is.na(g))
+    q <- colMeans(g, na.rm = TRUE) / 2
+    ho <- colMeans(g == 1, na.rm = TRUE)
+    he <- 2 * q * (1 - q) * 2 * n / (2 * n - 1)
+    keep <- n > 0 & is.finite(he) & is.finite(ho)
+    if (sum(he[keep]) == 0) {
+      return(NA_real_)
+    }
+    1 - sum(ho[keep]) / sum(he[keep])
+  }, numeric(1))
+}
+
+# Loci that are identical by descent (IBD) in an inbred founder with
+# inbreeding coefficient F. Along the chromosome (map position loc_cM, which
+# the reference table stores in Morgans) the founder alternates between IBD
+# and non-IBD stretches, a two-state Markov process that is IBD a fraction F
+# of the map. IBD stretches have a mean length of 1 / meioses Morgans, the
+# length expected from a common ancestor that many meioses away (4 for the
+# offspring of full siblings, 25 cM). Returns a logical
+# vector, TRUE for IBD loci.
+ibd_loci <- function(loc_cM, F, meioses = 4) {
+  n_loc <- length(loc_cM)
+  if (F <= 0) {
+    return(rep(FALSE, n_loc))
+  }
+  if (F >= 1) {
+    return(rep(TRUE, n_loc))
+  }
+  # Mean lengths in Morgans of IBD and non-IBD stretches
+  mean_ibd <- 1 / meioses
+  mean_non <- mean_ibd * (1 - F) / F
+  start <- min(loc_cM)
+  map_length <- max(loc_cM) - start
+  state <- runif(1) < F
+  breaks <- numeric(0)
+  states <- state
+  pos <- 0
+  repeat {
+    pos <- pos + rexp(1, 1 / if (state) mean_ibd else mean_non)
+    if (pos >= map_length) break
+    breaks <- c(breaks, pos)
+    state <- !state
+    states <- c(states, state)
+  }
+  return(states[findInterval(loc_cM - start, breaks) + 1])
 }
 
 
@@ -1919,6 +2024,20 @@ interactive_sim_run <- function() {
       )
 
     ),
+
+    fluidRow(
+      column(
+        4,
+        textInput(
+          "sib_mating_phase2",
+          tags$div(tags$i(HTML("sib_mating_phase2<br/>")),
+                   "Proportion of matings between full siblings"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sib_mating_phase2",
+                           title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      )
+    ),
     
     hr(),
     
@@ -2256,6 +2375,20 @@ interactive_sim_run <- function() {
       )
       
     ),
+
+    fluidRow(
+      column(
+        4,
+        textInput(
+          "sib_mating_phase1",
+          tags$div(tags$i(HTML("sib_mating_phase1<br/>")),
+                   "Proportion of matings between full siblings"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sib_mating_phase1",
+                           title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      )
+    ),
     
     fluidRow(
       
@@ -2424,6 +2557,20 @@ interactive_sim_run <- function() {
         ),    
         shinyBS::bsTooltip(id = "chromosome_name",
                            title = "")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_inbreeding",
+          tags$div(tags$i(HTML("real_inbreeding<br/>")),
+                   "Extract inbreeding (F) of each population from genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_inbreeding",
+                           title = "Founders are made inbred and, where sib_mating is empty, the proportion of sib matings is set to keep F")
       )
       
     ),
@@ -2514,6 +2661,11 @@ interactive_sim_run <- function() {
       )
 
       shinyjs::toggleElement(
+        id = "sib_mating_phase1",
+        condition = input$phase1 == TRUE
+      )
+
+      shinyjs::toggleElement(
         id = "selection_phase1",
         condition = input$phase1 == TRUE
       )
@@ -2544,6 +2696,11 @@ interactive_sim_run <- function() {
       
       shinyjs::toggleElement(
         id = "real_loc",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_inbreeding",
         condition = input$real_dataset == TRUE
       )
       
@@ -2646,7 +2803,10 @@ interactive_sim_run <- function() {
           "real_loc",
           "clinal_strength",
           "clinal_adap",
-          "local_adap"
+          "local_adap",
+          "sib_mating_phase1",
+          "sib_mating_phase2",
+          "real_inbreeding"
         ),
         c(
           input$number_pops_phase2,
@@ -2685,7 +2845,10 @@ interactive_sim_run <- function() {
           input$real_loc,
           input$clinal_strength,
           input$clinal_adap,
-          input$local_adap
+          input$local_adap,
+          input$sib_mating_phase1,
+          input$sib_mating_phase2,
+          input$real_inbreeding
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")

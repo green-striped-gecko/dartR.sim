@@ -93,7 +93,9 @@ males, half females; a single transfer alternates between sexes). With
 dispersal_type "line", "circle" or "all_connected", each pair of
 connected populations is processed once. A file from
 \code{\link{gl.sim.create_dispersal}} is used row by row.
-\item Reproduction. N/2 monogamous pairs are formed at random. The number
+\item Reproduction. N/2 monogamous pairs are formed at random, except that
+a proportion sib_mating of the pairs are full siblings (see Inbreeding
+below). The number
 of offspring per pair follows a negative binomial distribution with mean
 number_offspring and size variance_offspring: large values of
 variance_offspring give Poisson family sizes (Ne close to N), small values
@@ -130,11 +132,33 @@ the iteration stops and the generations stored so far are returned.
 With phase1 = TRUE, phase 2 starts from individuals sampled from the
 phase-1 populations, without replacement unless phase 2 is larger.
 
-If a genlight object is used (real_pops, real_pop_size, real_loc or
-real_freq), the simulated allele is the alternative allele of the
-genlight (genotype 2). Loci without calls in a population take the
-frequency across all populations. real_pop_size sets the sizes of the
-first phase simulated, rounded up to even numbers.
+If a genlight object is used (real_pops, real_pop_size, real_loc,
+real_freq or real_inbreeding), the simulated allele is the alternative
+allele of the genlight (genotype 2). Loci without calls in a population
+take the frequency across all populations. real_pop_size sets the sizes
+of the first phase simulated, rounded up to even numbers.
+
+Inbreeding. sib_mating_phase1 and sib_mating_phase2 set the proportion of
+pairs that are full siblings (brother and sister with the same father and
+mother), one value or one per population (space delimited and in
+quotes); NULL or 0 is random mating. At equilibrium the inbreeding
+coefficient is F = b / (4 - 3b) for a proportion b of sib matings. Sib
+matings need females with a brother among the parents, so when families
+are small (low number_offspring) fewer sib matings than asked for can take
+place and a warning is printed at verbose >= 1. With real_inbreeding =
+TRUE, F = 1 - Ho / He is estimated in each population of x (on the loci
+of chromosome_name when real_loc = TRUE; negative values are set to 0)
+and x must have as many populations as the first phase simulated. The
+founders are then made inbred: along the chromosome they alternate
+between stretches whose two copies are identical by descent (a fraction F
+of the map, mean length 25 cM, as in the offspring of full siblings) and
+stretches drawn independently. In a phase whose sib_mating is NULL, the
+proportion of sib matings is set to b = 4F / (1 + 3F), which keeps F in
+the following generations; a sib_mating value that is set is used
+instead. Founders are unrelated to each other, so the first generation
+(their offspring) has F close to 0; F returns close to the value in x from
+the second generation. To store only generations at equilibrium, use
+phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
