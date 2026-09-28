@@ -38,8 +38,9 @@
 #' @param store_pedigree Whether to return the pedigree of every individual
 #' of every generation, sampled or not, as the attribute "pedigree" of each
 #' iteration: a data frame with id (as in indNames of the stored genlights),
-#' pat, mat (NA for founders), generation (0 for founders), pop and F_founder
-#' (founders only, NA otherwise). Read it with
+#' pat, mat (NA for founders), generation (0 for founders), pop, F_founder
+#' (founders only, NA otherwise) and in_population (FALSE for offspring
+#' sampled by sample_families that did not join the population). Read it with
 #' attr(res[["iteration_1"]], "pedigree") [default FALSE].
 #' @param interactive_vars Run a shiny app to input interactively the values of
 #' simulations variables [default TRUE].
@@ -182,6 +183,24 @@
 #' real_sample_size = TRUE, which replaces sample_percent. The expected Ne is
 #' stored in sim.vars$ne_expected, which \code{\link{gl.diagnostics.sim}}
 #' uses by default.
+#' 
+#' Family-structured samples. A sample made of a few families (clutches,
+#' litters) makes unrelated pairs look related, because allele frequencies
+#' come from few families. sample_families gives the sizes of the full-sib
+#' families in each stored sample (e.g. "9 15 9"; ";" between
+#' populations, one group for all populations). For each size a mating
+#' pair with that many offspring is chosen and that many of its offspring
+#' are sampled from the offspring pool, before the next generation is drawn
+#' (so, like hatchlings, they may not survive to reproduce); the rest of the
+#' sample is drawn at random from the population. sample_parents = TRUE
+#' also stores each family's two parents, from the previous generation;
+#' they count against the sample size. The sample size is x's with
+#' real_sample_size = TRUE (exactly, with or without families), otherwise
+#' set by sample_percent. Family sampling starts at generation 1, as the
+#' founders have no parents; number_offspring must be at least the largest
+#' family, otherwise large families are rare and a warning is printed.
+#' ind.metrics gains sample_role ("family", "parent" or "random") and
+#' family (the parents' ids).
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -269,7 +288,8 @@ gl.sim.WF.run <- function(file_var,
                   real_freq_shrink = "NULL", real_migration = "FALSE",
                   ne_phase1 = "NULL", ne_phase2 = "NULL",
                   real_sample_size = "FALSE",
-                  inbreeding_founders = "NULL")
+                  inbreeding_founders = "NULL",
+                  sample_families = "NULL", sample_parents = "FALSE")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -310,7 +330,8 @@ gl.sim.WF.run <- function(file_var,
                       "local_adap", "clinal_adap", "sib_mating_phase1",
                       "sib_mating_phase2", "real_freq_shrink",
                       "variance_offspring_phase1", "variance_offspring_phase2",
-                      "ne_phase1", "ne_phase2", "inbreeding_founders")),
+                      "ne_phase1", "ne_phase2", "inbreeding_founders",
+                      "sample_families")),
       envir = environment())
     
     # -------------------------------
@@ -489,8 +510,8 @@ gl.sim.WF.run <- function(file_var,
                      paste(round(ne_expected_phase2), collapse = " "), "\n"))
     }
 
-    # Stored sample of each population: x's sample sizes (rounded up to
-    # even numbers) with real_sample_size = TRUE, instead of sample_percent
+    # Stored sample of each population: x's sample sizes with
+    # real_sample_size = TRUE, instead of sample_percent
     sample_sizes_real <- NULL
     if (real_sample_size == TRUE) {
       if (nPop(x) != number_pops) {
@@ -498,7 +519,6 @@ gl.sim.WF.run <- function(file_var,
                    "populations simulated; use real_pops = TRUE\n"))
       }
       sample_sizes_real <- unname(unlist(table(pop(x))))
-      sample_sizes_real <- (sample_sizes_real %% 2 != 0) + sample_sizes_real
       smallest <- pmin(rep_len(population_size_phase2, number_pops),
                        if (phase1 == TRUE)
                          rep_len(population_size_phase1, number_pops) else Inf)
@@ -507,6 +527,49 @@ gl.sim.WF.run <- function(file_var,
                    "population simulated in population(s)",
                    paste(which(sample_sizes_real > smallest), collapse = ", "),
                    "\n"))
+      }
+    }
+    
+    # Family-structured samples: sizes of the full-sib families sampled in
+    # each population, space delimited, with ";" between populations (one
+    # group is used for every population; an empty group means no
+    # families). Applies from generation 1 (founders have no parents)
+    family_sizes <- NULL
+    if (!is.null(sample_families)) {
+      groups <- trimws(strsplit(sample_families, ";")[[1]])
+      family_sizes <- lapply(groups, function(g) {
+        suppressWarnings(as.numeric(unlist(strsplit(g, " +"))))
+      })
+      if (length(family_sizes) == 1) {
+        family_sizes <- rep(family_sizes, number_pops)
+      }
+      if (length(family_sizes) != number_pops ||
+          any(vapply(family_sizes, function(v) {
+            anyNA(v) || any(v < 2 | v %% 1 != 0)
+          }, logical(1)))) {
+        stop(error("  sample_families must give whole family sizes of at",
+                   "least 2, one group for all populations or one group per",
+                   "population separated by \";\"\n"))
+      }
+      if (!is.null(sample_sizes_real)) {
+        need <- vapply(family_sizes, sum, numeric(1)) +
+          if (sample_parents == TRUE)
+            2 * vapply(family_sizes, length, numeric(1)) else 0
+        if (any(need > sample_sizes_real)) {
+          stop(error("  sample_families: families",
+                     if (sample_parents == TRUE) "and their parents",
+                     "exceed the sample size of x in population(s)",
+                     paste(which(need > sample_sizes_real), collapse = ", "),
+                     "\n"))
+        }
+      }
+      max_size <- max(unlist(family_sizes), 0)
+      n_off <- min(number_offspring_phase2,
+                   if (phase1 == TRUE) number_offspring_phase1 else Inf)
+      if (max_size > n_off && verbose >= 1) {
+        cat(warn("  Warning: families of", max_size, "are sampled but the",
+                 "mean number of offspring per mating is", n_off, "; large",
+                 "families will be rare. Increase number_offspring\n"))
       }
     }
 
@@ -732,13 +795,38 @@ gl.sim.WF.run <- function(file_var,
     # disp_pairs is the dispersal table of the generation (NULL without
     # dispersal). Variables such as population_size are those of the
     # current phase when the function is called
-    store_generation <- function(p_list, generation, iteration, disp_pairs) {
-      if (!is.null(sample_sizes_real) || sample_percent < 100) {
+    store_generation <- function(p_list, generation, iteration, disp_pairs,
+                                 pool = NULL, parents = NULL) {
+      families <- NULL
+      if (!is.null(family_sizes) && generation >= 1 && !is.null(pool)) {
+        # Family-structured sample: n = x's sample size, sample_percent or
+        # the whole population
+        n_sample <- if (!is.null(sample_sizes_real)) sample_sizes_real else
+          if (sample_percent < 100) {
+            n_s <- round(population_size * (sample_percent / 100))
+            (n_s %% 2 != 0) + n_s
+          } else population_size
+        families <- lapply(pops_vector, function(x) {
+          sample_with_families(p_list[[x]], pool[[x]], parents[[x]],
+                               n_sample[x], family_sizes[[x]],
+                               sample_parents)
+        })
+        if (any(vapply(families, function(f) f$short, logical(1))) &&
+            verbose >= 1) {
+          cat(warn("  Warning: generation", generation, "has fewer or smaller",
+                   "families than sample_families asks for; they are",
+                   "completed with random individuals\n"))
+        }
+        pop_list_temp <- lapply(families, function(f) f$sample)
+        population_size_temp <- vapply(pop_list_temp, nrow, numeric(1))
+      } else if (!is.null(sample_sizes_real)) {
+        population_size_temp <- sample_sizes_real
+        pop_list_temp <- lapply(pops_vector, function(x) {
+          sample_sexes(p_list[[x]], population_size_temp[x])
+        })
+      } else if (sample_percent < 100) {
         population_size_temp <- round(population_size * (sample_percent / 100))
         population_size_temp <- (population_size_temp %% 2 != 0) + population_size_temp
-        if (!is.null(sample_sizes_real)) {
-          population_size_temp <- sample_sizes_real
-        }
         pop_list_temp <- lapply(pops_vector, function(x) {
           rbind(
             p_list[[x]][sample(which(p_list[[x]]$V1 == "Male"), size = population_size_temp[x] / 2),],
@@ -789,6 +877,16 @@ gl.sim.WF.run <- function(file_var,
         s_vars = s_vars_temp,
         g = generation
       )
+      
+      # Role of each individual in a family-structured sample
+      if (!is.null(families)) {
+        ids <- unlist(lapply(families, function(f) f$sample$id))
+        m <- match(indNames(res), ids)
+        res@other$ind.metrics$sample_role <-
+          unlist(lapply(families, function(f) f$role))[m]
+        res@other$ind.metrics$family <-
+          unlist(lapply(families, function(f) f$family))[m]
+      }
       
       # Assign population names to the stored object.
       if (real_pops == TRUE) {
@@ -955,6 +1053,7 @@ gl.sim.WF.run <- function(file_var,
             v[is.na(v)] <- 0
             v
           } else NA_real_,
+          in_population = TRUE,
           stringsAsFactors = FALSE
         )
       }
@@ -1113,6 +1212,9 @@ gl.sim.WF.run <- function(file_var,
           pop_list <- res[[1]]
           next_male <- res[[2]]
         }
+        
+        # Parents of this generation's offspring (for sample_parents)
+        parents_list <- pop_list
         
         # -------------------------------
         # REPRODUCTION PHASE
@@ -1373,7 +1475,24 @@ gl.sim.WF.run <- function(file_var,
           gen_name <- paste0("generation_", generation)
           disp_pairs <- if (dispersal == TRUE) dispersal_pairs else NULL
           final_res[[iteration]][[gen_name]] <-
-            store_generation(pop_list, generation, iteration, disp_pairs)
+            store_generation(pop_list, generation, iteration, disp_pairs,
+                             pool = offspring_list, parents = parents_list)
+          # Sampled offspring that did not join the population (they were
+          # not drawn as parents of the next generation) join the pedigree
+          sampled <- final_res[[iteration]][[gen_name]]
+          if (store_pedigree == TRUE &&
+              !is.null(sampled@other$ind.metrics$sample_role)) {
+            in_pool <- setdiff(indNames(sampled),
+                               pedigree[[as.character(generation)]]$id)
+            if (length(in_pool) > 0) {
+              pool_all <- rbindlist(offspring_list, fill = TRUE)
+              extra <- record_pedigree(
+                list(pool_all[pool_all$id %in% in_pool, ]), generation)
+              extra$in_population <- FALSE
+              pedigree[[as.character(generation)]] <-
+                rbind(pedigree[[as.character(generation)]], extra)
+            }
+          }
         }
       }  # End generation loop
       if (store_pedigree == TRUE) {

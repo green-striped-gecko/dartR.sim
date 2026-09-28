@@ -422,6 +422,93 @@ shrink_freq <- function(freq, n, lambda = "auto") {
   return(list(freq = freq, lambda = lambda))
 }
 
+# Sample of n individuals of one population, half of each sex (the extra
+# individual of an odd n is of a random sex)
+sample_sexes <- function(p, n) {
+  males <- which(p$V1 == "Male")
+  females <- which(p$V1 == "Female")
+  n_m <- floor(n / 2) + (n %% 2 == 1 && runif(1) < 0.5)
+  n_m <- min(n_m, length(males))
+  n_f <- min(n - n_m, length(females))
+  n_m <- n - n_f
+  p[c(males[sample.int(length(males), n_m)],
+      females[sample.int(length(females), n_f)]), ]
+}
+
+# Sample of n individuals of one population made of full-sib families, as
+# in a sample of clutches or litters. p: the population (retained
+# generation); pool: its offspring pool (before survival sampling), with
+# father (V5) and mother (V6); parents: the previous generation (the pool's
+# parents); sizes: family sizes; with_parents: also sample each family's
+# two parents. For each size, largest first, a mating pair with at least
+# that many offspring in the pool is chosen at random (without it, the
+# largest remaining family, with a warning), then that many of its
+# offspring; parents count against n; the rest of n is drawn at random from
+# p. Returns list(sample, role, family, short) with role "family", "parent"
+# or "random" and family the "father mother" id of family members.
+sample_with_families <- function(p, pool, parents, n, sizes, with_parents) {
+  cols <- c("V1", "V2", "V3", "V4", "V5", "V6", "id")
+  fix_cols <- function(d) {
+    d <- as.data.frame(d)
+    for (v in setdiff(cols, names(d))) d[[v]] <- NA
+    d[, cols]
+  }
+  pool <- fix_cols(pool)
+  parents <- fix_cols(parents)
+  p <- fix_cols(p)
+  key <- paste(pool$V5, pool$V6)
+  fam_n <- table(key)
+  used <- character(0)
+  rows <- list()
+  role <- character(0)
+  family <- character(0)
+  short <- FALSE
+  for (k in sort(sizes, decreasing = TRUE)) {
+    free <- setdiff(names(fam_n), used)
+    if (length(free) == 0) {
+      short <- TRUE
+      break
+    }
+    big <- free[fam_n[free] >= k]
+    if (length(big) == 0) {
+      short <- TRUE
+      big <- free[fam_n[free] == max(fam_n[free])]
+      k <- max(fam_n[free])
+    }
+    f <- big[sample.int(length(big), 1)]
+    used <- c(used, f)
+    members <- which(key == f)
+    members <- members[sample.int(length(members), k)]
+    rows <- c(rows, list(pool[members, ]))
+    role <- c(role, rep("family", k))
+    family <- c(family, rep(f, k))
+    if (with_parents) {
+      par_ids <- c(pool$V5[members[1]], pool$V6[members[1]])
+      par_rows <- parents[parents$id %in% setdiff(par_ids, unlist(lapply(
+        rows, function(r) r$id))), ]
+      rows <- c(rows, list(par_rows))
+      role <- c(role, rep("parent", nrow(par_rows)))
+      family <- c(family, rep(f, nrow(par_rows)))
+    }
+  }
+  chosen <- do.call(rbind, rows)
+  if (is.null(chosen)) chosen <- p[0, ]
+  if (nrow(chosen) > n) {
+    stop(error("  sample_families: the families", if (with_parents)
+      "and their parents", "add up to", nrow(chosen), "individuals, more",
+      "than the", n, "sampled\n"))
+  }
+  rest <- p[!p$id %in% chosen$id, ]
+  n_rest <- min(n - nrow(chosen), nrow(rest))
+  random <- rest[sample.int(nrow(rest), n_rest), ]
+  sample <- rbind(chosen, random)
+  sample$V2 <- p$V2[1]
+  return(list(sample = sample,
+              role = c(role, rep("random", n_rest)),
+              family = c(family, rep(NA_character_, n_rest)),
+              short = short))
+}
+
 # Ne / N of the simulator. Ne = 4N / (Vk + 2), with Vk the variance in the
 # number of offspring an individual leaves in the next generation. A mating
 # pair leaves on average 2 offspring after the next generation is sampled,
@@ -2717,6 +2804,30 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "real_sample_size",
                            title = "Replaces sample_percent, so the simulated populations can be larger than the samples")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_families",
+          tags$div(tags$i(HTML("sample_families<br/>")),
+                   "Sizes of the full-sib families in each stored sample"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_families",
+                           title = "Space delimited, ; between populations, e.g. 9 15 9. From generation 1. Empty: random samples")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "sample_parents",
+          tags$div(tags$i(HTML("sample_parents<br/>")),
+                   "Also store the parents of each sampled family"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        )
       )
       
     ),
@@ -2983,7 +3094,9 @@ interactive_sim_run <- function() {
           "ne_phase1",
           "ne_phase2",
           "real_sample_size",
-          "inbreeding_founders"
+          "inbreeding_founders",
+          "sample_families",
+          "sample_parents"
         ),
         c(
           input$number_pops_phase2,
@@ -3031,7 +3144,9 @@ interactive_sim_run <- function() {
           input$ne_phase1,
           input$ne_phase2,
           input$real_sample_size,
-          input$inbreeding_founders
+          input$inbreeding_founders,
+          input$sample_families,
+          input$sample_parents
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")

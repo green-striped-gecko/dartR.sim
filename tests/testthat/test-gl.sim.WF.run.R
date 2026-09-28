@@ -655,8 +655,8 @@ test_that("real_sample_size stores x's sample sizes; real_migration scales by N/
   r <- run(real_sample_size = TRUE, ne_phase2 = "25 50 50",
            store_founders = TRUE)
   expect_equal(as.vector(table(pop(r[[1]][["generation_0"]]))),
-               c(24L, 18L, 42L))
-  expect_equal(as.vector(table(pop(r[[1]][[2]]))), c(24L, 18L, 42L))
+               c(23L, 17L, 41L))
+  expect_equal(as.vector(table(pop(r[[1]][[2]]))), c(23L, 17L, 41L))
   base <- (1 / fst_hudson(x) - 1) / 12
   expect_equal(as.numeric(r[[1]][[2]]@other$sim.vars$migrants_real),
                base * mean(100 / c(25, 50, 50)))
@@ -689,7 +689,8 @@ test_that("store_pedigree returns every individual, sampled or not", {
               every_gen = 1, sample_percent = 50, replace_parents = TRUE,
               store_founders = TRUE, store_pedigree = TRUE)
   ped <- attr(r[[1]], "pedigree")
-  expect_named(ped, c("id", "pat", "mat", "generation", "pop", "F_founder"))
+  expect_named(ped, c("id", "pat", "mat", "generation", "pop", "F_founder",
+                      "in_population"))
   # 4 generations (0-3) of 50 individuals
   expect_identical(nrow(ped), 200L)
   expect_false(anyDuplicated(ped$id) > 0)
@@ -742,4 +743,57 @@ test_that("inbreeding_founders sets the founders' F, with or without x", {
   expect_true(all(rx[[1]][["generation_0"]]@other$ind.metrics$F_founder == 0))
   expect_error(wf_run(rt, seed = 1, inbreeding_founders = "0.1 0.2 0.3"),
                "inbreeding_founders")
+})
+
+# ---- sample_families ----
+
+test_that("sample_families stores full-sib families (and parents)", {
+  rt <- wf_ref()
+  run <- function(...) {
+    wf_run(rt, seed = 1, number_pops_phase2 = 2,
+           population_size_phase2 = "100 100", number_offspring_phase2 = 20,
+           sample_percent = 40, gen_number_phase2 = 2, every_gen = 1,
+           store_founders = TRUE, store_pedigree = TRUE,
+           dispersal_phase2 = FALSE, ...)
+  }
+  r <- run(sample_families = "9 15 9; 5 5")
+  ped <- attr(r[[1]], "pedigree")
+  g1 <- r[[1]][["generation_1"]]
+  im <- g1@other$ind.metrics
+  expect_identical(nInd(g1), 80L)
+  sizes <- lapply(split(im$family[im$sample_role == "family"],
+                        pop(g1)[im$sample_role == "family"]),
+                  function(f) sort(as.vector(table(f))))
+  expect_identical(unname(sizes), list(c(9L, 9L, 15L), c(5L, 5L)))
+  # each family: same father and mother
+  fam <- im[im$sample_role == "family", ]
+  expect_true(all(paste(fam$pat, fam$mat) == fam$family))
+  # every stored individual is in the pedigree; pool-only ones flagged
+  expect_true(all(indNames(g1) %in% ped$id))
+  expect_true(any(!ped$in_population))
+  # founders are not family-sampled
+  expect_null(r[[1]][["generation_0"]]@other$ind.metrics$sample_role)
+  # with parents: two per family, from the previous generation, counted in n
+  rp <- run(sample_families = "9 15 9; 5 5", sample_parents = TRUE)
+  g1p <- rp[[1]][["generation_1"]]
+  imp <- g1p@other$ind.metrics
+  expect_identical(nInd(g1p), 80L)
+  expect_identical(sum(imp$sample_role == "parent"), 10L)
+  pedp <- attr(rp[[1]], "pedigree")
+  par <- indNames(g1p)[imp$sample_role == "parent"]
+  expect_true(all(pedp$generation[match(par, pedp$id)] == 0))
+  expect_error(run(sample_families = "1 2"), "sample_families")
+  expect_error(run(sample_families = "30 30", sample_parents = TRUE),
+               "sample_families")
+})
+
+test_that("real_sample_size with families keeps exactly x's n", {
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE, chunk_neutral_loci = 0)
+  r <- wf_run(rt, x = x, seed = 1, real_freq = TRUE, real_pops = TRUE,
+              population_size_phase2 = "100 100 100", real_sample_size = TRUE,
+              number_offspring_phase2 = 20, sample_families = "5 5",
+              sample_parents = TRUE, gen_number_phase2 = 1)
+  expect_equal(as.vector(table(pop(r[[1]][[1]]))), c(23L, 17L, 41L))
 })
