@@ -797,3 +797,50 @@ test_that("real_sample_size with families keeps exactly x's n", {
               sample_parents = TRUE, gen_number_phase2 = 1)
   expect_equal(as.vector(table(pop(r[[1]][[1]]))), c(23L, 17L, 41L))
 })
+
+# ---- sample_crosses / sample_design ----
+
+test_that("planted crosses recreate a design with shared parents", {
+  rt <- wf_ref()
+  run <- function(...) {
+    wf_run(rt, seed = 1, population_size_phase2 = "100", sample_percent = 24,
+           sample_families = "5 5 5 5", sample_parents = TRUE,
+           gen_number_phase2 = 2, every_gen = 1, store_pedigree = TRUE, ...)
+  }
+  r <- run(sample_design = "2x2")
+  g <- r[[1]][["generation_1"]]
+  im <- g@other$ind.metrics
+  expect_identical(nInd(g), 24L)
+  expect_identical(as.vector(table(im$sample_role)), c(20L, 4L))
+  fam <- im[im$sample_role == "family", ]
+  # 2 sires x 2 dams, each cross one family of 5
+  expect_identical(length(unique(fam$pat)), 2L)
+  expect_identical(length(unique(fam$mat)), 2L)
+  expect_identical(as.vector(table(paste(fam$pat, fam$mat))), rep(5L, 4))
+  expect_setequal(fam$sample_cross, c("S1xD1", "S1xD2", "S2xD1", "S2xD2"))
+  expect_setequal(im$parent_label[im$sample_role == "parent"],
+                  c("S1", "S2", "D1", "D2"))
+  # parents are the sampled ones and belong to the previous generation
+  par <- indNames(g)[im$sample_role == "parent"]
+  expect_setequal(par, unique(c(fam$pat, fam$mat)))
+  ped <- attr(r[[1]], "pedigree")
+  expect_true(all(ped$generation[match(par, ped$id)] == 0))
+  # planted offspring are in the pedigree and did not join the population
+  kids <- indNames(g)[im$sample_role == "family"]
+  expect_true(all(!ped$in_population[match(kids, ped$id)]))
+  expect_false(any(kids %in% c(ped$pat, ped$mat)))
+  # sample_crosses with shared labels = the same design
+  r2 <- run(sample_crosses = "S1xD1 S1xD2 S2xD1 S2xD2")
+  f2 <- r2[[1]][["generation_1"]]@other$ind.metrics
+  expect_identical(length(unique(f2$pat[f2$sample_role == "family"])), 2L)
+  # errors
+  expect_error(run(sample_crosses = "S1xD1 S1xD2"), "sample_crosses")
+  expect_error(run(sample_design = "2x2", sample_crosses = "S1xD1"), "not both")
+  expect_error(wf_run(rt, seed = 1, sample_design = "2x2"), "sample_families")
+})
+
+test_that("expand_design builds the factorial", {
+  expect_identical(expand_design("2x3"),
+                   c("S1xD1", "S1xD2", "S1xD3", "S2xD1", "S2xD2", "S2xD3"))
+  expect_true(is.na(expand_design("2by3")))
+})

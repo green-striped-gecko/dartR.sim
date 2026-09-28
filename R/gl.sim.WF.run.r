@@ -201,6 +201,18 @@
 #' family, otherwise large families are rare and a warning is printed.
 #' ind.metrics gains sample_role ("family", "parent" or "random") and
 #' family (the parents' ids).
+#' 
+#' Planted crosses. To recreate a mating design with shared parents (e.g. 4
+#' litters from 2 sires x 2 dams), sample_crosses gives one "SxD" token per
+#' family of sample_families, where the same label is the same individual
+#' (e.g. "S1xD1 S1xD2 S2xD1 S2xD2"; ";" between populations);
+#' sample_design = "2x2" is shorthand for every cross of 2 sires and 2
+#' dams. Sires and dams are drawn at random from the previous generation and
+#' each cross makes a family of exactly the given size, with the usual
+#' meiosis. The planted offspring are only sampled: they do not join the
+#' population, so drift and gene flow are unchanged. With sample_parents =
+#' TRUE each parent is sampled once. ind.metrics also gains sample_cross
+#' (the offspring's cross) and parent_label (the parent's label).
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -289,7 +301,8 @@ gl.sim.WF.run <- function(file_var,
                   ne_phase1 = "NULL", ne_phase2 = "NULL",
                   real_sample_size = "FALSE",
                   inbreeding_founders = "NULL",
-                  sample_families = "NULL", sample_parents = "FALSE")
+                  sample_families = "NULL", sample_parents = "FALSE",
+                  sample_crosses = "NULL", sample_design = "NULL")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -331,7 +344,7 @@ gl.sim.WF.run <- function(file_var,
                       "sib_mating_phase2", "real_freq_shrink",
                       "variance_offspring_phase1", "variance_offspring_phase2",
                       "ne_phase1", "ne_phase2", "inbreeding_founders",
-                      "sample_families")),
+                      "sample_families", "sample_crosses", "sample_design")),
       envir = environment())
     
     # -------------------------------
@@ -535,6 +548,12 @@ gl.sim.WF.run <- function(file_var,
     # group is used for every population; an empty group means no
     # families). Applies from generation 1 (founders have no parents)
     family_sizes <- NULL
+    family_crosses <- NULL
+    if ((!is.null(sample_crosses) || !is.null(sample_design)) &&
+        is.null(sample_families)) {
+        stop(error("  sample_crosses and sample_design need sample_families",
+                   "(the size of each family)\n"))
+    }
     if (!is.null(sample_families)) {
       groups <- trimws(strsplit(sample_families, ";")[[1]])
       family_sizes <- lapply(groups, function(g) {
@@ -551,10 +570,46 @@ gl.sim.WF.run <- function(file_var,
                    "least 2, one group for all populations or one group per",
                    "population separated by \";\"\n"))
       }
+      
+      # Planted crosses: one "SxD" token per family (the same label is the
+      # same individual), ";" between populations; sample_design "axb" is
+      # shorthand for every cross of a sires and b dams
+      if (!is.null(sample_crosses) && !is.null(sample_design)) {
+        stop(error("  Use sample_crosses or sample_design, not both\n"))
+      }
+      if (!is.null(sample_design)) {
+        sample_crosses <- paste(vapply(
+          trimws(strsplit(sample_design, ";")[[1]]),
+          function(d) paste(expand_design(d), collapse = " "), character(1)),
+          collapse = ";")
+      }
+      if (!is.null(sample_crosses)) {
+        family_crosses <- lapply(trimws(strsplit(sample_crosses, ";")[[1]]),
+                                 function(g) unlist(strsplit(g, " +")))
+        if (length(family_crosses) == 1) {
+          family_crosses <- rep(family_crosses, number_pops)
+        }
+        valid <- length(family_crosses) == number_pops &&
+          all(vapply(seq_len(number_pops), function(i) {
+            cr <- family_crosses[[i]]
+            length(cr) == length(family_sizes[[i]]) &&
+              all(grepl("^[^x]+x[^x]+$", cr))
+          }, logical(1)))
+        if (!valid) {
+          stop(error("  sample_crosses (or sample_design) must give one",
+                     "\"SxD\" cross per family of sample_families, e.g.",
+                     "\"S1xD1 S1xD2 S2xD1 S2xD2\" or sample_design = \"2x2\"",
+                     "for four families\n"))
+        }
+      }
       if (!is.null(sample_sizes_real)) {
+        n_parents <- if (!is.null(family_crosses)) {
+          vapply(family_crosses, function(cr) {
+            length(unique(unlist(strsplit(cr, "x"))))
+          }, numeric(1))
+        } else 2 * vapply(family_sizes, length, numeric(1))
         need <- vapply(family_sizes, sum, numeric(1)) +
-          if (sample_parents == TRUE)
-            2 * vapply(family_sizes, length, numeric(1)) else 0
+          if (sample_parents == TRUE) n_parents else 0
         if (any(need > sample_sizes_real)) {
           stop(error("  sample_families: families",
                      if (sample_parents == TRUE) "and their parents",
@@ -566,7 +621,7 @@ gl.sim.WF.run <- function(file_var,
       max_size <- max(unlist(family_sizes), 0)
       n_off <- min(number_offspring_phase2,
                    if (phase1 == TRUE) number_offspring_phase1 else Inf)
-      if (max_size > n_off && verbose >= 1) {
+      if (is.null(family_crosses) && max_size > n_off && verbose >= 1) {
         cat(warn("  Warning: families of", max_size, "are sampled but the",
                  "mean number of offspring per mating is", n_off, "; large",
                  "families will be rare. Increase number_offspring\n"))
@@ -795,6 +850,7 @@ gl.sim.WF.run <- function(file_var,
     # disp_pairs is the dispersal table of the generation (NULL without
     # dispersal). Variables such as population_size are those of the
     # current phase when the function is called
+    last_families <- NULL
     store_generation <- function(p_list, generation, iteration, disp_pairs,
                                  pool = NULL, parents = NULL) {
       families <- NULL
@@ -807,10 +863,20 @@ gl.sim.WF.run <- function(file_var,
             (n_s %% 2 != 0) + n_s
           } else population_size
         families <- lapply(pops_vector, function(x) {
-          sample_with_families(p_list[[x]], pool[[x]], parents[[x]],
-                               n_sample[x], family_sizes[[x]],
-                               sample_parents)
+          if (!is.null(family_crosses)) {
+            sample_planted(p_list[[x]], parents[[x]], n_sample[x],
+                           family_sizes[[x]], family_crosses[[x]],
+                           sample_parents, generation, x, recom_event,
+                           recombination, recombination_males,
+                           recombination_map, loci_number)
+          } else {
+            sample_with_families(p_list[[x]], pool[[x]], parents[[x]],
+                                 n_sample[x], family_sizes[[x]],
+                                 sample_parents)
+          }
         })
+        # Kept for the pedigree of sampled offspring (see the generation loop)
+        last_families <<- families
         if (any(vapply(families, function(f) f$short, logical(1))) &&
             verbose >= 1) {
           cat(warn("  Warning: generation", generation, "has fewer or smaller",
@@ -886,6 +952,12 @@ gl.sim.WF.run <- function(file_var,
           unlist(lapply(families, function(f) f$role))[m]
         res@other$ind.metrics$family <-
           unlist(lapply(families, function(f) f$family))[m]
+        if (!is.null(family_crosses)) {
+          res@other$ind.metrics$sample_cross <-
+            unlist(lapply(families, function(f) f$cross))[m]
+          res@other$ind.metrics$parent_label <-
+            unlist(lapply(families, function(f) f$label))[m]
+        }
       }
       
       # Assign population names to the stored object.
@@ -1482,12 +1554,14 @@ gl.sim.WF.run <- function(file_var,
           sampled <- final_res[[iteration]][[gen_name]]
           if (store_pedigree == TRUE &&
               !is.null(sampled@other$ind.metrics$sample_role)) {
-            in_pool <- setdiff(indNames(sampled),
+            im <- sampled@other$ind.metrics
+            in_pool <- setdiff(indNames(sampled)[im$sample_role == "family"],
                                pedigree[[as.character(generation)]]$id)
             if (length(in_pool) > 0) {
-              pool_all <- rbindlist(offspring_list, fill = TRUE)
+              fam_all <- do.call(rbind, lapply(last_families,
+                                                function(f) f$sample))
               extra <- record_pedigree(
-                list(pool_all[pool_all$id %in% in_pool, ]), generation)
+                list(fam_all[fam_all$id %in% in_pool, ]), generation)
               extra$in_population <- FALSE
               pedigree[[as.character(generation)]] <-
                 rbind(pedigree[[as.character(generation)]], extra)

@@ -243,6 +243,18 @@ founders have no parents; number_offspring must be at least the largest
 family, otherwise large families are rare and a warning is printed.
 ind.metrics gains sample_role ("family", "parent" or "random") and
 family (the parents' ids).
+
+Planted crosses. To recreate a mating design with shared parents (e.g. 4
+litters from 2 sires x 2 dams), sample_crosses gives one "SxD" token per
+family of sample_families, where the same label is the same individual
+(e.g. "S1xD1 S1xD2 S2xD1 S2xD2"; ";" between populations);
+sample_design = "2x2" is shorthand for every cross of 2 sires and 2
+dams. Sires and dams are drawn at random from the previous generation and
+each cross makes a family of exactly the given size, with the usual
+meiosis. The planted offspring are only sampled: they do not join the
+population, so drift and gene flow are unchanged. With sample_parents =
+TRUE each parent is sampled once. ind.metrics also gains sample_cross
+(the offspring's cross) and parent_label (the parent's label).
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
