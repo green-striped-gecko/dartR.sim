@@ -394,6 +394,34 @@ sib_pairs <- function(pop, pop_size, sib, rep_parents) {
   return(list(males = mates, females = females, short = paired < n_sib))
 }
 
+# Shrink population allele frequencies toward their mean,
+# q' = mean + lambda * (q - mean), to remove sampling noise from the
+# differentiation among founders. freq: list (one numeric vector per
+# population) of sample frequencies; n: list of the number of genotyped
+# individuals per locus. With lambda = "auto", lambda^2 = (V - S) / V, where
+# V is the observed between-population variance summed over loci and S the
+# part of it expected from sampling n individuals. The frequencies the
+# founders are drawn from then differ among populations as much as the
+# sampled populations do once sampling noise is removed, so an FST
+# estimator that corrects for sample size (e.g. Hudson's) gives the same
+# value for the founders as for x, whatever the number of founders.
+# Returns list(freq, lambda).
+shrink_freq <- function(freq, n, lambda = "auto") {
+  k <- length(freq)
+  q <- do.call(rbind, freq)
+  q_mean <- colMeans(q)
+  if (identical(lambda, "auto")) {
+    nn <- do.call(rbind, n)
+    s2 <- ifelse(nn > 0, q * (1 - q) / pmax(2 * nn - 1, 1), 0)
+    V <- sum(sweep(q, 2, q_mean)^2)
+    S <- (k - 1) / k * sum(s2)
+    lambda <- if (V > 0) sqrt(min(1, max(0, (V - S) / V))) else 1
+  }
+  q <- sweep(sweep(q, 2, q_mean) * lambda, 2, q_mean, "+")
+  freq <- lapply(seq_len(k), function(i) q[i, ])
+  return(list(freq = freq, lambda = lambda))
+}
+
 # Observed inbreeding coefficient of each population of a genlight,
 # F = 1 - Ho / He, with Ho and He summed over loci and He corrected for
 # sample size (2n / (2n - 1)). Returns a named numeric vector; NA for a
@@ -2571,6 +2599,18 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "real_inbreeding",
                            title = "Founders are made inbred and, where sib_mating is empty, the proportion of sib matings is set to keep F")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "real_freq_shrink",
+          tags$div(tags$i(HTML("real_freq_shrink<br/>")),
+                   "Shrink population allele frequencies toward their mean"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "real_freq_shrink",
+                           title = "Empty: no shrinkage; auto: remove the sampling noise of the genlight object, so it does not inflate FST; or a value of lambda between 0 and 1")
       )
       
     ),
@@ -2704,6 +2744,11 @@ interactive_sim_run <- function() {
         condition = input$real_dataset == TRUE
       )
       
+      shinyjs::toggleElement(
+        id = "real_freq_shrink",
+        condition = input$real_dataset == TRUE
+      )
+      
     })
     
     observeEvent(input$dispersal_phase2, {
@@ -2806,7 +2851,8 @@ interactive_sim_run <- function() {
           "local_adap",
           "sib_mating_phase1",
           "sib_mating_phase2",
-          "real_inbreeding"
+          "real_inbreeding",
+          "real_freq_shrink"
         ),
         c(
           input$number_pops_phase2,
@@ -2848,7 +2894,8 @@ interactive_sim_run <- function() {
           input$local_adap,
           input$sib_mating_phase1,
           input$sib_mating_phase2,
-          input$real_inbreeding
+          input$real_inbreeding,
+          input$real_freq_shrink
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")

@@ -167,6 +167,18 @@ instead. Founders are unrelated to each other, so the first generation
 (their offspring) has F close to 0; F returns close to the value in x from
 the second generation. To store only generations at equilibrium, use
 phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
+
+Differentiation. With real_freq = TRUE, each population's founders are
+drawn from its sample frequencies in x, which carry sampling noise and
+so inflate FST among founders. real_freq_shrink = "auto" shrinks them
+toward their mean, q' = mean + lambda (q - mean), with lambda chosen so
+the between-population variance of the frequencies equals that of x after
+removing the variance expected from sampling; an FST estimator that
+corrects for sample size (e.g. Hudson's) then gives about the same value
+for the founders as for x, whatever the population size. A number sets
+lambda directly; NULL (default) does not shrink. The lambda used is
+stored in sim.vars$freq_shrink_lambda. Drift after the founders raises
+FST again, faster in small populations.
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 

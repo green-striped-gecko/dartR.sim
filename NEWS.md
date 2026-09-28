@@ -1,13 +1,21 @@
 # dartR.sim (development version)
 
+## gl.sim.WF.run (differentiation)
+
+* New variable `real_freq_shrink`: with `real_freq = TRUE`, population
+  frequencies are shrunk toward their mean, q' = mean + lambda (q - mean).
+  `"auto"` picks lambda so that sampling noise in x does not inflate FST
+  among founders; a number sets lambda. NULL (default) does not shrink. The
+  lambda used is stored in `sim.vars$freq_shrink_lambda`.
+
 ## gl.sim.WF.run (founders)
 
 * New argument `store_founders`: the founders of the first phase simulated
   are stored, before they reproduce, as "generation_0". `ind.metrics` holds
   `F_founder` and `F_founder_map`, the proportions of loci and of the map
-  identical by descent (0 unless `real_inbreeding = TRUE`), and no parents, so the pedigree of later
-  generations starts from stored individuals. Off by default; seeded
-  outputs are unchanged.
+  identical by descent (0 unless `real_inbreeding = TRUE`), and no
+  parents, so the pedigree of later generations starts from stored
+  individuals. Off by default; seeded outputs are unchanged.
 
 ## gl.sim.WF.run (inbreeding)
 
