@@ -14,6 +14,7 @@ gl.sim.WF.run(
   sample_percent = 50,
   store_phase1 = FALSE,
   store_founders = FALSE,
+  store_pedigree = FALSE,
   interactive_vars = TRUE,
   seed = NULL,
   verbose = NULL,
@@ -52,6 +53,13 @@ Their ind.metrics hold F_founder, the proportion of loci whose two copies
 are identical by descent (0 unless real_inbreeding = TRUE), and
 F_founder_map, the same proportion measured along the map. Founders
 have no parents (pat and mat are NA).}
+
+\item{store_pedigree}{Whether to return the pedigree of every individual
+of every generation, sampled or not, as the attribute "pedigree" of each
+iteration: a data frame with id (as in indNames of the stored genlights),
+pat, mat (NA for founders), generation (0 for founders), pop and F_founder
+(founders only, NA otherwise). Read it with
+attr(res[["iteration_1"]], "pedigree") [default FALSE].}
 
 \item{interactive_vars}{Run a shiny app to input interactively the values of
 simulations variables [default TRUE].}

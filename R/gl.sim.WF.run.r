@@ -35,6 +35,12 @@
 #' are identical by descent (0 unless real_inbreeding = TRUE), and
 #' F_founder_map, the same proportion measured along the map. Founders
 #' have no parents (pat and mat are NA).
+#' @param store_pedigree Whether to return the pedigree of every individual
+#' of every generation, sampled or not, as the attribute "pedigree" of each
+#' iteration: a data frame with id (as in indNames of the stored genlights),
+#' pat, mat (NA for founders), generation (0 for founders), pop and F_founder
+#' (founders only, NA otherwise). Read it with
+#' attr(res[["iteration_1"]], "pedigree") [default FALSE].
 #' @param interactive_vars Run a shiny app to input interactively the values of
 #' simulations variables [default TRUE].
 #' @param seed Set the seed for the simulations. This calls set.seed(), so it
@@ -199,6 +205,7 @@ gl.sim.WF.run <- function(file_var,
                           sample_percent = 50,
                           store_phase1 = FALSE,
                           store_founders = FALSE,
+                          store_pedigree = FALSE,
                           interactive_vars = TRUE,
                           seed = NULL,
                           verbose = NULL,
@@ -899,6 +906,31 @@ gl.sim.WF.run <- function(file_var,
         dispersal <- FALSE
       }
       
+      # Pedigree of every individual of every generation (store_pedigree)
+      pedigree <- list()
+      record_pedigree <- function(p_list, generation) {
+        p <- rbindlist(p_list, fill = TRUE)
+        pop_labels <- if (real_pops == TRUE) popNames(x) else
+          as.character(pops_vector)
+        data.frame(
+          id = p$id,
+          pat = if (is.null(p$V5)) NA_character_ else as.character(p$V5),
+          mat = if (is.null(p$V6)) NA_character_ else as.character(p$V6),
+          generation = generation,
+          pop = pop_labels[as.numeric(p$V2)],
+          F_founder = if (generation == 0) {
+            v <- unname(founder_F[p$id])
+            if (is.null(v)) v <- rep(0, nrow(p))
+            v[is.na(v)] <- 0
+            v
+          } else NA_real_,
+          stringsAsFactors = FALSE
+        )
+      }
+      if (store_pedigree == TRUE) {
+        pedigree[["0"]] <- record_pedigree(pop_list, 0)
+      }
+      
       # Founders, before they reproduce, stored as generation 0. They have
       # no parents; F_founder is their proportion of loci identical by descent
       if (store_founders == TRUE) {
@@ -1301,6 +1333,11 @@ gl.sim.WF.run <- function(file_var,
         # -------------------------------
         # STORE GENERATION RESULTS INTO GENLIGHT OBJECTS
         # -------------------------------
+        if (store_pedigree == TRUE) {
+          pedigree[[as.character(generation)]] <-
+            record_pedigree(pop_list, generation)
+        }
+        
         if (generation %in% gen_store & store_values == TRUE) {
           gen_name <- paste0("generation_", generation)
           disp_pairs <- if (dispersal == TRUE) dispersal_pairs else NULL
@@ -1308,6 +1345,10 @@ gl.sim.WF.run <- function(file_var,
             store_generation(pop_list, generation, iteration, disp_pairs)
         }
       }  # End generation loop
+      if (store_pedigree == TRUE) {
+        attr(final_res[[iteration]], "pedigree") <-
+          do.call(rbind, unname(pedigree))
+      }
     }  # End iteration loop
     
     # -------------------------------
