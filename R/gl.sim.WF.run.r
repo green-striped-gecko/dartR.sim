@@ -127,6 +127,18 @@
 #' (their offspring) has F close to 0; F returns close to the value in x from
 #' the second generation. To store only generations at equilibrium, use
 #' phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
+#' 
+#' Differentiation. With real_freq = TRUE, each population's founders are
+#' drawn from its sample frequencies in x, which carry sampling noise and
+#' so inflate FST among founders. real_freq_shrink = "auto" shrinks them
+#' toward their mean, q' = mean + lambda (q - mean), with lambda chosen so
+#' the between-population variance of the frequencies equals that of x after
+#' removing the variance expected from sampling; an FST estimator that
+#' corrects for sample size (e.g. Hudson's) then gives about the same value
+#' for the founders as for x, whatever the population size. A number sets
+#' lambda directly; NULL (default) does not shrink. The lambda used is
+#' stored in sim.vars$freq_shrink_lambda. Drift after the founders raises
+#' FST again, faster in small populations.
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -209,7 +221,8 @@ gl.sim.WF.run <- function(file_var,
     ## defaults: parents sampled without replacement, random mating and no
     ## inbreeding from the real data
     defaults <- c(replace_parents = "FALSE", sib_mating_phase1 = "NULL",
-                  sib_mating_phase2 = "NULL", real_inbreeding = "FALSE")
+                  sib_mating_phase2 = "NULL", real_inbreeding = "FALSE",
+                  real_freq_shrink = "NULL")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -248,7 +261,7 @@ gl.sim.WF.run <- function(file_var,
                       "dispersal_type_phase2", "natural_selection_model",
                       "population_size_phase1", "population_size_phase2",
                       "local_adap", "clinal_adap", "sib_mating_phase1",
-                      "sib_mating_phase2")),
+                      "sib_mating_phase2", "real_freq_shrink")),
       envir = environment())
     
     # -------------------------------
@@ -379,6 +392,7 @@ gl.sim.WF.run <- function(file_var,
     # With real_loc = TRUE the reference table orders real loci by position,
     # so frequencies are ordered by position too
     pop_list_freq <- rep(NA, number_pops)
+    freq_shrink_lambda <- NULL
     if (real_freq == TRUE) {
       x_freq <- x
       if (real_loc == TRUE) {
@@ -398,6 +412,29 @@ gl.sim.WF.run <- function(file_var,
         f[is.na(f)] <- freq_pooled[is.na(f)]
         return(f)
       })
+
+      # Differentiation among founders: frequencies are shrunk toward
+      # their mean so that the sampling noise of x does not inflate FST
+      # (see shrink_freq())
+      if (!is.null(real_freq_shrink) && length(pop_list_freq) > 1) {
+        shrink <- if (real_freq_shrink == "auto") "auto" else
+          suppressWarnings(as.numeric(real_freq_shrink))
+        if (!identical(shrink, "auto") &&
+            (is.na(shrink) || shrink < 0 || shrink > 1)) {
+          stop(error("  real_freq_shrink must be NULL, \"auto\" or a number",
+                     "between 0 and 1\n"))
+        }
+        n_genotyped <- lapply(seppop(x_freq), function(p) {
+          colSums(!is.na(as.matrix(p)))
+        })
+        shrunk <- shrink_freq(pop_list_freq, n_genotyped, shrink)
+        pop_list_freq <- shrunk$freq
+        freq_shrink_lambda <- shrunk$lambda
+        if (verbose >= 2) {
+          message(report("  Population frequencies shrunk toward their mean,",
+                         "lambda =", round(freq_shrink_lambda, 3), "\n"))
+        }
+      }
     }
 
     # -------------------------------
@@ -510,6 +547,7 @@ gl.sim.WF.run <- function(file_var,
       s_vars_temp$del_ind_cM <- density_mutations_per_cm
       s_vars_temp$sample_percent <- sample_percent
       s_vars_temp$file_dispersal <- file_dispersal
+      s_vars_temp$freq_shrink_lambda <- freq_shrink_lambda
       
       if (!is.null(disp_pairs)) {
         s_vars_temp$number_transfers_phase2 <- paste(disp_pairs$number_transfers, collapse = " ")  

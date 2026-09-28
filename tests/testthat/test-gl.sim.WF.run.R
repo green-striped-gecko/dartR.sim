@@ -505,3 +505,58 @@ test_that("store_founders with real_inbreeding: F_founder is the IBD share", {
   het <- rowMeans(as.matrix(g0) == 1)
   expect_lt(cor(f, het), -0.3)
 })
+
+# ---- real_freq_shrink ----
+
+hudson_fst <- function(g, loci = TRUE) {
+  ps <- seppop(g)
+  a <- as.matrix(ps[[1]])[, loci, drop = FALSE]
+  b <- as.matrix(ps[[2]])[, loci, drop = FALSE]
+  n1 <- 2 * colSums(!is.na(a))
+  n2 <- 2 * colSums(!is.na(b))
+  p1 <- colMeans(a, na.rm = TRUE) / 2
+  p2 <- colMeans(b, na.rm = TRUE) / 2
+  num <- (p1 - p2)^2 - p1 * (1 - p1) / (n1 - 1) - p2 * (1 - p2) / (n2 - 1)
+  den <- p1 * (1 - p2) + p2 * (1 - p1)
+  ok <- is.finite(num) & is.finite(den)
+  sum(num[ok]) / sum(den[ok])
+}
+
+test_that("shrink_freq shrinks toward the mean; auto removes sampling noise", {
+  set.seed(1)
+  L <- 2000
+  p <- runif(L, 0.1, 0.9)
+  # no true differentiation: samples of 10 individuals from the same p
+  freq <- lapply(1:2, function(i) rbinom(L, 20, p) / 20)
+  n <- lapply(1:2, function(i) rep(10, L))
+  s <- shrink_freq(freq, n, "auto")
+  expect_lt(s$lambda, 0.3)
+  half <- shrink_freq(freq, n, 0.5)
+  expect_equal(half$freq[[1]] - half$freq[[2]],
+               0.5 * (freq[[1]] - freq[[2]]))
+  expect_equal(half$freq[[1]] + half$freq[[2]], freq[[1]] + freq[[2]])
+})
+
+test_that("real_freq_shrink = auto matches founder FST to x's FST", {
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  x <- gl.keep.pop(x, pop.list = popNames(x)[c(1, 3)], verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE, chunk_neutral_loci = 0)
+  fst <- function(shrink, seed) {
+    r <- wf_run(rt, x = x, seed = seed, real_freq = TRUE, real_pops = TRUE,
+                real_pop_size = TRUE, real_freq_shrink = shrink,
+                store_founders = TRUE, sample_percent = 100,
+                gen_number_phase2 = 1)
+    g0 <- r[[1]][["generation_0"]]
+    c(hudson_fst(g0, g0@other$loc.metrics$type == "real"),
+      as.numeric(g0@other$sim.vars$freq_shrink_lambda))
+  }
+  auto <- rowMeans(sapply(1:4, function(s) fst("auto", s)))
+  none <- mean(sapply(1:4, function(s) fst("NULL", s)[1]))
+  target <- hudson_fst(x)
+  expect_gt(none, target)
+  expect_equal(auto[1], target, tolerance = 0.2)
+  expect_gt(auto[2], 0)
+  expect_lt(auto[2], 1)
+  expect_error(fst("2", 1), "real_freq_shrink")
+})
