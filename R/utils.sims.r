@@ -422,6 +422,28 @@ shrink_freq <- function(freq, n, lambda = "auto") {
   return(list(freq = freq, lambda = lambda))
 }
 
+# Mean pairwise FST among the populations of a genlight, Hudson's estimator
+# (Bhatia et al. 2013), which corrects for sample size: for each pair, the
+# ratio of sums over loci of
+# (p1 - p2)^2 - p1(1 - p1)/(n1 - 1) - p2(1 - p2)/(n2 - 1) and
+# p1(1 - p2) + p2(1 - p1), with n the number of alleles genotyped.
+fst_hudson <- function(x) {
+  pops <- seppop(x)
+  freq <- lapply(pops, function(p) colMeans(as.matrix(p), na.rm = TRUE) / 2)
+  n <- lapply(pops, function(p) 2 * colSums(!is.na(as.matrix(p))))
+  pairs <- combn(length(pops), 2)
+  mean(apply(pairs, 2, function(ij) {
+    p1 <- freq[[ij[1]]]
+    p2 <- freq[[ij[2]]]
+    n1 <- n[[ij[1]]]
+    n2 <- n[[ij[2]]]
+    num <- (p1 - p2)^2 - p1 * (1 - p1) / (n1 - 1) - p2 * (1 - p2) / (n2 - 1)
+    den <- p1 * (1 - p2) + p2 * (1 - p1)
+    ok <- is.finite(num) & is.finite(den)
+    sum(num[ok]) / sum(den[ok])
+  }))
+}
+
 # Observed inbreeding coefficient of each population of a genlight,
 # F = 1 - Ho / He, with Ho and He summed over loci and He corrected for
 # sample size (2n / (2n - 1)). Returns a named numeric vector; NA for a
@@ -2611,6 +2633,20 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "real_freq_shrink",
                            title = "Empty: no shrinkage; auto: remove the sampling noise of the genlight object, so it does not inflate FST; or a value of lambda between 0 and 1")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_migration",
+          tags$div(tags$i(HTML("real_migration<br/>")),
+                   "Set migration from the FST of the genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_migration",
+                           title = "Island model: individuals transferred per pair of populations and generation T = (1/FST - 1)/(4n); needs dispersal_type all_connected")
       )
       
     ),
@@ -2749,6 +2785,11 @@ interactive_sim_run <- function() {
         condition = input$real_dataset == TRUE
       )
       
+      shinyjs::toggleElement(
+        id = "real_migration",
+        condition = input$real_dataset == TRUE
+      )
+      
     })
     
     observeEvent(input$dispersal_phase2, {
@@ -2852,7 +2893,8 @@ interactive_sim_run <- function() {
           "sib_mating_phase1",
           "sib_mating_phase2",
           "real_inbreeding",
-          "real_freq_shrink"
+          "real_freq_shrink",
+          "real_migration"
         ),
         c(
           input$number_pops_phase2,
@@ -2895,7 +2937,8 @@ interactive_sim_run <- function() {
           input$sib_mating_phase1,
           input$sib_mating_phase2,
           input$real_inbreeding,
-          input$real_freq_shrink
+          input$real_freq_shrink,
+          input$real_migration
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")

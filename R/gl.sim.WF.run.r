@@ -139,6 +139,18 @@
 #' lambda directly; NULL (default) does not shrink. The lambda used is
 #' stored in sim.vars$freq_shrink_lambda. Drift after the founders raises
 #' FST again, faster in small populations.
+#' 
+#' Migration. With real_migration = TRUE, the number of individuals each
+#' pair of populations swaps per generation is set from x's FST (Hudson's,
+#' mean over pairs of populations). Each pair swaps number_transfers
+#' individuals in each direction, so with n populations and dispersal_type
+#' "all_connected" the island model gives an equilibrium
+#' FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983),
+#' whatever the population size, and T = (1 / FST - 1) / (4 n) replaces
+#' number_transfers. T can be fractional: each pair moves floor(T) or
+#' floor(T) + 1 individuals, the latter with probability T - floor(T). It
+#' applies to the phases with dispersal, which must be "all_connected" (no
+#' dispersal file). T is stored in sim.vars$migrants_real.
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -222,7 +234,7 @@ gl.sim.WF.run <- function(file_var,
     ## inbreeding from the real data
     defaults <- c(replace_parents = "FALSE", sib_mating_phase1 = "NULL",
                   sib_mating_phase2 = "NULL", real_inbreeding = "FALSE",
-                  real_freq_shrink = "NULL")
+                  real_freq_shrink = "NULL", real_migration = "FALSE")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -306,7 +318,8 @@ gl.sim.WF.run <- function(file_var,
     
     # Ensure that if real dataset values are required, the 'x' parameter is provided.
     if ((real_pops == TRUE | real_pop_size == TRUE | real_loc == TRUE |
-         real_freq == TRUE | real_inbreeding == TRUE) && is.null(x)) {
+         real_freq == TRUE | real_inbreeding == TRUE | real_migration == TRUE) &&
+         is.null(x)) {
       stop(error("  The real dataset to extract information is missing\n"))
     }
     
@@ -504,6 +517,56 @@ gl.sim.WF.run <- function(file_var,
       sib_mating_phase1 <- resolve_sib(sib_mating_phase1, number_pops,
                                        "phase1")
     }
+
+    # -------------------------------
+    # MIGRATION FROM THE REAL DATA
+    # -------------------------------
+    # Each connected pair swaps number_transfers individuals in each
+    # direction, so with n populations "all_connected" is an island model
+    # with Nm = (n - 1) * number_transfers immigrants per generation and
+    # equilibrium FST = 1 / (1 + 4 Nm n / (n - 1)) = 1 / (1 + 4 n T). The
+    # number of transfers per generation T that keeps x's FST (Hudson's) is
+    # then T = (1 / FST - 1) / (4 n), whatever the population size. It can
+    # be fractional: each pair moves floor(T) or floor(T) + 1 individuals,
+    # the latter with probability T - floor(T)
+    migrants_real <- NULL
+    if (real_migration == TRUE) {
+      if (nPop(x) < 2) {
+        stop(error("  real_migration needs at least two populations in x\n"))
+      }
+      if (!is.null(file_dispersal)) {
+        stop(error("  real_migration cannot be used with a dispersal file\n"))
+      }
+      disp_phases <- c(dispersal_phase2, if (phase1 == TRUE) dispersal_phase1)
+      disp_types <- c(dispersal_type_phase2,
+                      if (phase1 == TRUE) dispersal_type_phase1)
+      if (any(disp_phases & disp_types != "all_connected")) {
+        stop(error("  real_migration follows the island model and needs",
+                   "dispersal_type = 'all_connected'\n"))
+      }
+      if (!any(disp_phases) && verbose >= 1) {
+        cat(warn("  Warning: real_migration has no effect because dispersal",
+                 "is off in every phase\n"))
+      }
+      x_mig <- x
+      if (real_loc == TRUE) {
+        x_mig <- x[, which(as.character(x@chromosome) == chromosome_name)]
+      }
+      fst_real <- fst_hudson(x_mig)
+      if (!is.finite(fst_real) || fst_real < 0.001) {
+        if (verbose >= 1) {
+          cat(warn("  Warning: FST in x is", round(fst_real, 4), "; it is",
+                   "set to 0.001 to compute the number of migrants\n"))
+        }
+        fst_real <- 0.001
+      }
+      migrants_real <- (1 / fst_real - 1) / (4 * number_pops)
+      if (verbose >= 2) {
+        message(report("  FST in x =", round(fst_real, 4), "; individuals",
+                       "transferred per pair of populations and generation =",
+                       round(migrants_real, 3), "\n"))
+      }
+    }
     
     # -------------------------------
     # CALCULATE MUTATION DENSITY
@@ -552,6 +615,14 @@ gl.sim.WF.run <- function(file_var,
       if (!is.null(disp_pairs)) {
         s_vars_temp$number_transfers_phase2 <- paste(disp_pairs$number_transfers, collapse = " ")  
         s_vars_temp$transfer_each_gen_phase2 <- paste(disp_pairs$transfer_each_gen, collapse = " ") 
+      }
+      # With real_migration, the mean number of transfers per event
+      if (!is.null(migrants_real)) {
+        s_vars_temp$migrants_real <- migrants_real
+        if (!is.null(disp_pairs)) {
+          s_vars_temp$number_transfers_phase2 <-
+            migrants_real * disp_pairs$transfer_each_gen[1]
+        }
       }
       
       res <- store(
@@ -831,6 +902,14 @@ gl.sim.WF.run <- function(file_var,
             # Set additional dispersal parameters.
             dispersal_pairs$number_transfers <- number_transfers
             dispersal_pairs$transfer_each_gen <- transfer_each_gen
+            
+            # real_migration: transfers per event (T per generation times the
+            # generations between events), fractional part drawn per pair
+            if (!is.null(migrants_real)) {
+              t_event <- migrants_real * transfer_each_gen
+              dispersal_pairs$number_transfers <- floor(t_event) +
+                rbinom(nrow(dispersal_pairs), 1, t_event - floor(t_event))
+            }
             
           } else {
             # If a dispersal file is provided, read the file.

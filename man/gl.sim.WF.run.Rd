@@ -179,6 +179,18 @@ for the founders as for x, whatever the population size. A number sets
 lambda directly; NULL (default) does not shrink. The lambda used is
 stored in sim.vars$freq_shrink_lambda. Drift after the founders raises
 FST again, faster in small populations.
+
+Migration. With real_migration = TRUE, the number of individuals each
+pair of populations swaps per generation is set from x's FST (Hudson's,
+mean over pairs of populations). Each pair swaps number_transfers
+individuals in each direction, so with n populations and dispersal_type
+"all_connected" the island model gives an equilibrium
+FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983),
+whatever the population size, and T = (1 / FST - 1) / (4 n) replaces
+number_transfers. T can be fractional: each pair moves floor(T) or
+floor(T) + 1 individuals, the latter with probability T - floor(T). It
+applies to the phases with dispersal, which must be "all_connected" (no
+dispersal file). T is stored in sim.vars$migrants_real.
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
