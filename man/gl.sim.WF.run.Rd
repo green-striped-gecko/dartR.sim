@@ -13,6 +13,7 @@ gl.sim.WF.run(
   every_gen = 10,
   sample_percent = 50,
   store_phase1 = FALSE,
+  store_founders = FALSE,
   interactive_vars = TRUE,
   seed = NULL,
   verbose = NULL,
@@ -44,6 +45,13 @@ rounded up to an even number, e.g. 50 percent of 50 individuals stores 26
 
 \item{store_phase1}{Whether to store simulations of phase 1 in genlight
 objects [default FALSE].}
+
+\item{store_founders}{Whether to store the founders of the first phase
+simulated, before they reproduce, as "generation_0" [default FALSE].
+Their ind.metrics hold F_founder, the proportion of loci whose two copies
+are identical by descent (0 unless real_inbreeding = TRUE), and
+F_founder_map, the same proportion measured along the map. Founders
+have no parents (pat and mat are NA).}
 
 \item{interactive_vars}{Run a shiny app to input interactively the values of
 simulations variables [default TRUE].}
