@@ -422,6 +422,28 @@ shrink_freq <- function(freq, n, lambda = "auto") {
   return(list(freq = freq, lambda = lambda))
 }
 
+# Ne / N of the simulator. Ne = 4N / (Vk + 2), with Vk the variance in the
+# number of offspring an individual leaves in the next generation. A mating
+# pair leaves on average 2 offspring after the next generation is sampled,
+# with variance 2 + 4 / k (negative binomial of size k = variance_offspring,
+# thinned). Without replacement each parent mates once, so Vk = 2 + 4 / k
+# and Ne / N = k / (k + 1). With replacement (replace_parents = TRUE) an
+# individual mates a Poisson(1) number of times, so Vk = 6 + 4 / k and
+# Ne / N = k / (2k + 1), at most 1/2. Checked against the rate of loss of
+# heterozygosity (N = 100, 30 generations): 0.99, 0.52, 0.49 and 0.33 for
+# predicted 1, 0.5, 0.5 and 0.33.
+ne_ratio <- function(k, rep_parents) {
+  if (rep_parents) k / (2 * k + 1) else k / (k + 1)
+}
+
+# variance_offspring (k) giving Ne / N = R; the inverse of ne_ratio(). R at
+# or above the maximum (1, or 1/2 with replacement) gives Inf.
+k_for_ne <- function(R, rep_parents) {
+  max_R <- if (rep_parents) 1 / 2 else 1
+  ifelse(R >= max_R, Inf,
+         if (rep_parents) R / (1 - 2 * R) else R / (1 - R))
+}
+
 # Mean pairwise FST among the populations of a genlight, Hudson's estimator
 # (Bhatia et al. 2013), which corrects for sample size: for each pair, the
 # ratio of sums over loci of
@@ -2086,6 +2108,17 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "sib_mating_phase2",
                            title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      ),
+      column(
+        4,
+        textInput(
+          "ne_phase2",
+          tags$div(tags$i(HTML("ne_phase2<br/>")),
+                   "Effective population size (sets variance_offspring)"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "ne_phase2",
+                           title = "One value or one per population, space delimited, e.g. estimated with gl.LDNe(). Empty: Ne follows from population size, variance_offspring and replace_parents. Ne must be below the population size (below half of it with replace_parents = TRUE)")
       )
     ),
     
@@ -2437,6 +2470,17 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "sib_mating_phase1",
                            title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      ),
+      column(
+        4,
+        textInput(
+          "ne_phase1",
+          tags$div(tags$i(HTML("ne_phase1<br/>")),
+                   "Effective population size (sets variance_offspring)"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "ne_phase1",
+                           title = "One value or one per population, space delimited, e.g. estimated with gl.LDNe(). Empty: Ne follows from population size, variance_offspring and replace_parents. Ne must be below the population size (below half of it with replace_parents = TRUE)")
       )
     ),
     
@@ -2647,6 +2691,20 @@ interactive_sim_run <- function() {
         ),
         shinyBS::bsTooltip(id = "real_migration",
                            title = "Island model: individuals transferred per pair of populations and generation T = (1/FST - 1)/(4n); needs dispersal_type all_connected")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_sample_size",
+          tags$div(tags$i(HTML("real_sample_size<br/>")),
+                   "Store samples with the sample sizes of the genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_sample_size",
+                           title = "Replaces sample_percent, so the simulated populations can be larger than the samples")
       )
       
     ),
@@ -2742,6 +2800,11 @@ interactive_sim_run <- function() {
       )
 
       shinyjs::toggleElement(
+        id = "ne_phase1",
+        condition = input$phase1 == TRUE
+      )
+
+      shinyjs::toggleElement(
         id = "selection_phase1",
         condition = input$phase1 == TRUE
       )
@@ -2787,6 +2850,11 @@ interactive_sim_run <- function() {
       
       shinyjs::toggleElement(
         id = "real_migration",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_sample_size",
         condition = input$real_dataset == TRUE
       )
       
@@ -2894,7 +2962,10 @@ interactive_sim_run <- function() {
           "sib_mating_phase2",
           "real_inbreeding",
           "real_freq_shrink",
-          "real_migration"
+          "real_migration",
+          "ne_phase1",
+          "ne_phase2",
+          "real_sample_size"
         ),
         c(
           input$number_pops_phase2,
@@ -2938,7 +3009,10 @@ interactive_sim_run <- function() {
           input$sib_mating_phase2,
           input$real_inbreeding,
           input$real_freq_shrink,
-          input$real_migration
+          input$real_migration,
+          input$ne_phase1,
+          input$ne_phase2,
+          input$real_sample_size
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")

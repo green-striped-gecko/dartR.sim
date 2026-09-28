@@ -2,10 +2,11 @@ process,variable,value,description,range_value
 Basic,number_pops_phase2,1,Number of populations of phase 2 (must be the same as number of populations in phase 1),Dependent on computing resources
 Basic,gen_number_phase2,10,Number of generations of phase 2,Dependent on computing resources
 Genetic drift,population_size_phase2,"""50""","Census population size of each population of phase 2 (must be even, space delimited and in quotes)",Dependent on computing resources
-Genetic drift,variance_offspring_phase2,1000000,Coefficient that determines the variance in the number of offspring per mating for phase 2,Defined by the user
+Genetic drift,variance_offspring_phase2,1000000,"Coefficient that determines the variance in the number of offspring per mating for phase 2 (one value or one per population, space delimited and in quotes); Ne/N = k/(k+1), or k/(2k+1) with replace_parents = TRUE",Defined by the user
 Genetic drift,number_offspring_phase2,10,Mean number offspring per mating for phase 2,Dependent on computing resources
 Genetic drift,replace_parents,FALSE,"Whether parents reproduce more than once, i.e. parents are sampled with replacement",TRUE or FALSE
 Genetic drift,sib_mating_phase2,NULL,"Proportion of matings between full siblings in each population of phase 2 (one value or one per population, space delimited and in quotes). NULL: random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE",0-1
+Genetic drift,ne_phase2,NULL,"Effective population size of each population of phase 2 (one value or one per population, space delimited and in quotes), e.g. estimated with gl.LDNe(); sets variance_offspring_phase2. NULL: Ne follows from population size, variance_offspring_phase2 and replace_parents",< population size (< population size / 2 with replace_parents = TRUE)
 Gene flow,dispersal_phase2,TRUE,Simulate dispersal in phase 2,TRUE or FALSE
 Gene flow,dispersal_type_phase2,"""all_connected""",Type of dispersal in phase 2,"""line"",""circle"",""all_connected"""
 Gene flow,number_transfers_phase2,1,Number of dispersing individuals in phase 2,< population size
@@ -25,9 +26,10 @@ phase1,number_pops_phase1,1,Number of populations of phase 1 (must be the same a
 phase1,gen_number_phase1,10,Number of generations of phase 1,Dependent on computing resources
 phase1,population_size_phase1,"""100""","Census population size of each population of phase 1 (must be even, space delimited and in quotes)",Dependent on computing resources
 phase1,same_line,FALSE,Sample phase 2 populations from the same phase 1 population or from different phase 1 populations,TRUE or FALSE
-phase1,variance_offspring_phase1,1000000,Coefficient that determines the variance in the number of offspring per mating for phase 1,Defined by the user
+phase1,variance_offspring_phase1,1000000,"Coefficient that determines the variance in the number of offspring per mating for phase 1 (one value or one per population, space delimited and in quotes)",Defined by the user
 phase1,number_offspring_phase1,5,Mean number offspring per mating for phase 1,Dependent on computing resources
 phase1,sib_mating_phase1,NULL,"Proportion of matings between full siblings in each population of phase 1 (one value or one per population, space delimited and in quotes). NULL: random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE",0-1
+phase1,ne_phase1,NULL,"Effective population size of each population of phase 1 (one value or one per population, space delimited and in quotes); sets variance_offspring_phase1. NULL: Ne follows from population size, variance_offspring_phase1 and replace_parents",< population size (< population size / 2 with replace_parents = TRUE)
 phase1,dispersal_phase1,FALSE,Simulate dispersal in phase 1,TRUE or FALSE
 phase1,dispersal_type_phase1,"""all_connected""",Type of dispersal in phase 1,"""line"",""circle"",""all_connected"""
 phase1,number_transfers_phase1,1,Number of dispersing individuals in phase 1,< population size
@@ -40,4 +42,5 @@ Real information,real_freq,FALSE,Extract allele frequencies for neutral loci fro
 Real information,real_inbreeding,FALSE,"Extract the inbreeding coefficient (F = 1 - Ho/He) of each population from genlight object, to make the founders inbred and set the proportion of sib matings",TRUE or FALSE
 Real information,real_freq_shrink,NULL,"Shrink the allele frequencies of the populations toward their mean, q' = mean + lambda (q - mean), so sampling noise does not inflate FST among founders. NULL: no shrinkage; ""auto"": lambda removes the sampling noise of x; or a value of lambda",NULL; ""auto""; 0-1
 Real information,real_migration,FALSE,"Set the number of individuals transferred per pair of populations and generation from the FST of the genlight object (island model, dispersal_type ""all_connected"")",TRUE or FALSE
+Real information,real_sample_size,FALSE,"Store samples with the sample sizes of the genlight object (instead of sample_percent), so the simulated populations can be larger than the samples",TRUE or FALSE
 Real information,chromosome_name,"""1""",Chromosome name from where to extract allele frequencies ,Defined by the user (must be character)

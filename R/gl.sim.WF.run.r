@@ -145,12 +145,31 @@
 #' mean over pairs of populations). Each pair swaps number_transfers
 #' individuals in each direction, so with n populations and dispersal_type
 #' "all_connected" the island model gives an equilibrium
-#' FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983),
-#' whatever the population size, and T = (1 / FST - 1) / (4 n) replaces
-#' number_transfers. T can be fractional: each pair moves floor(T) or
-#' floor(T) + 1 individuals, the latter with probability T - floor(T). It
+#' FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983)
+#' when Ne = N. FST depends on Ne m rather than N m, so
+#' T = (1 / FST - 1) / (4 n) x N / Ne (mean over populations of N / Ne,
+#' with Ne the expected Ne, see below) replaces number_transfers. T can be
+#' fractional: each pair moves floor(T) or floor(T) + 1 individuals, the latter with probability T - floor(T). It
 #' applies to the phases with dispersal, which must be "all_connected" (no
 #' dispersal file). T is stored in sim.vars$migrants_real.
+#' 
+#' Effective population size. Ne = 4N / (Vk + 2), with Vk the variance in
+#' the number of offspring an individual leaves in the next generation.
+#' With parents sampled without replacement Ne / N = k / (k + 1), and with
+#' replace_parents = TRUE (parents mate a Poisson number of times, which
+#' produces half siblings) Ne / N = k / (2k + 1), at most 1/2; k is
+#' variance_offspring, one value or one per population. ne_phase1 and
+#' ne_phase2 set a target Ne for each population, for example estimated
+#' from x with gl.LDNe() (per population; with small samples its estimate
+#' can be infinite and is then of no use), and variance_offspring is set to
+#' reach it. Family-size variance can only lower Ne, so a target above N
+#' (N/2 with replace_parents = TRUE) is capped there with a warning; raise
+#' the population size instead. With real_pop_size = TRUE the populations
+#' are as small as x's samples; to simulate larger populations while storing
+#' samples of x's sizes, set population_size_phase2 and use
+#' real_sample_size = TRUE, which replaces sample_percent. The expected Ne is
+#' stored in sim.vars$ne_expected, which \code{\link{gl.diagnostics.sim}}
+#' uses by default.
 #' @return A list with one element per iteration ("iteration_1", ...). Each
 #' is a list of genlight objects, one per stored generation, named by the
 #' generation they hold ("generation_1", ...). Each genlight has the
@@ -234,7 +253,9 @@ gl.sim.WF.run <- function(file_var,
     ## inbreeding from the real data
     defaults <- c(replace_parents = "FALSE", sib_mating_phase1 = "NULL",
                   sib_mating_phase2 = "NULL", real_inbreeding = "FALSE",
-                  real_freq_shrink = "NULL", real_migration = "FALSE")
+                  real_freq_shrink = "NULL", real_migration = "FALSE",
+                  ne_phase1 = "NULL", ne_phase2 = "NULL",
+                  real_sample_size = "FALSE")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -273,7 +294,9 @@ gl.sim.WF.run <- function(file_var,
                       "dispersal_type_phase2", "natural_selection_model",
                       "population_size_phase1", "population_size_phase2",
                       "local_adap", "clinal_adap", "sib_mating_phase1",
-                      "sib_mating_phase2", "real_freq_shrink")),
+                      "sib_mating_phase2", "real_freq_shrink",
+                      "variance_offspring_phase1", "variance_offspring_phase2",
+                      "ne_phase1", "ne_phase2")),
       envir = environment())
     
     # -------------------------------
@@ -375,7 +398,11 @@ gl.sim.WF.run <- function(file_var,
     clinal_adap <- split_num(clinal_adap)
     sib_mating_phase1 <- split_num(sib_mating_phase1)
     sib_mating_phase2 <- split_num(sib_mating_phase2)
-    
+    variance_offspring_phase1 <- split_num(variance_offspring_phase1)
+    variance_offspring_phase2 <- split_num(variance_offspring_phase2)
+    ne_phase1 <- split_num(ne_phase1)
+    ne_phase2 <- split_num(ne_phase2)
+
     # -------------------------------
     # DETERMINE NUMBER OF POPULATIONS
     # -------------------------------
@@ -395,7 +422,79 @@ gl.sim.WF.run <- function(file_var,
         population_size_phase2 <- real_sizes
       }
     }
-    
+
+    # -------------------------------
+    # EFFECTIVE POPULATION SIZE
+    # -------------------------------
+    # variance_offspring is one value or one per population. With ne_phase*
+    # (one value or one per population) it is set so the expected Ne equals
+    # the target (see ne_ratio()); Ne above its maximum for the census size
+    # (N, or N/2 with replace_parents = TRUE) is capped there with a warning.
+    # ne_expected_phase* is the expected Ne of each population
+    resolve_ne <- function(k, ne, sizes, phase) {
+      sizes <- rep_len(sizes, number_pops)
+      if (anyNA(k) || any(k <= 0) || !length(k) %in% c(1, number_pops)) {
+        stop(error("  variance_offspring_", phase, " must be positive, one",
+                   " value or one per population\n", sep = ""))
+      }
+      k <- rep_len(k, number_pops)
+      if (!is.null(ne)) {
+        if (anyNA(ne) || any(ne <= 0) || !length(ne) %in% c(1, number_pops)) {
+          stop(error("  ne_", phase, " must be positive, one value or one",
+                     " per population\n", sep = ""))
+        }
+        ne <- rep_len(ne, number_pops)
+        k <- k_for_ne(ne / sizes, replace_parents)
+        if (any(is.infinite(k)) && verbose >= 1) {
+          max_ne <- sizes * ne_ratio(1e6, replace_parents)
+          cat(warn("  Warning: ne_", phase, " is above the largest Ne the ",
+                   "census size allows in population(s) ",
+                   paste(which(is.infinite(k)), collapse = ", "), " (",
+                   paste(round(max_ne[is.infinite(k)]), collapse = ", "),
+                   if (replace_parents) "; N/2 with replace_parents = TRUE",
+                   "); increase population_size_", phase, "\n", sep = ""))
+        }
+        k[is.infinite(k)] <- 1e6
+      }
+      list(k = k, ne = sizes * ne_ratio(k, replace_parents))
+    }
+    res_ne <- resolve_ne(variance_offspring_phase2, ne_phase2,
+                         population_size_phase2, "phase2")
+    variance_offspring_phase2 <- res_ne$k
+    ne_expected_phase2 <- res_ne$ne
+    ne_expected_phase1 <- NULL
+    if (phase1 == TRUE) {
+      res_ne <- resolve_ne(variance_offspring_phase1, ne_phase1,
+                           population_size_phase1, "phase1")
+      variance_offspring_phase1 <- res_ne$k
+      ne_expected_phase1 <- res_ne$ne
+    }
+    if (verbose >= 2) {
+      message(report("  Expected Ne of each population in phase 2:",
+                     paste(round(ne_expected_phase2), collapse = " "), "\n"))
+    }
+
+    # Stored sample of each population: x's sample sizes (rounded up to
+    # even numbers) with real_sample_size = TRUE, instead of sample_percent
+    sample_sizes_real <- NULL
+    if (real_sample_size == TRUE) {
+      if (nPop(x) != number_pops) {
+        stop(error("  real_sample_size needs as many populations in x as",
+                   "populations simulated; use real_pops = TRUE\n"))
+      }
+      sample_sizes_real <- unname(unlist(table(pop(x))))
+      sample_sizes_real <- (sample_sizes_real %% 2 != 0) + sample_sizes_real
+      smallest <- pmin(rep_len(population_size_phase2, number_pops),
+                       if (phase1 == TRUE)
+                         rep_len(population_size_phase1, number_pops) else Inf)
+      if (any(sample_sizes_real > smallest)) {
+        stop(error("  real_sample_size: the sample of x is larger than the",
+                   "population simulated in population(s)",
+                   paste(which(sample_sizes_real > smallest), collapse = ", "),
+                   "\n"))
+      }
+    }
+
     # -------------------------------
     # EXTRACT FREQUENCY INFORMATION FROM THE REAL DATA (IF APPLICABLE)
     # -------------------------------
@@ -560,11 +659,20 @@ gl.sim.WF.run <- function(file_var,
         }
         fst_real <- 0.001
       }
-      migrants_real <- (1 / fst_real - 1) / (4 * number_pops)
+      # FST is set by Ne m, not N m, so T is multiplied by N / Ne (mean over
+      # populations) of each phase
+      migrants_base <- (1 / fst_real - 1) / (4 * number_pops)
+      scale_ne <- function(sizes, ne) mean(rep_len(sizes, number_pops) / ne)
+      migrants_real_phase2 <- migrants_base *
+        scale_ne(population_size_phase2, ne_expected_phase2)
+      if (phase1 == TRUE) {
+        migrants_real_phase1 <- migrants_base *
+          scale_ne(population_size_phase1, ne_expected_phase1)
+      }
       if (verbose >= 2) {
         message(report("  FST in x =", round(fst_real, 4), "; individuals",
-                       "transferred per pair of populations and generation =",
-                       round(migrants_real, 3), "\n"))
+                       "transferred per pair of populations and generation",
+                       "in phase 2 =", round(migrants_real_phase2, 3), "\n"))
       }
     }
     
@@ -587,9 +695,12 @@ gl.sim.WF.run <- function(file_var,
     # dispersal). Variables such as population_size are those of the
     # current phase when the function is called
     store_generation <- function(p_list, generation, iteration, disp_pairs) {
-      if (sample_percent < 100) {
+      if (!is.null(sample_sizes_real) || sample_percent < 100) {
         population_size_temp <- round(population_size * (sample_percent / 100))
         population_size_temp <- (population_size_temp %% 2 != 0) + population_size_temp
+        if (!is.null(sample_sizes_real)) {
+          population_size_temp <- sample_sizes_real
+        }
         pop_list_temp <- lapply(pops_vector, function(x) {
           rbind(
             p_list[[x]][sample(which(p_list[[x]]$V1 == "Male"), size = population_size_temp[x] / 2),],
@@ -616,13 +727,18 @@ gl.sim.WF.run <- function(file_var,
         s_vars_temp$number_transfers_phase2 <- paste(disp_pairs$number_transfers, collapse = " ")  
         s_vars_temp$transfer_each_gen_phase2 <- paste(disp_pairs$transfer_each_gen, collapse = " ") 
       }
+      s_vars_temp$ne_expected <- paste(round(ne_expected, 2), collapse = " ")
+      s_vars_temp$variance_offspring_used <- paste(variance_offspring,
+                                                   collapse = " ")
+      s_vars_temp$population_size_used <- paste(population_size,
+                                               collapse = " ")
       # With real_migration, the mean number of transfers per event
+      # (phase 2, also for generation 0, as gl.diagnostics.sim() reads the
+      # first stored generation)
       if (!is.null(migrants_real)) {
         s_vars_temp$migrants_real <- migrants_real
-        if (!is.null(disp_pairs)) {
-          s_vars_temp$number_transfers_phase2 <-
-            migrants_real * disp_pairs$transfer_each_gen[1]
-        }
+        s_vars_temp$number_transfers_phase2 <-
+          migrants_real_phase2 * transfer_each_gen_phase2
       }
       
       res <- store(
@@ -675,6 +791,8 @@ gl.sim.WF.run <- function(file_var,
         number_transfers <- number_transfers_phase1
         transfer_each_gen <- transfer_each_gen_phase1
         variance_offspring <- variance_offspring_phase1
+        ne_expected <- ne_expected_phase1
+        if (real_migration == TRUE) migrants_real <- migrants_real_phase1
         number_offspring <- number_offspring_phase1
         sib_mating <- sib_mating_phase1
         
@@ -690,6 +808,9 @@ gl.sim.WF.run <- function(file_var,
         # SETUP VARIABLES FOR PHASE 2
         # -------------------------------
         population_size <- population_size_phase2
+        variance_offspring <- variance_offspring_phase2
+        ne_expected <- ne_expected_phase2
+        if (real_migration == TRUE) migrants_real <- migrants_real_phase2
       }
       
       # -------------------------------
@@ -826,6 +947,8 @@ gl.sim.WF.run <- function(file_var,
           number_transfers <- number_transfers_phase2
           transfer_each_gen <- transfer_each_gen_phase2
           variance_offspring <- variance_offspring_phase2
+          ne_expected <- ne_expected_phase2
+          if (real_migration == TRUE) migrants_real <- migrants_real_phase2
           number_offspring <- number_offspring_phase2
           dispersal <- dispersal_phase2
           sib_mating <- sib_mating_phase2
@@ -936,7 +1059,7 @@ gl.sim.WF.run <- function(file_var,
             pop = pop_list[[x]],
             pop_number = x,
             pop_size = population_size[x],
-            var_off = variance_offspring,
+            var_off = variance_offspring[x],
             num_off = number_offspring,
             r_event = recom_event,
             recom = recombination,

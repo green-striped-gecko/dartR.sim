@@ -583,7 +583,7 @@ test_that("real_migration sets T = (1/FST - 1) / (4n) and holds FST", {
   g <- r[[1]][[length(r[[1]])]]
   target <- fst_hudson(x)
   expect_equal(as.numeric(g@other$sim.vars$migrants_real),
-               (1 / target - 1) / (4 * 3))
+               (1 / target - 1) / (4 * 3), tolerance = 1e-4)
   f <- mean(sapply(1:3, function(s) {
     g <- run(s, real_migration = TRUE)[[1]][[2]]
     fst_hudson(g[, g@other$loc.metrics$type == "real"])
@@ -592,4 +592,90 @@ test_that("real_migration sets T = (1/FST - 1) / (4n) and holds FST", {
   expect_error(run(1, real_migration = TRUE, dispersal_type_phase2 = "line"),
                "all_connected")
   expect_error(wf_run(wf_ref(), seed = 1, real_migration = TRUE), "missing")
+})
+
+# ---- Effective population size ----
+
+test_that("ne_ratio and k_for_ne are inverse; maxima 1 and 1/2", {
+  for (rp in c(FALSE, TRUE)) {
+    k <- c(0.1, 1, 10)
+    expect_equal(k_for_ne(ne_ratio(k, rp), rp), k)
+  }
+  expect_equal(ne_ratio(1e6, TRUE), 0.5, tolerance = 1e-5)
+  expect_true(is.infinite(k_for_ne(0.6, TRUE)))
+})
+
+test_that("ne_phase2 sets variance_offspring and the stored Ne", {
+  rt <- wf_ref()
+  sv <- function(r) r[[1]][[1]]@other$sim.vars
+  r <- wf_run(rt, seed = 1, population_size_phase2 = "100 100",
+              number_pops_phase2 = 2, ne_phase2 = "30 60")
+  expect_identical(sv(r)$ne_expected, "30 60")
+  expect_equal(as.numeric(strsplit(sv(r)$variance_offspring_used, " ")[[1]]),
+               c(30 / 70, 60 / 40))
+  expect_identical(sv(r)$population_size_used, "100 100")
+  # with replacement Ne is at most N/2: capped, with a warning
+  expect_output(
+    r2 <- gl.sim.WF.run(file_var = fv_sim, ref_table = rt,
+                        interactive_vars = FALSE, verbose = 1, seed = 1,
+                        population_size_phase2 = "100",
+                        replace_parents = TRUE, ne_phase2 = 80),
+    "above the largest Ne")
+  expect_equal(as.numeric(sv(r2)$ne_expected), 50, tolerance = 0.01)
+  expect_error(wf_run(rt, seed = 1, ne_phase2 = "-5"), "ne_phase2")
+  expect_error(wf_run(rt, seed = 1, variance_offspring_phase2 = "1 2 3"),
+               "variance_offspring_phase2")
+})
+
+test_that("ne_phase2: heterozygosity follows gl.diagnostics.sim's Ne", {
+  rt <- wf_ref(chunk_neutral_loci = 5)
+  ratio <- sapply(1:3, function(s) {
+    r <- wf_run(rt, seed = s, population_size_phase2 = "100",
+                replace_parents = TRUE, ne_phase2 = 30, sample_percent = 100,
+                gen_number_phase2 = 21, every_gen = 20,
+                dispersal_phase2 = FALSE)
+    # a single population: FST cannot be computed, so compare He directly
+    he <- function(g) mean(gl.He(g))
+    g <- r[[1]]
+    c(he(g[[2]]) / he(g[[1]]))
+  })
+  expected <- (1 - 1 / 60)^20
+  expect_equal(mean(ratio), expected, tolerance = 0.05)
+})
+
+test_that("real_sample_size stores x's sample sizes; real_migration scales by N/Ne", {
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE, chunk_neutral_loci = 0)
+  run <- function(sizes = "100 100 100", ...) {
+    wf_run(rt, x = x, seed = 1, real_freq = TRUE, real_pops = TRUE,
+           population_size_phase2 = sizes, gen_number_phase2 = 2,
+           dispersal_phase2 = TRUE, real_migration = TRUE, ...)
+  }
+  r <- run(real_sample_size = TRUE, ne_phase2 = "25 50 50",
+           store_founders = TRUE)
+  expect_equal(as.vector(table(pop(r[[1]][["generation_0"]]))),
+               c(24L, 18L, 42L))
+  expect_equal(as.vector(table(pop(r[[1]][[2]]))), c(24L, 18L, 42L))
+  base <- (1 / fst_hudson(x) - 1) / 12
+  expect_equal(as.numeric(r[[1]][[2]]@other$sim.vars$migrants_real),
+               base * mean(100 / c(25, 50, 50)))
+  # generation 0 holds the phase-2 rate too (read by gl.diagnostics.sim)
+  expect_equal(
+    as.numeric(r[[1]][["generation_0"]]@other$sim.vars$number_transfers_phase2),
+    base * mean(100 / c(25, 50, 50)))
+  expect_error(run(sizes = "20 20 20", real_sample_size = TRUE), "larger")
+})
+
+test_that("gl.diagnostics.sim takes Ne from sim.vars by default", {
+  rt <- wf_ref()
+  r <- wf_run(rt, seed = 1, number_pops_phase2 = 2,
+              population_size_phase2 = "40 40", ne_phase2 = 30,
+              gen_number_phase2 = 5, every_gen = 2)
+  pdf(NULL)
+  on.exit(dev.off())
+  d1 <- gl.diagnostics.sim(r, verbose = 0)
+  d2 <- gl.diagnostics.sim(r, Ne = 30, verbose = 0)
+  expect_equal(d1$he, d2$he)
+  expect_equal(d1$fst, d2$fst)
 })

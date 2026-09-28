@@ -1,5 +1,28 @@
 # dartR.sim (development version)
 
+## gl.sim.WF.run (effective population size)
+
+* New variables `ne_phase1` and `ne_phase2`: a target Ne per population
+  (for example from `gl.LDNe()`); `variance_offspring` is set to reach it,
+  using Ne / N = k / (k + 1), or k / (2k + 1) with `replace_parents = TRUE`
+  (checked against the loss of heterozygosity). A target above N (N/2 with
+  replacement) is capped with a warning.
+* `variance_offspring_phase1/2` accept one value per population.
+* New variable `real_sample_size`: stored samples have x's sample sizes
+  instead of `sample_percent`, so populations can be larger than samples.
+* `real_migration` multiplies the transfers by N / Ne: FST depends on Ne m,
+  so with `replace_parents = TRUE` (Ne about N/2) the old rate held FST
+  near twice x's value.
+* `sim.vars` stores `ne_expected`, `variance_offspring_used` and
+  `population_size_used`; with real_migration, generation 0 also stores
+  the phase-2 rate.
+
+## gl.diagnostics.sim
+
+* `Ne` defaults to the expected Ne stored by `gl.sim.WF.run()`.
+* Uses the census sizes actually simulated (`population_size_used`), which
+  differ from `population_size_phase2` with `real_pop_size = TRUE`.
+
 ## gl.sim.WF.run (differentiation)
 
 * New variable `real_migration`: individuals transferred per pair of

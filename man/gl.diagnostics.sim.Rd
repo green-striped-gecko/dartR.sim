@@ -6,7 +6,7 @@
 \usage{
 gl.diagnostics.sim(
   x,
-  Ne,
+  Ne = NULL,
   iteration = 1,
   pop_he = 1,
   pops_fst = c(1, 2),
@@ -20,7 +20,8 @@ gl.diagnostics.sim(
 \item{x}{Output from function \code{\link{gl.sim.WF.run}} [required].}
 
 \item{Ne}{Effective population size used for the theoretical expectations:
-one value, or one value per population [required].}
+one value, or one value per population [default NULL, the expected Ne
+stored by gl.sim.WF.run() in sim.vars$ne_expected].}
 
 \item{iteration}{Iteration number to analyse [default 1].}
 

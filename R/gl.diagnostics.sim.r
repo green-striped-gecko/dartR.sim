@@ -3,7 +3,8 @@
 #' @family simulation functions
 #' @param x Output from function \code{\link{gl.sim.WF.run}} [required].
 #' @param Ne Effective population size used for the theoretical expectations:
-#' one value, or one value per population [required].
+#' one value, or one value per population [default NULL, the expected Ne
+#' stored by gl.sim.WF.run() in sim.vars$ne_expected].
 #' @param iteration Iteration number to analyse [default 1].
 #' @param pop_he Population (position in popNames) in which the rate of loss
 #' of heterozygosity is compared against theoretical expectations
@@ -77,7 +78,7 @@
 #' @export
 
 gl.diagnostics.sim <- function(x,
-                               Ne,
+                               Ne = NULL,
                                iteration = 1,
                                pop_he = 1,
                                pops_fst = c(1, 2),
@@ -130,6 +131,13 @@ gl.diagnostics.sim <- function(x,
     as.numeric(unlist(strsplit(trimws(gsub("[\"']", "", v)), " +")))
   }
   sim_vars <- x[[1]]@other$sim.vars
+  if (is.null(Ne)) {
+    Ne <- sim_vars$ne_expected
+    if (is.null(Ne)) {
+      stop(error("  Ne must be given: x has no expected Ne (sim.vars$ne_expected",
+                 "is stored by recent versions of gl.sim.WF.run())\n"))
+    }
+  }
   Ne <- sim_num(Ne)
   Ne <- if (length(Ne) == 1) rep(Ne, n_pops) else Ne
   if (length(Ne) != n_pops || anyNA(Ne)) {
@@ -151,7 +159,10 @@ gl.diagnostics.sim <- function(x,
     number_transfers <- 0
     transfer_each_gen <- 1
   }
-  population_size <- sim_num(sim_vars$population_size_phase2)
+  # Census sizes used (population_size_used, stored by recent versions of
+  # gl.sim.WF.run(), differs from population_size_phase2 with real_pop_size = TRUE)
+  population_size <- sim_num(if (is.null(sim_vars$population_size_used))
+    sim_vars$population_size_phase2 else sim_vars$population_size_used)
   
   # DO THE JOB
   lab <- gen <- He <- value <- variable <- fst_obs <- expected <- NULL
