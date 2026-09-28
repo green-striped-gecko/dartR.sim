@@ -185,12 +185,31 @@ pair of populations swaps per generation is set from x's FST (Hudson's,
 mean over pairs of populations). Each pair swaps number_transfers
 individuals in each direction, so with n populations and dispersal_type
 "all_connected" the island model gives an equilibrium
-FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983),
-whatever the population size, and T = (1 / FST - 1) / (4 n) replaces
-number_transfers. T can be fractional: each pair moves floor(T) or
-floor(T) + 1 individuals, the latter with probability T - floor(T). It
+FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983)
+when Ne = N. FST depends on Ne m rather than N m, so
+T = (1 / FST - 1) / (4 n) x N / Ne (mean over populations of N / Ne,
+with Ne the expected Ne, see below) replaces number_transfers. T can be
+fractional: each pair moves floor(T) or floor(T) + 1 individuals, the latter with probability T - floor(T). It
 applies to the phases with dispersal, which must be "all_connected" (no
 dispersal file). T is stored in sim.vars$migrants_real.
+
+Effective population size. Ne = 4N / (Vk + 2), with Vk the variance in
+the number of offspring an individual leaves in the next generation.
+With parents sampled without replacement Ne / N = k / (k + 1), and with
+replace_parents = TRUE (parents mate a Poisson number of times, which
+produces half siblings) Ne / N = k / (2k + 1), at most 1/2; k is
+variance_offspring, one value or one per population. ne_phase1 and
+ne_phase2 set a target Ne for each population, for example estimated
+from x with gl.LDNe() (per population; with small samples its estimate
+can be infinite and is then of no use), and variance_offspring is set to
+reach it. Family-size variance can only lower Ne, so a target above N
+(N/2 with replace_parents = TRUE) is capped there with a warning; raise
+the population size instead. With real_pop_size = TRUE the populations
+are as small as x's samples; to simulate larger populations while storing
+samples of x's sizes, set population_size_phase2 and use
+real_sample_size = TRUE, which replaces sample_percent. The expected Ne is
+stored in sim.vars$ne_expected, which \code{\link{gl.diagnostics.sim}}
+uses by default.
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
