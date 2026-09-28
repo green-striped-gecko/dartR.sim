@@ -1,5 +1,13 @@
 # dartR.sim (development version)
 
+## Documentation
+
+* New vignette "Simulations with dartR.sim" (`vignette("simulations_tutorial",
+  package = "dartR.sim")`): a complete tutorial of `gl.sim.WF.table()` and
+  `gl.sim.WF.run()`, from the reference table to simulating a dataset that
+  reproduces a real genlight, with pedigree and family-structured samples,
+  and checking simulations with `gl.diagnostics.sim()`.
+
 ## gl.sim.WF.run (family-structured samples)
 
 * New variables `sample_families` and `sample_parents`: stored samples can
