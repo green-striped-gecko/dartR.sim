@@ -560,3 +560,36 @@ test_that("real_freq_shrink = auto matches founder FST to x's FST", {
   expect_lt(auto[2], 1)
   expect_error(fst("2", 1), "real_freq_shrink")
 })
+
+# ---- real_migration ----
+
+test_that("fst_hudson matches the pairwise Hudson estimator", {
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x2 <- gl.keep.pop(x, pop.list = popNames(x)[1:2], verbose = 0)
+  expect_equal(fst_hudson(x2), hudson_fst(x2))
+})
+
+test_that("real_migration sets T = (1/FST - 1) / (4n) and holds FST", {
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE, chunk_neutral_loci = 0)
+  run <- function(seed, ...) {
+    wf_run(rt, x = x, seed = seed, real_freq = TRUE, real_pops = TRUE,
+           real_freq_shrink = "auto", dispersal_phase2 = TRUE,
+           population_size_phase2 = "100 100 100", sample_percent = 100,
+           gen_number_phase2 = 20, every_gen = 19, ...)
+  }
+  r <- run(1, real_migration = TRUE)
+  g <- r[[1]][[length(r[[1]])]]
+  target <- fst_hudson(x)
+  expect_equal(as.numeric(g@other$sim.vars$migrants_real),
+               (1 / target - 1) / (4 * 3))
+  f <- mean(sapply(1:3, function(s) {
+    g <- run(s, real_migration = TRUE)[[1]][[2]]
+    fst_hudson(g[, g@other$loc.metrics$type == "real"])
+  }))
+  expect_equal(f, target, tolerance = 0.3)
+  expect_error(run(1, real_migration = TRUE, dispersal_type_phase2 = "line"),
+               "all_connected")
+  expect_error(wf_run(wf_ref(), seed = 1, real_migration = TRUE), "missing")
+})

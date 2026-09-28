@@ -2,6 +2,11 @@
 
 ## gl.sim.WF.run (differentiation)
 
+* New variable `real_migration`: individuals transferred per pair of
+  populations and generation are set from x's FST (Hudson's), as
+  T = (1 / FST - 1) / (4 n) for the island model with n populations
+  (`dispersal_type = "all_connected"`). Fractional T is drawn per pair and
+  event; T is stored in `sim.vars$migrants_real`.
 * New variable `real_freq_shrink`: with `real_freq = TRUE`, population
   frequencies are shrunk toward their mean, q' = mean + lambda (q - mean).
   `"auto"` picks lambda so that sampling noise in x does not inflate FST
