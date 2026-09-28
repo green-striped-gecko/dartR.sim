@@ -679,3 +679,34 @@ test_that("gl.diagnostics.sim takes Ne from sim.vars by default", {
   expect_equal(d1$he, d2$he)
   expect_equal(d1$fst, d2$fst)
 })
+
+# ---- store_pedigree ----
+
+test_that("store_pedigree returns every individual, sampled or not", {
+  rt <- wf_ref()
+  r <- wf_run(rt, seed = 1, number_pops_phase2 = 2,
+              population_size_phase2 = "20 30", gen_number_phase2 = 3,
+              every_gen = 1, sample_percent = 50, replace_parents = TRUE,
+              store_founders = TRUE, store_pedigree = TRUE)
+  ped <- attr(r[[1]], "pedigree")
+  expect_named(ped, c("id", "pat", "mat", "generation", "pop", "F_founder"))
+  # 4 generations (0-3) of 50 individuals
+  expect_identical(nrow(ped), 200L)
+  expect_false(anyDuplicated(ped$id) > 0)
+  expect_true(all(is.na(ped$pat[ped$generation == 0])))
+  expect_true(all(ped$F_founder[ped$generation == 0] == 0))
+  expect_true(all(is.na(ped$F_founder[ped$generation > 0])))
+  # every parent is in the pedigree, one generation earlier
+  kids <- ped[ped$generation > 0, ]
+  gen_of <- setNames(ped$generation, ped$id)
+  expect_true(all(gen_of[kids$pat] == kids$generation - 1))
+  expect_true(all(gen_of[kids$mat] == kids$generation - 1))
+  # stored (sampled) individuals are a subset, with matching parents
+  for (g in r[[1]]) {
+    m <- match(indNames(g), ped$id)
+    expect_false(anyNA(m))
+    expect_identical(as.character(g@other$ind.metrics$pat), ped$pat[m])
+  }
+  # off by default: no attribute, output unchanged
+  expect_null(attr(wf_run(rt, seed = 1)[[1]], "pedigree"))
+})

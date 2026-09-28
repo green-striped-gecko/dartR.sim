@@ -1,5 +1,12 @@
 # dartR.sim (development version)
 
+## gl.sim.WF.run (pedigree)
+
+* New argument `store_pedigree`: each iteration carries the attribute
+  "pedigree", every individual of every generation, sampled or not (id,
+  pat, mat, generation, pop, F_founder), so kinship can be traced through
+  ancestors that were not stored. Off by default.
+
 ## gl.sim.WF.run (effective population size)
 
 * New variables `ne_phase1` and `ne_phase2`: a target Ne per population
