@@ -10,6 +10,12 @@
 
 ## gl.sim.WF.run (family-structured samples)
 
+* New variables `sample_crosses` and `sample_design`: planted crosses
+  recreate mating designs with shared parents (e.g. 4 litters from 2 sires
+  x 2 dams: `sample_families = "5 5 5 5"`, `sample_design = "2x2"`).
+  Parents are drawn from the previous generation; the offspring are only
+  sampled and do not join the population. `ind.metrics` gains
+  `sample_cross` and `parent_label`.
 * New variables `sample_families` and `sample_parents`: stored samples can
   be made of full-sib families of given sizes (e.g. clutches), drawn from
   the offspring pool, optionally with their parents, from generation 1.

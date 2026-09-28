@@ -509,6 +509,105 @@ sample_with_families <- function(p, pool, parents, n, sizes, with_parents) {
               short = short))
 }
 
+# Expand sample_design "axb" (a sires x b dams, every cross one family)
+# into cross tokens "S1xD1 S1xD2 ... SaxDb"
+expand_design <- function(design) {
+  ab <- suppressWarnings(as.numeric(strsplit(trimws(design), "x")[[1]]))
+  if (length(ab) != 2 || anyNA(ab) || any(ab < 1 | ab %% 1 != 0)) {
+    return(NA_character_)
+  }
+  grid <- expand.grid(d = seq_len(ab[2]), s = seq_len(ab[1]))
+  paste0("S", grid$s, "xD", grid$d)
+}
+
+# Sample of n individuals of one population with planted families: for
+# each cross token ("S1xD2": sire label x dam label; the same label is the
+# same individual) a family of the given size is made from a sire and a dam
+# drawn from the previous generation (parents), with the usual meiosis. The
+# planted offspring are sampled only: they do not join the population.
+# with_parents also samples the parents (once each, counted against n); the
+# rest of n is drawn at random from the population p. Returns the same
+# list as sample_with_families() plus cross (the offspring's token) and
+# label (the parent's label).
+sample_planted <- function(p, parents, n, sizes, crosses, with_parents,
+                           generation, pop_n, r_event, recom, r_males,
+                           r_map, n_loc) {
+  cols <- c("V1", "V2", "V3", "V4", "V5", "V6", "id")
+  fix_cols <- function(d) {
+    d <- as.data.frame(d)
+    for (v in setdiff(cols, names(d))) d[[v]] <- NA
+    d[, cols]
+  }
+  p <- fix_cols(p)
+  parents <- fix_cols(parents)
+  labels <- strsplit(crosses, "x")
+  sire_labels <- unique(vapply(labels, `[`, character(1), 1))
+  dam_labels <- unique(vapply(labels, `[`, character(1), 2))
+  males <- which(parents$V1 == "Male")
+  females <- which(parents$V1 == "Female")
+  if (length(sire_labels) > length(males) ||
+      length(dam_labels) > length(females)) {
+    stop(error("  sample_crosses needs", length(sire_labels), "sires and",
+               length(dam_labels), "dams, but the parents' generation has",
+               length(males), "males and", length(females), "females\n"))
+  }
+  sires <- parents[males[sample.int(length(males), length(sire_labels))], ]
+  dams <- parents[females[sample.int(length(females), length(dam_labels))], ]
+  rownames(sires) <- sire_labels
+  rownames(dams) <- dam_labels
+  offspring <- lapply(seq_along(crosses), function(i) {
+    sire <- sires[labels[[i]][1], ]
+    dam <- dams[labels[[i]][2], ]
+    k <- sizes[i]
+    data.frame(
+      V1 = sample(c("Male", "Female"), k, replace = TRUE),
+      V2 = pop_n,
+      V3 = vapply(seq_len(k), function(j) {
+        gamete(sire$V3, sire$V4,
+               if (recom && r_males) rpois(1, r_event) else 0, r_map, n_loc)
+      }, character(1)),
+      V4 = vapply(seq_len(k), function(j) {
+        gamete(dam$V3, dam$V4, if (recom) rpois(1, r_event) else 0, r_map,
+               n_loc)
+      }, character(1)),
+      V5 = sire$id,
+      V6 = dam$id,
+      id = paste0(generation, "_", pop_n, "_x", i, "_", seq_len(k)),
+      stringsAsFactors = FALSE
+    )
+  })
+  chosen <- do.call(rbind, offspring)
+  role <- rep("family", nrow(chosen))
+  family <- paste(chosen$V5, chosen$V6)
+  cross <- rep(crosses, sizes)
+  label <- rep(NA_character_, nrow(chosen))
+  if (with_parents) {
+    par_rows <- rbind(sires, dams)
+    chosen <- rbind(chosen, par_rows)
+    role <- c(role, rep("parent", nrow(par_rows)))
+    family <- c(family, rep(NA_character_, nrow(par_rows)))
+    cross <- c(cross, rep(NA_character_, nrow(par_rows)))
+    label <- c(label, rownames(par_rows))
+  }
+  if (nrow(chosen) > n) {
+    stop(error("  sample_crosses: the planted families", if (with_parents)
+      "and their parents", "add up to", nrow(chosen), "individuals, more",
+      "than the", n, "sampled\n"))
+  }
+  rest <- p[!p$id %in% chosen$id, ]
+  n_rest <- min(n - nrow(chosen), nrow(rest))
+  random <- rest[sample.int(nrow(rest), n_rest), ]
+  sample <- rbind(chosen, random)
+  sample$V2 <- pop_n
+  rownames(sample) <- NULL
+  return(list(sample = sample,
+              role = c(role, rep("random", n_rest)),
+              family = c(family, rep(NA_character_, n_rest)),
+              cross = c(cross, rep(NA_character_, n_rest)),
+              label = c(label, rep(NA_character_, n_rest)),
+              short = FALSE))
+}
+
 # Ne / N of the simulator. Ne = 4N / (Vk + 2), with Vk the variance in the
 # number of offspring an individual leaves in the next generation. A mating
 # pair leaves on average 2 offspring after the next generation is sampled,
@@ -2828,6 +2927,30 @@ interactive_sim_run <- function() {
                          "FALSE" = FALSE),
           selected = FALSE
         )
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_crosses",
+          tags$div(tags$i(HTML("sample_crosses<br/>")),
+                   "Planted crosses, one SxD per family"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_crosses",
+                           title = "e.g. S1xD1 S1xD2 S2xD1 S2xD2; the same label is the same parent. Offspring are sampled only. Empty: families from the population")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_design",
+          tags$div(tags$i(HTML("sample_design<br/>")),
+                   "Factorial design of planted crosses"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_design",
+                           title = "axb: every one of a sires crossed with every one of b dams, e.g. 2x2")
       )
       
     ),
@@ -3096,7 +3219,9 @@ interactive_sim_run <- function() {
           "real_sample_size",
           "inbreeding_founders",
           "sample_families",
-          "sample_parents"
+          "sample_parents",
+          "sample_crosses",
+          "sample_design"
         ),
         c(
           input$number_pops_phase2,
@@ -3146,7 +3271,9 @@ interactive_sim_run <- function() {
           input$real_sample_size,
           input$inbreeding_founders,
           input$sample_families,
-          input$sample_parents
+          input$sample_parents,
+          input$sample_crosses,
+          input$sample_design
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")
