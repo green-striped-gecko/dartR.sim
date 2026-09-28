@@ -133,6 +133,12 @@
 #' (their offspring) has F close to 0; F returns close to the value in x from
 #' the second generation. To store only generations at equilibrium, use
 #' phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
+#' inbreeding_founders (one value or one per population, in the order of
+#' the populations) gives the founders' F directly and replaces the value
+#' estimated from x, with or without real_inbreeding; negative values are
+#' set to 0. It is useful because heterozygote dropout inflates F in the
+#' full locus set: estimate F on high call-rate loci and pass it here while
+#' x keeps all loci for the allele frequencies.
 #' 
 #' Differentiation. With real_freq = TRUE, each population's founders are
 #' drawn from its sample frequencies in x, which carry sampling noise and
@@ -262,7 +268,8 @@ gl.sim.WF.run <- function(file_var,
                   sib_mating_phase2 = "NULL", real_inbreeding = "FALSE",
                   real_freq_shrink = "NULL", real_migration = "FALSE",
                   ne_phase1 = "NULL", ne_phase2 = "NULL",
-                  real_sample_size = "FALSE")
+                  real_sample_size = "FALSE",
+                  inbreeding_founders = "NULL")
     missing_vars <- setdiff(names(defaults), sim_vars$variable)
     if (length(missing_vars) > 0) {
       sim_vars <- rbind(sim_vars,
@@ -303,7 +310,7 @@ gl.sim.WF.run <- function(file_var,
                       "local_adap", "clinal_adap", "sib_mating_phase1",
                       "sib_mating_phase2", "real_freq_shrink",
                       "variance_offspring_phase1", "variance_offspring_phase2",
-                      "ne_phase1", "ne_phase2")),
+                      "ne_phase1", "ne_phase2", "inbreeding_founders")),
       envir = environment())
     
     # -------------------------------
@@ -409,6 +416,7 @@ gl.sim.WF.run <- function(file_var,
     variance_offspring_phase2 <- split_num(variance_offspring_phase2)
     ne_phase1 <- split_num(ne_phase1)
     ne_phase2 <- split_num(ne_phase2)
+    inbreeding_founders <- split_num(inbreeding_founders)
 
     # -------------------------------
     # DETERMINE NUMBER OF POPULATIONS
@@ -566,7 +574,10 @@ gl.sim.WF.run <- function(file_var,
     # b = 4F / (1 + 3F)
     F_real <- NULL
     sib_real <- NULL
-    if (real_inbreeding == TRUE) {
+    # inbreeding_founders (one value or one per population) replaces the F
+    # estimated from x, e.g. F estimated on high call-rate loci, as
+    # heterozygote dropout inflates F in the full locus set
+    if (real_inbreeding == TRUE && is.null(inbreeding_founders)) {
       if (nPop(x) != number_pops) {
         stop(error("  real_inbreeding needs as many populations in x as",
                    "populations simulated in the first phase (", nPop(x),
@@ -589,9 +600,29 @@ gl.sim.WF.run <- function(file_var,
                  "(excess of heterozygotes); it is set to 0\n"))
       }
       F_real <- pmax(F_real, 0)
+    }
+    if (!is.null(inbreeding_founders)) {
+      if (anyNA(inbreeding_founders) || any(inbreeding_founders > 1) ||
+          !length(inbreeding_founders) %in% c(1, number_pops)) {
+        stop(error("  inbreeding_founders must be values up to 1, one value",
+                   "or one per population\n"))
+      }
+      if (real_inbreeding == TRUE && verbose >= 1) {
+        cat(report("  inbreeding_founders is set, so F is not estimated",
+                   "from x\n"))
+      }
+      if (any(inbreeding_founders < 0) && verbose >= 1) {
+        cat(warn("  Warning: negative values of inbreeding_founders are",
+                 "set to 0\n"))
+      }
+      F_real <- pmax(rep_len(inbreeding_founders, number_pops), 0)
+      names(F_real) <- if (real_pops == TRUE) popNames(x) else
+        as.character(seq_len(number_pops))
+    }
+    if (!is.null(F_real)) {
       sib_real <- unname(4 * F_real / (1 + 3 * F_real))
       if (verbose >= 2) {
-        message(report("  Inbreeding from x (F) and proportion of sib",
+        message(report("  Inbreeding of the founders (F) and proportion of sib",
                        "matings:", paste0(names(F_real), " F = ",
                                           round(F_real, 3), ", sib = ",
                                           round(sib_real, 3),
@@ -600,8 +631,8 @@ gl.sim.WF.run <- function(file_var,
     }
 
     # A phase's sib_mating is one value or one per population. When it is
-    # not set it is the value from the real data (real_inbreeding = TRUE)
-    # or 0 (random mating); a value that is set wins over the real data
+    # not set it is the value from the founders' F (real_inbreeding or
+    # inbreeding_founders) or 0 (random mating); a value that is set wins over the real data
     resolve_sib <- function(v, n_pops, phase) {
       if (is.null(v)) {
         return(if (is.null(sib_real)) rep(0, n_pops) else sib_real)
@@ -612,7 +643,7 @@ gl.sim.WF.run <- function(file_var,
       }
       if (!is.null(sib_real) && verbose >= 1) {
         cat(report("  sib_mating_", phase, " is set, so the proportion of sib ",
-                   "matings estimated from x is not used in ", phase, "\n",
+                   "matings set from the founders' F is not used in ", phase, "\n",
                    sep = ""))
       }
       return(rep_len(v, n_pops))
@@ -882,7 +913,7 @@ gl.sim.WF.run <- function(file_var,
 
         # Inbred founders: in the stretches of the map that are identical by
         # descent, the second chromosome copies the first
-        if (real_inbreeding == TRUE && F_real[pop_n] > 0) {
+        if (!is.null(F_real) && F_real[pop_n] > 0) {
           for (individual_pop in 1:population_size[pop_n]) {
             ibd <- which(ibd_loci(reference$loc_cM, F_real[pop_n]))
             founder_F[pop[individual_pop, "id"]] <- length(ibd) / loci_number
