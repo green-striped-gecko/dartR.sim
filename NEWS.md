@@ -1,5 +1,17 @@
 # dartR.sim (development version)
 
+## gl.sim.WF.run (family-structured samples)
+
+* New variables `sample_families` and `sample_parents`: stored samples can
+  be made of full-sib families of given sizes (e.g. clutches), drawn from
+  the offspring pool, optionally with their parents, from generation 1.
+  `ind.metrics` gains `sample_role` and `family`; the pedigree gains
+  `in_population`, FALSE for sampled offspring that did not join the
+  population.
+* `real_sample_size` now stores exactly x's sample size per population
+  (it was rounded up to an even number); an odd sample has one extra
+  individual of a random sex.
+
 ## gl.sim.WF.run (founders' inbreeding)
 
 * New variable `inbreeding_founders`: the founders' F, one value or one

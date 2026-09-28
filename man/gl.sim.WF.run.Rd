@@ -57,8 +57,9 @@ have no parents (pat and mat are NA).}
 \item{store_pedigree}{Whether to return the pedigree of every individual
 of every generation, sampled or not, as the attribute "pedigree" of each
 iteration: a data frame with id (as in indNames of the stored genlights),
-pat, mat (NA for founders), generation (0 for founders), pop and F_founder
-(founders only, NA otherwise). Read it with
+pat, mat (NA for founders), generation (0 for founders), pop, F_founder
+(founders only, NA otherwise) and in_population (FALSE for offspring
+sampled by sample_families that did not join the population). Read it with
 attr(res[["iteration_1"]], "pedigree") [default FALSE].}
 
 \item{interactive_vars}{Run a shiny app to input interactively the values of
@@ -224,6 +225,24 @@ samples of x's sizes, set population_size_phase2 and use
 real_sample_size = TRUE, which replaces sample_percent. The expected Ne is
 stored in sim.vars$ne_expected, which \code{\link{gl.diagnostics.sim}}
 uses by default.
+
+Family-structured samples. A sample made of a few families (clutches,
+litters) makes unrelated pairs look related, because allele frequencies
+come from few families. sample_families gives the sizes of the full-sib
+families in each stored sample (e.g. "9 15 9"; ";" between
+populations, one group for all populations). For each size a mating
+pair with that many offspring is chosen and that many of its offspring
+are sampled from the offspring pool, before the next generation is drawn
+(so, like hatchlings, they may not survive to reproduce); the rest of the
+sample is drawn at random from the population. sample_parents = TRUE
+also stores each family's two parents, from the previous generation;
+they count against the sample size. The sample size is x's with
+real_sample_size = TRUE (exactly, with or without families), otherwise
+set by sample_percent. Family sampling starts at generation 1, as the
+founders have no parents; number_offspring must be at least the largest
+family, otherwise large families are rare and a warning is printed.
+ind.metrics gains sample_role ("family", "parent" or "random") and
+family (the parents' ids).
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
