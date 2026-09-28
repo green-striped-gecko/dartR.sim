@@ -29,6 +29,12 @@
 #' [default 50].
 #' @param store_phase1 Whether to store simulations of phase 1 in genlight
 #' objects [default FALSE].
+#' @param store_founders Whether to store the founders of the first phase
+#' simulated, before they reproduce, as "generation_0" [default FALSE].
+#' Their ind.metrics hold F_founder, the proportion of loci whose two copies
+#' are identical by descent (0 unless real_inbreeding = TRUE), and
+#' F_founder_map, the same proportion measured along the map. Founders
+#' have no parents (pat and mat are NA).
 #' @param interactive_vars Run a shiny app to input interactively the values of
 #' simulations variables [default TRUE].
 #' @param seed Set the seed for the simulations. This calls set.seed(), so it
@@ -149,6 +155,7 @@ gl.sim.WF.run <- function(file_var,
                           every_gen = 10,
                           sample_percent = 50,
                           store_phase1 = FALSE,
+                          store_founders = FALSE,
                           interactive_vars = TRUE,
                           seed = NULL,
                           verbose = NULL,
@@ -471,6 +478,64 @@ gl.sim.WF.run <- function(file_var,
     density_mutations_per_cm <- (freq_deleterious_b * nrow(freq_deleterious)) /
       (recombination_map[loci_number, "loc_cM"] * 100)
     
+    # -------------------------------
+    # STORE A GENERATION AS A GENLIGHT OBJECT
+    # -------------------------------
+    # Samples sample_percent of each population (rounded up to an even
+    # number, half of each sex) and stores it with the simulation variables.
+    # disp_pairs is the dispersal table of the generation (NULL without
+    # dispersal). Variables such as population_size are those of the
+    # current phase when the function is called
+    store_generation <- function(p_list, generation, iteration, disp_pairs) {
+      if (sample_percent < 100) {
+        population_size_temp <- round(population_size * (sample_percent / 100))
+        population_size_temp <- (population_size_temp %% 2 != 0) + population_size_temp
+        pop_list_temp <- lapply(pops_vector, function(x) {
+          rbind(
+            p_list[[x]][sample(which(p_list[[x]]$V1 == "Male"), size = population_size_temp[x] / 2),],
+            p_list[[x]][sample(which(p_list[[x]]$V1 == "Female"), size = population_size_temp[x] / 2),]
+          )
+        })
+      } else {
+        population_size_temp <- population_size
+        pop_list_temp <- p_list
+      }
+      
+      # Combine and format simulation and reference variables for storage.
+      s_vars_temp <- rbind(ref_vars, sim_vars)
+      s_vars_temp <- setNames(data.frame(t(s_vars_temp[,-1])), s_vars_temp[, 1])
+      s_vars_temp$generation <- generation
+      s_vars_temp$iteration <- iteration
+      s_vars_temp$seed <- seed
+      s_vars_temp$del_ind_cM <- density_mutations_per_cm
+      s_vars_temp$sample_percent <- sample_percent
+      s_vars_temp$file_dispersal <- file_dispersal
+      
+      if (!is.null(disp_pairs)) {
+        s_vars_temp$number_transfers_phase2 <- paste(disp_pairs$number_transfers, collapse = " ")  
+        s_vars_temp$transfer_each_gen_phase2 <- paste(disp_pairs$transfer_each_gen, collapse = " ") 
+      }
+      
+      res <- store(
+        p_vector = pops_vector,
+        p_size = population_size_temp,
+        p_list = pop_list_temp,
+        n_loc_1 = loci_number,
+        ref = reference,
+        p_map = plink_map,
+        s_vars = s_vars_temp,
+        g = generation
+      )
+      
+      # Assign population names to the stored object.
+      if (real_pops == TRUE) {
+        popNames(res) <- popNames(x)
+      } else {
+        popNames(res) <- as.character(pops_vector)
+      }
+      return(res)
+    }
+    
     # The weak-selection warning is printed once per run
     warn_pool <- TRUE
     # So is the warning that too few females have a brother for sib_mating
@@ -551,6 +616,12 @@ gl.sim.WF.run <- function(file_var,
       
       pops_vector <- 1:number_pops
       pop_list <- as.list(pops_vector)
+      # Proportion of loci (founder_F) and of the map (founder_F_map)
+      # identical by descent in each founder, by id. For the map, each locus
+      # stands for the map between the midpoints to its neighbours
+      founder_F <- founder_F_map <- c()
+      mid <- (head(reference$loc_cM, -1) + reference$loc_cM[-1]) / 2
+      locus_map <- diff(c(min(reference$loc_cM), mid, max(reference$loc_cM)))
       
       # Create the population data frames with sex, population number and chromosomes.
       for (pop_n in pops_vector) {
@@ -577,6 +648,10 @@ gl.sim.WF.run <- function(file_var,
         if (real_inbreeding == TRUE && F_real[pop_n] > 0) {
           for (individual_pop in 1:population_size[pop_n]) {
             ibd <- which(ibd_loci(reference$loc_cM, F_real[pop_n]))
+            founder_F[pop[individual_pop, "id"]] <- length(ibd) / loci_number
+            founder_F_map[pop[individual_pop, "id"]] <-
+              if (sum(locus_map) > 0) sum(locus_map[ibd]) / sum(locus_map) else
+                length(ibd) / loci_number
             if (length(ibd) > 0) {
               chr_2 <- strsplit(pop[individual_pop, 4], "")[[1]]
               chr_2[ibd] <- strsplit(pop[individual_pop, 3], "")[[1]][ibd]
@@ -592,6 +667,28 @@ gl.sim.WF.run <- function(file_var,
       # If only one population exists, disable dispersal.
       if (length(pop_list) == 1) {
         dispersal <- FALSE
+      }
+      
+      # Founders, before they reproduce, stored as generation 0. They have
+      # no parents; F_founder is their proportion of loci identical by descent
+      if (store_founders == TRUE) {
+        founders <- lapply(pop_list, function(p) {
+          p$V5 <- NA
+          p$V6 <- NA
+          p
+        })
+        gen0 <- store_generation(founders, 0, iteration, NULL)
+        by_id <- function(v) {
+          out <- rep(0, nInd(gen0))
+          if (length(v) > 0) {
+            out <- unname(v[indNames(gen0)])
+            out[is.na(out)] <- 0
+          }
+          out
+        }
+        gen0@other$ind.metrics$F_founder <- by_id(founder_F)
+        gen0@other$ind.metrics$F_founder_map <- by_id(founder_F_map)
+        final_res[[iteration]][["generation_0"]] <- gen0
       }
       
       # -------------------------------
@@ -966,55 +1063,9 @@ gl.sim.WF.run <- function(file_var,
         # -------------------------------
         if (generation %in% gen_store & store_values == TRUE) {
           gen_name <- paste0("generation_", generation)
-          
-          # Subsample individuals if sample_percent is less than 100.
-          if (sample_percent < 100) {
-            population_size_temp <- round(population_size * (sample_percent / 100))
-            population_size_temp <- (population_size_temp %% 2 != 0) + population_size_temp
-            pop_list_temp <- lapply(pops_vector, function(x) {
-              rbind(
-                pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Male"), size = population_size_temp[x] / 2),],
-                pop_list[[x]][sample(which(pop_list[[x]]$V1 == "Female"), size = population_size_temp[x] / 2),]
-              )
-            })
-          } else {
-            population_size_temp <- population_size
-            pop_list_temp <- pop_list
-          }
-          
-          # Combine and format simulation and reference variables for storage.
-          s_vars_temp <- rbind(ref_vars, sim_vars)
-          s_vars_temp <- setNames(data.frame(t(s_vars_temp[,-1])), s_vars_temp[, 1])
-          s_vars_temp$generation <- generation
-          s_vars_temp$iteration <- iteration
-          s_vars_temp$seed <- seed
-          s_vars_temp$del_ind_cM <- density_mutations_per_cm
-          s_vars_temp$sample_percent <- sample_percent
-          s_vars_temp$file_dispersal <- file_dispersal
-          
-          if (dispersal == TRUE) {
-            s_vars_temp$number_transfers_phase2 <- paste(dispersal_pairs$number_transfers, collapse = " ")  
-            s_vars_temp$transfer_each_gen_phase2 <- paste(dispersal_pairs$transfer_each_gen, collapse = " ") 
-          }
-          
-          # Store the generation output.
-          final_res[[iteration]][[gen_name]] <- store(
-            p_vector = pops_vector,
-            p_size = population_size_temp,
-            p_list = pop_list_temp,
-            n_loc_1 = loci_number,
-            ref = reference,
-            p_map = plink_map,
-            s_vars = s_vars_temp,
-            g = generation
-          )
-          
-          # Assign population names to the stored object.
-          if (real_pops == TRUE) {
-            popNames(final_res[[iteration]][[gen_name]]) <- popNames(x)
-          } else {
-            popNames(final_res[[iteration]][[gen_name]]) <- as.character(pops_vector)
-          }
+          disp_pairs <- if (dispersal == TRUE) dispersal_pairs else NULL
+          final_res[[iteration]][[gen_name]] <-
+            store_generation(pop_list, generation, iteration, disp_pairs)
         }
       }  # End generation loop
     }  # End iteration loop

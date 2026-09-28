@@ -449,3 +449,59 @@ test_that("CSV without the inbreeding variables runs", {
                   verbose = 0, seed = 1)[[1]][[2]]@gen,
     wf_run(rt, seed = 1)[[1]][[2]]@gen)
 })
+
+# ---- store_founders ----
+
+test_that("store_founders off leaves the output unchanged", {
+  rt <- wf_ref()
+  a <- wf_run(rt, seed = 1)
+  b <- wf_run(rt, seed = 1, store_founders = FALSE)
+  expect_identical(a, b)
+  expect_false("generation_0" %in% names(a[[1]]))
+})
+
+test_that("store_founders stores generation 0, parents of generation 1", {
+  rt <- wf_ref()
+  r <- wf_run(rt, seed = 1, store_founders = TRUE, every_gen = 1,
+              sample_percent = 100, gen_number_phase2 = 2,
+              population_size_phase2 = "20")
+  expect_identical(names(r[[1]])[1], "generation_0")
+  g0 <- r[[1]][["generation_0"]]
+  g1 <- r[[1]][["generation_1"]]
+  expect_identical(nInd(g0), 20L)
+  expect_identical(g0@other$sim.vars$generation, 0)
+  expect_true(all(is.na(g0@other$ind.metrics$pat)))
+  expect_true(all(is.na(g0@other$ind.metrics$mat)))
+  expect_identical(g0@other$ind.metrics$F_founder, rep(0, 20))
+  expect_identical(g0@other$ind.metrics$F_founder_map, rep(0, 20))
+  expect_identical(names(g0@other$ind.metrics)[3:4], c("pat", "mat"))
+  # every parent of generation 1 is a stored founder
+  expect_true(all(c(g1@other$ind.metrics$pat, g1@other$ind.metrics$mat) %in%
+                    indNames(g0)))
+  # later generations are those of a run without founders stored
+  r2 <- wf_run(rt, seed = 1, every_gen = 1, sample_percent = 100,
+               gen_number_phase2 = 2, population_size_phase2 = "20")
+  expect_identical(r[[1]][["generation_2"]]@gen, r2[[1]][["generation_2"]]@gen)
+})
+
+test_that("store_founders with real_inbreeding: F_founder is the IBD share", {
+  # platypus.gl has F > 0 in its three populations (testset.gl has F < 0)
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  rt <- wf_ref(x = x, real_freq = TRUE, chunk_number = 20)
+  r <- wf_run(rt, x = x, seed = 3, real_freq = TRUE, real_pops = TRUE,
+              real_inbreeding = TRUE, sib_mating_phase2 = 0,
+              population_size_phase2 = "200 200 200", gen_number_phase2 = 1,
+              store_founders = TRUE, sample_percent = 100)
+  g0 <- r[[1]][["generation_0"]]
+  f <- g0@other$ind.metrics$F_founder
+  expect_true(all(f >= 0 & f <= 1))
+  F_x <- pmax(inbreeding_real(x), 0)
+  expect_true(all(F_x > 0))
+  expect_equal(as.numeric(tapply(f, pop(g0), mean)), unname(F_x),
+               tolerance = 0.3)
+  # homozygosity follows F_founder: IBD loci are homozygous
+  expect_equal(g0@other$ind.metrics$F_founder_map, f, tolerance = 0.1)
+  het <- rowMeans(as.matrix(g0) == 1)
+  expect_lt(cor(f, het), -0.3)
+})
