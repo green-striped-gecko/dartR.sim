@@ -710,3 +710,36 @@ test_that("store_pedigree returns every individual, sampled or not", {
   # off by default: no attribute, output unchanged
   expect_null(attr(wf_run(rt, seed = 1)[[1]], "pedigree"))
 })
+
+# ---- inbreeding_founders ----
+
+test_that("inbreeding_founders sets the founders' F, with or without x", {
+  rt <- wf_ref(chunk_number = 20)
+  f0 <- function(r) {
+    g0 <- r[[1]][["generation_0"]]
+    tapply(g0@other$ind.metrics$F_founder, pop(g0), mean)
+  }
+  # no genlight needed
+  r <- wf_run(rt, seed = 1, number_pops_phase2 = 2,
+              population_size_phase2 = "200 200", gen_number_phase2 = 1,
+              inbreeding_founders = "0.3 0", sib_mating_phase2 = 0,
+              store_founders = TRUE, sample_percent = 100)
+  expect_equal(unname(f0(r)[1]), 0.3, tolerance = 0.2)
+  expect_equal(unname(f0(r)[2]), 0)
+  # replaces the estimate from x, and sets the sib-mating rate
+  x <- gl.filter.callrate(platypus.gl, threshold = 0.9, verbose = 0)
+  x <- gl.filter.monomorphs(x, verbose = 0)
+  rtx <- wf_ref(x = x, real_freq = TRUE, chunk_number = 20)
+  expect_output(
+    rx <- gl.sim.WF.run(file_var = fv_sim, ref_table = rtx, x = x,
+                        interactive_vars = FALSE, verbose = 1, seed = 1,
+                        real_freq = TRUE, real_pops = TRUE,
+                        real_inbreeding = TRUE, inbreeding_founders = -0.1,
+                        population_size_phase2 = "50 50 50",
+                        gen_number_phase2 = 1, store_founders = TRUE,
+                        sample_percent = 100),
+    "not estimated")
+  expect_true(all(rx[[1]][["generation_0"]]@other$ind.metrics$F_founder == 0))
+  expect_error(wf_run(rt, seed = 1, inbreeding_founders = "0.1 0.2 0.3"),
+               "inbreeding_founders")
+})

@@ -175,6 +175,12 @@ instead. Founders are unrelated to each other, so the first generation
 (their offspring) has F close to 0; F returns close to the value in x from
 the second generation. To store only generations at equilibrium, use
 phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
+inbreeding_founders (one value or one per population, in the order of
+the populations) gives the founders' F directly and replaces the value
+estimated from x, with or without real_inbreeding; negative values are
+set to 0. It is useful because heterozygote dropout inflates F in the
+full locus set: estimate F on high call-rate loci and pass it here while
+x keeps all loci for the allele frequencies.
 
 Differentiation. With real_freq = TRUE, each population's founders are
 drawn from its sample frequencies in x, which carry sampling noise and

@@ -1,5 +1,13 @@
 # dartR.sim (development version)
 
+## gl.sim.WF.run (founders' inbreeding)
+
+* New variable `inbreeding_founders`: the founders' F, one value or one
+  per population, replacing the F estimated from x (with or without
+  `real_inbreeding`). Heterozygote dropout inflates F in the full locus
+  set, so F can be estimated on high call-rate loci while x keeps all loci
+  for the frequencies.
+
 ## gl.sim.WF.run (pedigree)
 
 * New argument `store_pedigree`: each iteration carries the attribute

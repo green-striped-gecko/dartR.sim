@@ -2670,6 +2670,18 @@ interactive_sim_run <- function() {
       column(
         4,
         textInput(
+          "inbreeding_founders",
+          tags$div(tags$i(HTML("inbreeding_founders<br/>")),
+                   "Inbreeding (F) of the founders of each population"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "inbreeding_founders",
+                           title = "One value or one per population, space delimited; replaces the F estimated from the genlight object, e.g. F estimated on high call-rate loci. Empty: not used")
+      ),
+      
+      column(
+        4,
+        textInput(
           "real_freq_shrink",
           tags$div(tags$i(HTML("real_freq_shrink<br/>")),
                    "Shrink population allele frequencies toward their mean"),
@@ -2844,6 +2856,11 @@ interactive_sim_run <- function() {
       )
       
       shinyjs::toggleElement(
+        id = "inbreeding_founders",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
         id = "real_freq_shrink",
         condition = input$real_dataset == TRUE
       )
@@ -2965,7 +2982,8 @@ interactive_sim_run <- function() {
           "real_migration",
           "ne_phase1",
           "ne_phase2",
-          "real_sample_size"
+          "real_sample_size",
+          "inbreeding_founders"
         ),
         c(
           input$number_pops_phase2,
@@ -3012,7 +3030,8 @@ interactive_sim_run <- function() {
           input$real_migration,
           input$ne_phase1,
           input$ne_phase2,
-          input$real_sample_size
+          input$real_sample_size,
+          input$inbreeding_founders
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")
