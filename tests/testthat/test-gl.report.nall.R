@@ -72,3 +72,28 @@ test_that("[approved diff] sim is a data.frame (F6)", {
   expect_identical(class(r$sim), "data.frame")
   expect_identical(colnames(r$sim), c("Npop", "mnall", "low", "high"))
 })
+
+test_that("population points keep user colour names", {
+  # before: setNames(colors_pops, levels(pop(x))) overwrote the names given,
+  # so named colours went to populations by position
+  y <- x
+  pop(y) <- factor(as.character(pop(y)),
+                   levels = c("SEVERN_BELOW", "TENTERFIELD", "SEVERN_ABOVE"))
+  cols_of <- function(cols) {
+    set.seed(1)
+    r <- suppressWarnings(gl.report.nall(y, simlevels = 5, reps = 2,
+                                         ncores = 1, plot.display = FALSE,
+                                         plot.colors.pop = cols,
+                                         verbose = 0))
+    b <- ggplot2::ggplot_build(r$p1)
+    k <- which(vapply(r$p1$layers, function(l) inherits(l$geom, "GeomPoint"),
+                      logical(1)))
+    setNames(b$data[[k]]$colour, as.character(r$points$popname))
+  }
+  named <- c(TENTERFIELD = "green", SEVERN_ABOVE = "red",
+             SEVERN_BELOW = "blue")
+  expect_equal(cols_of(named)[names(named)], named)
+  # unnamed colours follow levels(pop(x))
+  expect_equal(cols_of(c("red", "blue", "green"))[levels(pop(y))],
+               setNames(c("red", "blue", "green"), levels(pop(y))))
+})

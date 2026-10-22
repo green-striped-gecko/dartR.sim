@@ -8,6 +8,13 @@
   reproduces a real genlight, with pedigree and family-structured samples,
   and checking simulations with `gl.diagnostics.sim()`.
 
+## gl.report.nall
+
+* BUG FIX: colours given to `plot.colors.pop` with population names now go
+  to the populations they name. Before, the names were replaced by the
+  population levels, so the colours were assigned by position. Unnamed
+  colours and the default palette are unchanged.
+
 ## gl.sim.WF.run (family-structured samples)
 
 * New variables `sample_crosses` and `sample_design`: planted crosses
