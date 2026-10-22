@@ -249,8 +249,11 @@ gl.report.nall <- function(x,
     # Use provided vector of colors directly
     colors_pops <- plot.colors.pop
   }
-  # Name colors to match population order for consistent mapping
-  colors_pops <- setNames(colors_pops, pop_order)
+  # Name colors to match population order for consistent mapping; names
+  # given by the user are kept when they cover every population
+  if (!all(pop_order %in% names(colors_pops))) {
+    colors_pops <- setNames(colors_pops, pop_order)
+  }
   
   # --- Build plot --------------------------------------------------------------
   ymin <- min(c(df$low, nall.pop$N.all)) * 0.95

@@ -83,6 +83,19 @@ Proposed change: correct the defaults and the return type (return `sim` as a `da
 
 - The `dev` manifest again had a duplicate `gl.sim.offspring` row and #55–#57 marked `pr-open` after their merges; rewritten on this branch (bookkeeping only).
 
+## Follow-up (2026-10-22): user colour names overwritten
+
+Found in the dartRverse population-colour audit after dartR.base PR #455 (`gl.report.heterozygosity`).
+
+**FU1 [LOW, confidence: high] — named `plot.colors.pop` colours go to populations by position (spec)**
+`R/gl.report.nall.r` — `setNames(colors_pops, pop_order)` replaced the names given with `levels(pop(x))`, so named colours were assigned by position. platypus.gl with levels SEVERN_BELOW, TENTERFIELD, SEVERN_ABOVE and `c(TENTERFIELD = "green", SEVERN_ABOVE = "red", SEVERN_BELOW = "blue")`: points SEVERN_BELOW green, TENTERFIELD red, SEVERN_ABOVE blue.
+Change: rename only when the names given do not cover every population; unnamed colours still follow `levels(pop(x))`.
+**Consequence: named colours now land on the populations they name; unnamed and default colours unchanged.**
+
+Approved by Luis (2026-10-22, "go ahead" on the audit).
+
+Evidence: new test "population points keep user colour names" fails on `origin/dev` (3/3 colours wrong) and passes after. Tests: `gl.report.nall` 24/24.
+
 ## Outcome
 
 | Change | Evidence | Snapshot result |
