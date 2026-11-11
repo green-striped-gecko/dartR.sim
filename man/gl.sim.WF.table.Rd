@@ -119,6 +119,7 @@ Other simulation functions:
 \code{\link{gl.report.nall}()},
 \code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.apply}()},
 \code{\link{gl.sim.create_dispersal}()},
 \code{\link{gl.sim.emigration}()},
 \code{\link{gl.sim.ind}()},

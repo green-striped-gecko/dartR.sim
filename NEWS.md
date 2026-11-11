@@ -110,6 +110,16 @@
 
 # dartR.sim 1.2.6
 
+## gl.sim.apply
+
+* `fun` may return `NULL` (for example when it is run to save a file); it
+  stopped with "attempt to set an attribute on NULL".
+* Results whose columns differ between generations, or that mix data frames
+  and vectors, are bound with `NA` where a column is absent; they stopped
+  with a binding error after every call to `fun` had run.
+* An iteration that holds the same generation twice stops before `fun` runs
+  (one result was silently kept); repeated `iteration` values are used once.
+
 ## gl.sim.WF.run (dispersal)
 
 * Which sexes migrate is decided for each row of the dispersal table from its
@@ -261,6 +271,13 @@
   for 1000 individuals x 10,080 loci). **Seeded outputs change**; the
   Hardy-Weinberg genotype distribution is unchanged.
 * New `verbose` argument; history is recorded; `n` is validated.
+
+## gl.sim.apply (new)
+
+* `gl.sim.apply()` runs any function over the output of `gl.sim.WF.run()`
+  and tags each result with its iteration and generation (read from
+  `@other$sim.vars$generation`). Data frames and vectors are bound into one
+  tidy data frame; other results are returned as a nested, tagged list.
 
 ## gl.sim.WF.table
 
