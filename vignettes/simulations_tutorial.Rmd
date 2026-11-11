@@ -101,12 +101,6 @@ The simulated chromosome is `chunk_number` chunks of `chunk_bp` base pairs and `
 - `@other$ind.metrics`: sex, father (`pat`) and mother (`mat`).
 - `@other$sim.vars`: every variable used, plus the generation, the expected Ne and the census sizes.
 
-`gl.sim.apply()` runs any function on every stored generation and labels each result with its generation:
-
-```{r}
-he <- gl.sim.apply(res_sim, gl.He, verbose = 0)
-```
-
 ## The model, generation by generation
 
 1. **Dispersal** between connected populations, in dispersal generations.
@@ -327,7 +321,6 @@ Migration slows the loss of heterozygosity, so with dispersal the observed He sh
 | `gl.sim.mutate()` | Adds mutations at a constant rate |
 | `gl.sim.Neconst()` | Simulates a population at mutation–drift equilibrium with constant Ne |
 | `gl.report.nall()` | Allelic retention and rarefaction curve as individuals are sampled |
-| `gl.sim.apply()` | Runs a function on every generation of a simulation |
 
 ## References
 
