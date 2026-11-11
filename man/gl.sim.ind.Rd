@@ -19,7 +19,8 @@ brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A genlight object with n individuals.
+A genlight object with n individuals, file-backed (@fbm) if x is
+file-backed and gen-backed (@gen) otherwise.
 }
 \description{
 This function simulates individuals based on the allele frequencies of a
@@ -36,6 +37,12 @@ with no calls in x get missing genotypes (NA).
 The simulated object keeps the locus names, alleles, positions,
 chromosomes and locus metrics of x; the metrics flags are reset, so
 recalculable metrics are recalculated when needed.
+
+The simulated object has the same flavour as x: if the genotypes of x are
+held in a file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}),
+the simulated genotypes are written to a new file-backed matrix, otherwise
+they are stored in @gen. In the file-backed matrix missing genotypes are
+stored as the raw code 3, which is read back as NA.
 
 The function can be used to simulate populations for sampling designs or
 for power analysis. The example below explores drift by simulating several

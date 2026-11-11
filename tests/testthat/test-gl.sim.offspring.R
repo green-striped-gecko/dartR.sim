@@ -72,3 +72,22 @@ test_that("[approved diff] inputs are checked (F3)", {
   expect_error(gl.sim.offspring(x_off[6:10, ], x_off[1:5, ], 2,
                                 sexratio = 2, verbose = 0), "sexratio")
 })
+
+test_that("FBM-backed parents give FBM-backed offspring (fbm flavour)", {
+  skip_if_not_installed("bigstatsr")
+  mums <- gl.filter.allna(testset.gl, verbose = 0)[1:5, ]
+  dads <- gl.filter.allna(testset.gl, verbose = 0)[6:10, ]
+  set.seed(2)
+  a <- gl.sim.offspring(dads, mums, 3, verbose = 0)
+  set.seed(2)
+  b <- gl.sim.offspring(gl.gen2fbm(dads, verbose = 0),
+                        gl.gen2fbm(mums, verbose = 0), 3, verbose = 0)
+  expect_fbm_twin(a, b)
+  # missing genotypes of the parents are missing (code 3) in the offspring
+  expect_true(any(is.na(as.matrix(b))))
+  expect_identical(b@other$ind.metrics, a@other$ind.metrics)
+  # one FBM-backed parent object is enough
+  set.seed(2)
+  m <- gl.sim.offspring(dads, gl.gen2fbm(mums, verbose = 0), 3, verbose = 0)
+  expect_false(is.null(m@fbm))
+})

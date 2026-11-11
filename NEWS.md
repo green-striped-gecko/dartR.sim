@@ -1,5 +1,19 @@
 # dartR.sim (development version)
 
+## File-backed (fbm) dartR objects
+
+* `gl.sim.ind()`, `gl.sim.offspring()`, `gl.sim.Neconst()` and
+  `gl.sim.ind.af()` now return objects in the flavour the user works with.
+  `gl.sim.ind()` and `gl.sim.offspring()` return a file-backed object
+  (genotypes in `@fbm`) when the input object (for offspring: fathers or
+  mothers) is file-backed, and a gen-backed one otherwise.
+  `gl.sim.Neconst()` and `gl.sim.ind.af()` gain an argument `fbm`
+  (default `getOption("dartR_fbm")`). Missing genotypes are stored in the
+  file-backed matrix as the raw code 3, read back as `NA`. For the same
+  seed, both flavours give identical genotypes.
+* `gl.sim.ind()` computes the allele frequencies of a file-backed input
+  without decoding its genotype matrix.
+
 ## Documentation
 
 * New vignette "Simulations with dartR.sim" (`vignette("simulations_tutorial",

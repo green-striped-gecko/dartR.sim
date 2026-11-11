@@ -33,7 +33,16 @@
 #' order. The offspring keep the locus metadata of the mothers (the metrics
 #' flags are reset), and @other$ind.metrics records each offspring's sex,
 #' mother and father (their individual names).
-#' @return A genlight object with nInd(mothers) * noffpermother individuals.
+#'
+#' The offspring have the same flavour as the parents: if the genotypes of
+#' fathers or mothers are held in a file-backed matrix (@fbm, see
+#' \code{dartR.base::gl.gen2fbm}), the offspring genotypes are written to a
+#' new file-backed matrix, otherwise they are stored in @gen. In the
+#' file-backed matrix missing genotypes are stored as the raw code 3, which
+#' is read back as NA.
+#' @return A genlight object with nInd(mothers) * noffpermother individuals,
+#' file-backed (@fbm) if fathers or mothers are file-backed and gen-backed
+#' (@gen) otherwise.
 #' @importFrom stats runif
 #' @export
 #' @author Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to
@@ -85,8 +94,12 @@ gl.sim.offspring <- function(fathers,
   mother <- rep(seq_len(nInd(mothers)), each = noffpermother)
   father <- sample(seq_len(nInd(fathers)), noff, replace = TRUE)
   
-  if (verbose >= 2 &&
-      (anyNA(as.matrix(mothers)) || anyNA(as.matrix(fathers)))) {
+  # Genotypes of the parents, decoded once (an FBM is decoded with its
+  # missing code 3 read as NA)
+  mat_mothers <- as.matrix(mothers)
+  mat_fathers <- as.matrix(fathers)
+  
+  if (verbose >= 2 && (anyNA(mat_mothers) || anyNA(mat_fathers))) {
     cat(warn("  Warning: You have missing data in your genlight object.",
              "This most likely will cause unwanted structure in your",
              "offspring. Best to remove or impute missing values.\n"))
@@ -97,22 +110,22 @@ gl.sim.offspring <- function(fathers,
   # is the mean of the two gametes); each heterozygous genotype gets its own
   # draw, so loci are inherited independently
   gamete <- function(parents, which_parent) {
-    g <- as.matrix(parents)[which_parent, , drop = FALSE]
+    g <- parents[which_parent, , drop = FALSE]
     het <- which(g == 1)
     g[het] <- sample(c(0, 2), length(het), replace = TRUE)
     return(g)
   }
-  offmat <- (gamete(mothers, mother) + gamete(fathers, father)) / 2
+  offmat <- (gamete(mat_mothers, mother) + gamete(mat_fathers, father)) / 2
+  dimnames(offmat) <- NULL
   
-  gl2 <-
-    new(
-      "dartR",
-      gen = offmat,
-      ploidy = 2,
-      ind.names = paste0("Po_", 1:noff),
-      loc.names = locNames(mothers),
-      pop = rep(popname, noff)
-    )
+  # Same flavour as the parents: FBM-backed if either is, gen-backed
+  # otherwise
+  gl2 <- utils.sim.dartR(offmat,
+                         fbm = utils.sim.is.fbm(mothers) ||
+                           utils.sim.is.fbm(fathers),
+                         ind.names = paste0("Po_", 1:noff),
+                         loc.names = locNames(mothers),
+                         pop = rep(popname, noff))
   if (length(mothers@loc.all) == nLoc(mothers)) {
     gl2@loc.all <- mothers@loc.all
   }

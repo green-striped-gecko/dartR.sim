@@ -24,10 +24,17 @@
 #' chromosomes and locus metrics of x; the metrics flags are reset, so
 #' recalculable metrics are recalculated when needed.
 #'
+#' The simulated object has the same flavour as x: if the genotypes of x are
+#' held in a file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}),
+#' the simulated genotypes are written to a new file-backed matrix, otherwise
+#' they are stored in @gen. In the file-backed matrix missing genotypes are
+#' stored as the raw code 3, which is read back as NA.
+#'
 #' The function can be used to simulate populations for sampling designs or
 #' for power analysis. The example below explores drift by simulating several
 #' generations, each from the allele frequencies of the previous one.
-#' @return A genlight object with n individuals.
+#' @return A genlight object with n individuals, file-backed (@fbm) if x is
+#' file-backed and gen-backed (@gen) otherwise.
 #' @author Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
 #' @examples
@@ -71,7 +78,8 @@ gl.sim.ind <- function(x,
   
   # DO THE JOB
   # Frequency of the alternative allele (genotype 2) of each locus
-  alf <- colMeans(as.matrix(x), na.rm = TRUE) / 2
+  # (for an FBM-backed x without decoding the genotype matrix)
+  alf <- utils.sim.alf(x)
   no_calls <- is.nan(alf)
   if (any(no_calls) && verbose >= 2) {
     cat(warn("  Warning:", sum(no_calls), "loci have no calls; their",
@@ -84,17 +92,16 @@ gl.sim.ind <- function(x,
   simind[, !no_calls] <- rbinom(n * sum(!no_calls), size = 2,
                                 prob = rep(alf[!no_calls], each = n))
   
-  glsim <-
-    new(
-      "dartR",
-      gen = simind,
-      ploidy = 2,
-      ind.names = 1:n,
-      loc.names = locNames(x),
-      loc.all = x@loc.all,
-      position = position(x),
-      pop = rep(popname, n)
-    )
+  # Same flavour as x: FBM-backed if x is, gen-backed otherwise
+  glsim <- utils.sim.dartR(simind,
+                           fbm = utils.sim.is.fbm(x),
+                           ind.names = as.character(1:n),
+                           loc.names = locNames(x),
+                           pop = rep(popname, n))
+  glsim@loc.all <- x@loc.all
+  if (!is.null(x@position)) {
+    position(glsim) <- position(x)
+  }
   if (!is.null(x@chromosome)) {
     chromosome(glsim) <- chromosome(x)
   }

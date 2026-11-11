@@ -31,7 +31,9 @@ brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A genlight object with nInd(mothers) * noffpermother individuals.
+A genlight object with nInd(mothers) * noffpermother individuals,
+file-backed (@fbm) if fathers or mothers are file-backed and gen-backed
+(@gen) otherwise.
 }
 \description{
 This function takes a population (or a single individual) of fathers and
@@ -55,6 +57,13 @@ fathers and mothers must be SNP data with the same loci in the same
 order. The offspring keep the locus metadata of the mothers (the metrics
 flags are reset), and @other$ind.metrics records each offspring's sex,
 mother and father (their individual names).
+
+The offspring have the same flavour as the parents: if the genotypes of
+fathers or mothers are held in a file-backed matrix (@fbm, see
+\code{dartR.base::gl.gen2fbm}), the offspring genotypes are written to a
+new file-backed matrix, otherwise they are stored in @gen. In the
+file-backed matrix missing genotypes are stored as the raw code 3, which
+is read back as NA.
 }
 \examples{
 #Simulate 10 potential fathers

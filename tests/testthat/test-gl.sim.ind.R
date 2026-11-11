@@ -55,3 +55,19 @@ test_that("[approved diff] n is validated (F6)", {
   expect_error(gl.sim.ind(x_clean, n = 0, verbose = 0), "whole number")
   expect_error(gl.sim.ind(x_clean, n = 2.5, verbose = 0), "whole number")
 })
+
+test_that("an FBM-backed x gives an FBM-backed result (fbm flavour)", {
+  skip_if_not_installed("bigstatsr")
+  x <- testset.gl
+  x@chromosome <- factor(rep(c("1", "2"), length.out = nLoc(x)))
+  xf <- gl.gen2fbm(x, verbose = 0)
+  set.seed(1)
+  a <- gl.sim.ind(x, n = 10, verbose = 0)
+  set.seed(1)
+  b <- gl.sim.ind(xf, n = 10, verbose = 0)
+  expect_fbm_twin(a, b)
+  # loci without calls in x are missing, stored as code 3
+  expect_true(any(is.na(as.matrix(b))))
+  expect_identical(chromosome(b), chromosome(x))
+  expect_identical(position(b), position(x))
+})

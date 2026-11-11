@@ -3288,3 +3288,67 @@ interactive_sim_run <- function() {
   runApp(shinyApp(ui, server))
   
 }
+
+# Builds the dartR object of a simulated genotype matrix (individuals x loci,
+# 0/1/2 copies of the alternative allele, NA for missing) in either flavour:
+# fbm = FALSE stores the genotypes as SNPbin in @gen; fbm = TRUE writes them
+# to a file-backed FBM.code256 in @fbm (code bigsnpr::CODE_012, as
+# dartR.base::gl.gen2fbm), without building the SNPbin first. In the FBM,
+# missing genotypes are stored as the raw code 3, which CODE_012 decodes as
+# NA. The matrix is written in blocks of loci so that only one block is
+# converted at a time.
+utils.sim.dartR <- function(genmat,
+                            fbm = FALSE,
+                            ind.names,
+                            loc.names,
+                            pop,
+                            chunk = 2048L) {
+  if (!fbm) {
+    return(new("dartR",
+               gen = genmat,
+               ploidy = 2,
+               ind.names = ind.names,
+               loc.names = loc.names,
+               pop = pop))
+  }
+  n <- nrow(genmat)
+  p <- ncol(genmat)
+  G <- bigstatsr::FBM.code256(n, p, code = bigsnpr::CODE_012,
+                              backingfile = tempfile("geno_"))
+  for (s in seq(1L, p, by = chunk)) {
+    cols <- s:min(p, s + chunk - 1L)
+    blk <- genmat[, cols, drop = FALSE]
+    blk[is.na(blk)] <- 3L
+    G[, cols] <- blk
+  }
+  # names stay NULL when there are none (as in gl.gen2fbm), not character(0)
+  as_names <- function(v) if (is.null(v)) NULL else as.character(v)
+  out <- new("dartR",
+             fbm = G,
+             ploidy = rep(2L, n),
+             ind.names = as_names(ind.names),
+             loc.names = as_names(loc.names),
+             pop = factor(pop))
+  methods::validObject(out)
+  out
+}
+
+# Per-locus frequency of the alternative allele, ignoring missing data (NaN
+# for loci without calls). For an FBM-backed object the counts come from one
+# pass over the file, without decoding the genotype matrix.
+utils.sim.alf <- function(x) {
+  if (methods::.hasSlot(x, "fbm") && !is.null(x@fbm)) {
+    cnt <- bigstatsr::big_counts(x@fbm)
+    vals <- suppressWarnings(as.numeric(rownames(cnt)))
+    scored <- !is.na(vals)
+    sums <- colSums(cnt[scored, , drop = FALSE] * vals[scored])
+    ncalls <- colSums(cnt[scored, , drop = FALSE])
+    return(unname(sums / (2 * ncalls)))
+  }
+  unname(colMeans(as.matrix(x), na.rm = TRUE) / 2)
+}
+
+# TRUE when x holds its genotypes in an FBM (@fbm)
+utils.sim.is.fbm <- function(x) {
+  methods::.hasSlot(x, "fbm") && !is.null(x@fbm)
+}

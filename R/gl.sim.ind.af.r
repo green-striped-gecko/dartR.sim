@@ -39,6 +39,10 @@
 #'   individuals to simulate in each population. If unnamed, one element per
 #'   population in the order in which the populations first appear in df; if
 #'   named, the names must match the population names in df [required].
+#' @param fbm If TRUE, the genotypes of the returned object are held in a
+#' file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}); if FALSE,
+#' they are held in @gen [default getOption("dartR_fbm"), i.e. the flavour set for the
+#' session, FALSE if not set].
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 #' brief progress messages; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
@@ -46,7 +50,8 @@
 #' @return A genlight object with sum(pop.sizes) individuals and one locus per
 #' locus in df, with diploid SNP genotypes (0, 1, 2 copies of the alternate
 #' allele), pop() set to population names, and the metadata described in
-#' Details.
+#' Details. The object is file-backed (@fbm) if fbm = TRUE and gen-backed
+#' (@gen) otherwise.
 #'
 #' @author Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
 #' \url{https://groups.google.com/d/forum/dartr}
@@ -62,6 +67,7 @@
 
 gl.sim.ind.af <- function(df,
                           pop.sizes,
+                          fbm = isTRUE(getOption("dartR_fbm")),
                           verbose = NULL) {
   # SET VERBOSITY
   verbose <- gl.check.verbosity(verbose)
@@ -87,6 +93,10 @@ gl.sim.ind.af <- function(df,
   }
   if (any(df$frequency < 0 | df$frequency > 1)) {
     stop(error("  All allele frequencies must be in [0, 1].\n"))
+  }
+
+  if (!is.logical(fbm) || length(fbm) != 1 || is.na(fbm)) {
+    stop(error("  fbm must be TRUE or FALSE\n"))
   }
 
   # Unique populations in the order they appear
@@ -167,14 +177,11 @@ gl.sim.ind.af <- function(df,
     rep(c("m", "f"), length.out = n)
   }))
 
-  gl <- new(
-    "dartR",
-    gen = geno,
-    ploidy = 2,
-    ind.names = id_vec,
-    loc.names = loci_all,
-    pop = pop_vec
-  )
+  gl <- utils.sim.dartR(geno,
+                        fbm = fbm,
+                        ind.names = id_vec,
+                        loc.names = loci_all,
+                        pop = pop_vec)
 
   # Placeholder locus allele labels
   gl@loc.all <- rep("G/C", n_loci)

@@ -87,3 +87,17 @@ test_that("[approved diff] metadata and history (F4, F5)", {
   set.seed(2)
   expect_no_error(gl.sim.Neconst(3, 1, verbose = 0))
 })
+
+test_that("fbm = TRUE, or the dartR_fbm option, gives an FBM-backed result", {
+  skip_if_not_installed("bigstatsr")
+  set.seed(3)
+  a <- gl.sim.Neconst(20, 200, fbm = FALSE, verbose = 0)
+  set.seed(3)
+  b <- gl.sim.Neconst(20, 200, fbm = TRUE, verbose = 0)
+  expect_fbm_twin(a, b)
+  old <- options(dartR_fbm = TRUE)
+  on.exit(options(old), add = TRUE)
+  expect_false(is.null(gl.sim.Neconst(5, 10, verbose = 0)@fbm))
+  expect_null(gl.sim.Neconst(5, 10, fbm = FALSE, verbose = 0)@fbm)
+  expect_error(gl.sim.Neconst(5, 10, fbm = NA, verbose = 0), "fbm")
+})

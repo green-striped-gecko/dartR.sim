@@ -4,7 +4,12 @@
 \alias{gl.sim.ind.af}
 \title{Simulates diploid genotypes from per-population allele frequencies}
 \usage{
-gl.sim.ind.af(df, pop.sizes, verbose = NULL)
+gl.sim.ind.af(
+  df,
+  pop.sizes,
+  fbm = isTRUE(getOption("dartR_fbm")),
+  verbose = NULL
+)
 }
 \arguments{
 \item{df}{A data.frame with three columns: (1) population name,
@@ -16,6 +21,11 @@ individuals to simulate in each population. If unnamed, one element per
 population in the order in which the populations first appear in df; if
 named, the names must match the population names in df [required].}
 
+\item{fbm}{If TRUE, the genotypes of the returned object are held in a
+file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}); if FALSE,
+they are held in @gen [default getOption("dartR_fbm"), i.e. the flavour set for the
+session, FALSE if not set].}
+
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
@@ -24,7 +34,8 @@ brief progress messages; 3, progress and results summary; 5, full report
 A genlight object with sum(pop.sizes) individuals and one locus per
 locus in df, with diploid SNP genotypes (0, 1, 2 copies of the alternate
 allele), pop() set to population names, and the metadata described in
-Details.
+Details. The object is file-backed (@fbm) if fbm = TRUE and gen-backed
+(@gen) otherwise.
 }
 \description{
 This function generates a diploid SNP dataset by sampling genotypes for a

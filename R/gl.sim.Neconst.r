@@ -10,10 +10,16 @@
 #' [required].
 #' @param mutation_rate Mutation rate per locus per generation, a number
 #' greater than 0 [default 1e-8].
+#' @param fbm If TRUE, the genotypes of the returned object are held in a
+#' file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}); if FALSE,
+#' they are held in @gen. Missing genotypes are stored in the file-backed matrix as the raw
+#' code 3, which is read back as NA [default getOption("dartR_fbm"), i.e. the
+#' flavour set for the session, FALSE if not set].
 #' @param verbose Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 #' brief progress messages; 3, progress and results summary; 5, full report
 #' [default 2, unless specified using gl.set.verbosity].
-#' @return A genlight object representing the simulated population.
+#' @return A genlight object representing the simulated population,
+#' file-backed (@fbm) if fbm = TRUE and gen-backed (@gen) otherwise.
 #' @details At mutation-drift equilibrium under symmetric mutation between two
 #' alleles, the allele frequency p of a locus follows Wright's beta
 #' distribution, with density proportional to (p(1 - p))^(theta - 1), where
@@ -47,6 +53,7 @@
 gl.sim.Neconst <- function(ninds,
                            nlocs,
                            mutation_rate = 1e-8,
+                           fbm = isTRUE(getOption("dartR_fbm")),
                            verbose = NULL) {
   # SET VERBOSITY
   verbose <- gl.check.verbosity(verbose)
@@ -69,6 +76,9 @@ gl.sim.Neconst <- function(ninds,
   if (!is.numeric(mutation_rate) || length(mutation_rate) != 1 ||
       is.na(mutation_rate) || mutation_rate <= 0) {
     stop(error("  mutation_rate must be a single number greater than 0\n"))
+  }
+  if (!is.logical(fbm) || length(fbm) != 1 || is.na(fbm)) {
+    stop(error("  fbm must be TRUE or FALSE\n"))
   }
 
   # DO THE JOB
@@ -95,13 +105,11 @@ gl.sim.Neconst <- function(ninds,
   }
   
   loc_names <- paste0("Loc", seq_len(nlocs))
-  inds <- new(
-    "dartR",
-    gen = genmat,
-    ind.names = as.character(seq_len(ninds)),
-    loc.names = loc_names,
-    ploidy = rep(2, ninds)
-  )
+  inds <- utils.sim.dartR(genmat,
+                          fbm = fbm,
+                          ind.names = as.character(seq_len(ninds)),
+                          loc.names = loc_names,
+                          pop = rep("pop1", ninds))
   # Alleles set before the compliance check, so that SNP data whose genotypes
   # happen to be all 0 or 1 are not taken for SilicoDArT
   inds@loc.all <- rep("A/C", nlocs)

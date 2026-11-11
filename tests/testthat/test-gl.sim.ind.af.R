@@ -124,3 +124,18 @@ test_that("[approved diff] verbose messages (F6)", {
                 "Simulated 5 individuals in 2 populations at 1000 loci")
   expect_silent(gl.sim.ind.af(two_pops, pop.sizes = c(3, 2), verbose = 0))
 })
+
+test_that("fbm = TRUE, or the dartR_fbm option, gives an FBM-backed result", {
+  skip_if_not_installed("bigstatsr")
+  set.seed(4)
+  a <- gl.sim.ind.af(two_pops, pop.sizes = c(3, 2), fbm = FALSE, verbose = 0)
+  set.seed(4)
+  b <- gl.sim.ind.af(two_pops, pop.sizes = c(3, 2), fbm = TRUE, verbose = 0)
+  expect_fbm_twin(a, b)
+  expect_identical(b@other$ind.metrics, a@other$ind.metrics)
+  old <- options(dartR_fbm = TRUE)
+  on.exit(options(old), add = TRUE)
+  expect_false(is.null(gl.sim.ind.af(two_pops, c(3, 2), verbose = 0)@fbm))
+  expect_error(gl.sim.ind.af(two_pops, c(3, 2), fbm = "yes", verbose = 0),
+               "fbm")
+})

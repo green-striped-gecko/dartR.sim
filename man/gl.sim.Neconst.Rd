@@ -4,7 +4,13 @@
 \alias{gl.sim.Neconst}
 \title{Simulates a population at mutation-drift equilibrium with constant Ne}
 \usage{
-gl.sim.Neconst(ninds, nlocs, mutation_rate = 1e-08, verbose = NULL)
+gl.sim.Neconst(
+  ninds,
+  nlocs,
+  mutation_rate = 1e-08,
+  fbm = isTRUE(getOption("dartR_fbm")),
+  verbose = NULL
+)
 }
 \arguments{
 \item{ninds}{Number of individuals in the population, which is also its
@@ -16,12 +22,19 @@ effective population size (Ne); a whole number of at least 2 [required].}
 \item{mutation_rate}{Mutation rate per locus per generation, a number
 greater than 0 [default 1e-8].}
 
+\item{fbm}{If TRUE, the genotypes of the returned object are held in a
+file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}); if FALSE,
+they are held in @gen. Missing genotypes are stored in the file-backed matrix as the raw
+code 3, which is read back as NA [default getOption("dartR_fbm"), i.e. the
+flavour set for the session, FALSE if not set].}
+
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
 brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A genlight object representing the simulated population.
+A genlight object representing the simulated population,
+file-backed (@fbm) if fbm = TRUE and gen-backed (@gen) otherwise.
 }
 \description{
 This function simulates SNP genotypes of a population of
