@@ -94,7 +94,7 @@ gl.diagnostics.sim <- function(x,
   
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
   
   # CHECK INPUTS

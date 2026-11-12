@@ -1,4 +1,10 @@
-# dartR.sim (development version)
+# dartR.sim 1.2.7 (development)
+
+* History: functions called through `do.call(fun, list(x = gl, ...))` no
+  longer store the whole input object in `@other$history` (the calls are
+  compacted with `dartR.base::utils.history.call()`), and no longer stop
+  with "cannot coerce type 'closure'" at `verbose >= 1`. Needs the current
+  dartR.base.
 
 ## File-backed (fbm) dartR objects
 

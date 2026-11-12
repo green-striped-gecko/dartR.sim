@@ -60,7 +60,7 @@ gl.sim.Neconst <- function(ninds,
 
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
 
   # FUNCTION SPECIFIC ERROR CHECKING
@@ -123,7 +123,7 @@ gl.sim.Neconst <- function(ninds,
   }
 
   # ADD TO HISTORY
-  inds@other$history <- list(match.call())
+  inds@other$history <- list(utils.history.call(match.call()))
 
   # FLAG SCRIPT END
   if (verbose >= 1) {

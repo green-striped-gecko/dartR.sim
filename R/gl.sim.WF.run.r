@@ -265,7 +265,7 @@ gl.sim.WF.run <- function(file_var,
     # FLAG THE START OF THE FUNCTION EXECUTION
     # -------------------------------
     funname <- match.call()[[1]]
-    utils.flag.start(func = funname,
+    funname <- utils.flag.start(func = funname,
                      verbose = verbose)
     
     # -------------------------------

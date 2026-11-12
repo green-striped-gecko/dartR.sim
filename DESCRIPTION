@@ -1,7 +1,7 @@
 Package: dartR.sim
 Type: Package
 Title: Computer Simulations of 'SNP' Data
-Version: 1.2.6
+Version: 1.2.7
 Date: 2026-11-12
 Revision: Generous Gecko
 Authors@R: c(
@@ -15,7 +15,7 @@ Authors@R: c(
             )
 Description: Allows to simulate SNP data using genlight objects. For example, it is straight forward to simulate a simple drift scenario with exchange of individuals between two populations or create a new genlight object based on allele frequencies of an existing genlight object. Also more complicated fully fledged PVAs (population viability analysis) are possible.
 Encoding: UTF-8
-Depends: R (>= 4.1.0),  dartR.base, dartR.data, ggplot2, dartR.popgen
+Depends: R (>= 4.1.0),  dartR.base (>= 1.2.7), dartR.data, ggplot2, dartR.popgen
 Imports: 
   adegenet (>= 2.0.0), 
   bigsnpr,

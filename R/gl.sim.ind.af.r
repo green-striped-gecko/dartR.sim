@@ -74,7 +74,7 @@ gl.sim.ind.af <- function(df,
 
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
 
   # FUNCTION SPECIFIC ERROR CHECKING
@@ -206,7 +206,7 @@ gl.sim.ind.af <- function(df,
   }
 
   # ADD TO HISTORY
-  gl@other$history <- list(match.call())
+  gl@other$history <- list(utils.history.call(match.call()))
 
   # FLAG SCRIPT END
   if (verbose >= 1) {

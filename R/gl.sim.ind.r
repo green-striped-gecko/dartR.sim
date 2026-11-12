@@ -65,7 +65,7 @@ gl.sim.ind <- function(x,
   
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
   
   # CHECK DATATYPE
@@ -114,7 +114,7 @@ gl.sim.ind <- function(x,
   glsim <- utils.reset.flags(glsim, verbose = 0)
   
   # ADD TO HISTORY
-  glsim@other$history <- list(match.call())
+  glsim@other$history <- list(utils.history.call(match.call()))
   
   # FLAG SCRIPT END
   if (verbose >= 1) {

@@ -109,7 +109,7 @@ gl.sim.WF.table <- function(file_var,
 
   ## Flag the start of the function execution (for logging purposes)
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
 
   ## CHECK INPUTS

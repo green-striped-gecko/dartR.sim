@@ -65,7 +65,7 @@ gl.sim.offspring <- function(fathers,
   
   # FLAG SCRIPT START
   funname <- match.call()[[1]]
-  utils.flag.start(func = funname,
+  funname <- utils.flag.start(func = funname,
                    verbose = verbose)
   
   # CHECK DATATYPE
@@ -156,7 +156,7 @@ gl.sim.offspring <- function(fathers,
                                       father = parent_names(fathers)[father])
   
   # ADD TO HISTORY
-  gl2@other$history <- list(match.call())
+  gl2@other$history <- list(utils.history.call(match.call()))
   
   # FLAG SCRIPT END
   if (verbose >= 1) {
