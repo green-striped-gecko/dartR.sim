@@ -337,6 +337,16 @@ gl.sim.WF.run <- function(file_var,
     real_inbreeding <- real_migration <- real_sample_size <- NULL
     real_freq_shrink <- sample_design <- sample_families <- NULL
     sample_parents <- NULL
+    chromosome_name <- clinal_strength <- dispersal_phase1 <- NULL
+    dispersal_phase2 <- dispersal_type_phase1 <- dispersal_type_phase2 <- NULL
+    gen_number_phase2 <- genetic_load <- mut_rate <- mutation <- NULL
+    natural_selection_model <- number_offspring_phase1 <- NULL
+    number_offspring_phase2 <- number_transfers_phase1 <- NULL
+    number_transfers_phase2 <- phase1 <- real_freq <- real_loc <- NULL
+    real_pop_size <- real_pops <- recombination <- NULL
+    recombination_males <- replace_parents <- same_line <- NULL
+    selection_phase1 <- selection_phase2 <- NULL
+    transfer_each_gen_phase1 <- transfer_each_gen_phase2 <- NULL
 
     # Create one R variable per simulation variable in this environment.
     # These variables are character strings; lists of values (population

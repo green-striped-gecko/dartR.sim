@@ -151,6 +151,20 @@ gl.sim.WF.table <- function(file_var,
     }
   }
 
+  ## Simulation variables created by list2env() below; declared here (before
+  ## the call, which then overwrites them) so that R CMD check sees a binding
+  ## for them
+  chromosome_name <- chunk_cM <- chunk_neutral_loci <- chunk_number <- NULL
+  deleterious_factor <- exp_rate <- gamma_scale <- gamma_shape <- NULL
+  h_adv <- h_del <- h_distribution_adv <- h_distribution_del <- NULL
+  h_intercept_adv <- h_intercept_del <- h_mean_adv <- h_mean_del <- NULL
+  h_rate_adv <- h_rate_del <- h_sd_adv <- h_sd_del <- NULL
+  loci_mut_adv <- loci_mut_del <- loci_mut_neu <- log_mean <- log_sd <- NULL
+  mutations_factor <- q_adv <- q_del <- q_distribution_adv <- NULL
+  q_distribution_del <- q_equation_adv <- q_equation_del <- NULL
+  q_neutral <- real_freq <- real_loc <- s_adv <- s_del <- NULL
+  s_distribution_adv <- s_distribution_del <- NULL
+
   ## Create one R variable per simulation variable in this environment
   list2env(utils.wf.ref.values(ref_vars), envir = environment())
 
