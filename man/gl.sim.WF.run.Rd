@@ -13,6 +13,8 @@ gl.sim.WF.run(
   every_gen = 10,
   sample_percent = 50,
   store_phase1 = FALSE,
+  store_founders = FALSE,
+  store_pedigree = FALSE,
   interactive_vars = TRUE,
   seed = NULL,
   verbose = NULL,
@@ -26,7 +28,7 @@ gl.sim.WF.run(
 \item{ref_table}{Reference table created by the function 
 \code{\link{gl.sim.WF.table}} [required].}
 
-\item{x}{Name of the genlight object containing the SNP data to extract
+\item{x}{Genlight object containing the SNP data to extract
 values for some simulation variables (see details) [default NULL].}
 
 \item{file_dispersal}{Path of the file with the dispersal table created with
@@ -38,42 +40,221 @@ the function \code{\link{gl.sim.create_dispersal}} [default NULL].}
 a genlight object [default 10].}
 
 \item{sample_percent}{Percentage of individuals, from the total population, 
-to sample and save in the genlight object every generation [default 50].}
+to sample and save in the genlight object every generation. The number is
+rounded up to an even number, e.g. 50 percent of 50 individuals stores 26
+[default 50].}
 
 \item{store_phase1}{Whether to store simulations of phase 1 in genlight
 objects [default FALSE].}
 
+\item{store_founders}{Whether to store the founders of the first phase
+simulated, before they reproduce, as "generation_0" [default FALSE].
+Their ind.metrics hold F_founder, the proportion of loci whose two copies
+are identical by descent (0 unless real_inbreeding = TRUE), and
+F_founder_map, the same proportion measured along the map. Founders
+have no parents (pat and mat are NA).}
+
+\item{store_pedigree}{Whether to return the pedigree of every individual
+of every generation, sampled or not, as the attribute "pedigree" of each
+iteration: a data frame with id (as in indNames of the stored genlights),
+pat, mat (NA for founders), generation (0 for founders), pop, F_founder
+(founders only, NA otherwise) and in_population (FALSE for offspring
+sampled by sample_families that did not join the population). Read it with
+attr(res[["iteration_1"]], "pedigree") [default FALSE].}
+
 \item{interactive_vars}{Run a shiny app to input interactively the values of
 simulations variables [default TRUE].}
 
-\item{seed}{Set the seed for the simulations [default NULL].}
+\item{seed}{Set the seed for the simulations. This calls set.seed(), so it
+also sets the random number stream of the R session for any code run
+afterwards [default NULL].}
 
 \item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
-progress log; 3, progress and results summary; 5, full report
+brief progress messages; 3, progress and results summary; 5, full report
 [default 2, unless specified using gl.set.verbosity].}
 
-\item{...}{Any variable and its value can be added separately within the 
-function, will be changed over the input value supplied by the csv file. See 
-tutorial.}
+\item{...}{Any simulation variable of 'sim_variables.csv' and its value,
+e.g. gen_number_phase2 = 20 or local_adap = "1 2". The value replaces the
+one in the csv file or the Shiny app. Names that are not simulation
+variables stop the function with an error.}
 }
 \value{
-Returns genlight objects with simulated data.
+A list with one element per iteration ("iteration_1", ...). Each
+is a list of genlight objects, one per stored generation, named by the
+generation they hold ("generation_1", ...). Each genlight has the
+reference table in @other$loc.metrics, sex and parents in
 }
 \description{
 This function simulates populations made up of diploid organisms that 
 reproduce in non-overlapping generations. Each individual has a pair of 
 homologous chromosomes that contains interspersed selected and neutral loci. 
-For the initial generation, the genotype for each individual’s chromosomes is
+For the initial generation, the genotype for each individual's chromosomes is
 randomly drawn from distributions at linkage equilibrium and in 
 Hardy-Weinberg equilibrium. 
 
-See documentation and tutorial for a complete description of the simulations.
-These documents can be accessed at 
-https://github.com/green-striped-gecko/dartR/wiki/Simulations-tutorial
+The simulations will take a little longer the first time you use the
+function gl.sim.WF.run() in an R session because C++ functions must be
+compiled.
+}
+\details{
+Values for the simulation variables can be entered in a Shiny app
+(interactive_vars = TRUE) or in the file 'sim_variables.csv', which can be
+found by typing in the R console:
+system.file('extdata', 'sim_variables.csv', package = 'dartR.sim').
 
-Take into account that the simulations will take a little longer the
-first time you use the function gl.sim.WF.run() because C++ functions must
-be compiled.
+The model, generation by generation:
+\itemize{
+\item Migration. Every transfer_each_gen generations, each connected pair
+of populations swaps number_transfers individuals in each direction (half
+males, half females; a single transfer alternates between sexes). With
+dispersal_type "line", "circle" or "all_connected", each pair of
+connected populations is processed once. A file from
+\code{\link{gl.sim.create_dispersal}} is used row by row.
+\item Reproduction. N/2 monogamous pairs are formed at random, except that
+a proportion sib_mating of the pairs are full siblings (see Inbreeding
+below). The number
+of offspring per pair follows a negative binomial distribution with mean
+number_offspring and size variance_offspring: large values of
+variance_offspring give Poisson family sizes (Ne close to N), small values
+increase the variance of family size and lower Ne. Sex is assigned at
+random.
+\item Recombination. For each gamete, the number of recombination events
+is Poisson with mean equal to the map length in Morgans rounded up; each
+event places a crossover between two loci with probability proportional
+to the recombination rate c of the reference table, so the mean number of
+crossovers per gamete equals the map length. There is no interference.
+recombination_males = FALSE switches recombination off in males.
+\item Mutation. Each offspring receives, with probability mut_rate, one new
+allele at a locus drawn from the loci of type mutation_neu, mutation_del
+or mutation_adv that are not segregating. A locus returns to this pool
+when its new allele is lost.
+\item Selection. Fitness is multiplicative across loci: 1 - s for the
+homozygote of the simulated allele, 1 - hs for heterozygotes and 1
+otherwise; advantageous alleles have negative s. With the "relative"
+model, the next generation is sampled from the offspring without
+replacement with probability proportional to fitness; this weakens
+selection when the offspring pool is not much larger than N (a warning is
+printed at verbose >= 1 when it is less than 3 times N). With the
+"absolute" model, an offspring survives with probability
+min(1, fitness / genetic_load), so there is no selection among offspring
+whose fitness is at least genetic_load. local_adap lists the populations
+where advantageous alleles are under selection (s = 0 elsewhere).
+clinal_adap gives the first and last populations of a cline along which
+advantageous s is multiplied by 1, 1 - k, 1 - 2k, ... with
+k = clinal_strength / 100 (floored at 0); outside the cline s = 0.
+\item Next generation. N/2 males and N/2 females are sampled from the
+offspring. If there are too few of either sex, the population is extinct:
+the iteration stops and the generations stored so far are returned.
+}
+With phase1 = TRUE, phase 2 starts from individuals sampled from the
+phase-1 populations, without replacement unless phase 2 is larger.
+
+If a genlight object is used (real_pops, real_pop_size, real_loc,
+real_freq or real_inbreeding), the simulated allele is the alternative
+allele of the genlight (genotype 2). Loci without calls in a population
+take the frequency across all populations. real_pop_size sets the sizes
+of the first phase simulated, rounded up to even numbers.
+
+Inbreeding. sib_mating_phase1 and sib_mating_phase2 set the proportion of
+pairs that are full siblings (brother and sister with the same father and
+mother), one value or one per population (space delimited and in
+quotes); NULL or 0 is random mating. At equilibrium the inbreeding
+coefficient is F = b / (4 - 3b) for a proportion b of sib matings. Sib
+matings need females with a brother among the parents, so when families
+are small (low number_offspring) fewer sib matings than asked for can take
+place and a warning is printed at verbose >= 1. With real_inbreeding =
+TRUE, F = 1 - Ho / He is estimated in each population of x (on the loci
+of chromosome_name when real_loc = TRUE; negative values are set to 0)
+and x must have as many populations as the first phase simulated. The
+founders are then made inbred: along the chromosome they alternate
+between stretches whose two copies are identical by descent (a fraction F
+of the map, mean length 25 cM, as in the offspring of full siblings) and
+stretches drawn independently. In a phase whose sib_mating is NULL, the
+proportion of sib matings is set to b = 4F / (1 + 3F), which keeps F in
+the following generations; a sib_mating value that is set is used
+instead. Founders are unrelated to each other, so the first generation
+(their offspring) has F close to 0; F returns close to the value in x from
+the second generation. To store only generations at equilibrium, use
+phase 1 as a burn-in (phase1 = TRUE, store_phase1 = FALSE).
+inbreeding_founders (one value or one per population, in the order of
+the populations) gives the founders' F directly and replaces the value
+estimated from x, with or without real_inbreeding; negative values are
+set to 0. It is useful because heterozygote dropout inflates F in the
+full locus set: estimate F on high call-rate loci and pass it here while
+x keeps all loci for the allele frequencies.
+
+Differentiation. With real_freq = TRUE, each population's founders are
+drawn from its sample frequencies in x, which carry sampling noise and
+so inflate FST among founders. real_freq_shrink = "auto" shrinks them
+toward their mean, q' = mean + lambda (q - mean), with lambda chosen so
+the between-population variance of the frequencies equals that of x after
+removing the variance expected from sampling; an FST estimator that
+corrects for sample size (e.g. Hudson's) then gives about the same value
+for the founders as for x, whatever the population size. A number sets
+lambda directly; NULL (default) does not shrink. The lambda used is
+stored in sim.vars$freq_shrink_lambda. Drift after the founders raises
+FST again, faster in small populations.
+
+Migration. With real_migration = TRUE, the number of individuals each
+pair of populations swaps per generation is set from x's FST (Hudson's,
+mean over pairs of populations). Each pair swaps number_transfers
+individuals in each direction, so with n populations and dispersal_type
+"all_connected" the island model gives an equilibrium
+FST = 1 / (1 + 4 n T) for T transfers per generation (Takahata, 1983)
+when Ne = N. FST depends on Ne m rather than N m, so
+T = (1 / FST - 1) / (4 n) x N / Ne (mean over populations of N / Ne,
+with Ne the expected Ne, see below) replaces number_transfers. T can be
+fractional: each pair moves floor(T) or floor(T) + 1 individuals, the latter with probability T - floor(T). It
+applies to the phases with dispersal, which must be "all_connected" (no
+dispersal file). T is stored in sim.vars$migrants_real.
+
+Effective population size. Ne = 4N / (Vk + 2), with Vk the variance in
+the number of offspring an individual leaves in the next generation.
+With parents sampled without replacement Ne / N = k / (k + 1), and with
+replace_parents = TRUE (parents mate a Poisson number of times, which
+produces half siblings) Ne / N = k / (2k + 1), at most 1/2; k is
+variance_offspring, one value or one per population. ne_phase1 and
+ne_phase2 set a target Ne for each population, for example estimated
+from x with gl.LDNe() (per population; with small samples its estimate
+can be infinite and is then of no use), and variance_offspring is set to
+reach it. Family-size variance can only lower Ne, so a target above N
+(N/2 with replace_parents = TRUE) is capped there with a warning; raise
+the population size instead. With real_pop_size = TRUE the populations
+are as small as x's samples; to simulate larger populations while storing
+samples of x's sizes, set population_size_phase2 and use
+real_sample_size = TRUE, which replaces sample_percent. The expected Ne is
+stored in sim.vars$ne_expected, which \code{\link{gl.diagnostics.sim}}
+uses by default.
+
+Family-structured samples. A sample made of a few families (clutches,
+litters) makes unrelated pairs look related, because allele frequencies
+come from few families. sample_families gives the sizes of the full-sib
+families in each stored sample (e.g. "9 15 9"; ";" between
+populations, one group for all populations). For each size a mating
+pair with that many offspring is chosen and that many of its offspring
+are sampled from the offspring pool, before the next generation is drawn
+(so, like hatchlings, they may not survive to reproduce); the rest of the
+sample is drawn at random from the population. sample_parents = TRUE
+also stores each family's two parents, from the previous generation;
+they count against the sample size. The sample size is x's with
+real_sample_size = TRUE (exactly, with or without families), otherwise
+set by sample_percent. Family sampling starts at generation 1, as the
+founders have no parents; number_offspring must be at least the largest
+family, otherwise large families are rare and a warning is printed.
+ind.metrics gains sample_role ("family", "parent" or "random") and
+family (the parents' ids).
+
+Planted crosses. To recreate a mating design with shared parents (e.g. 4
+litters from 2 sires x 2 dams), sample_crosses gives one "SxD" token per
+family of sample_families, where the same label is the same individual
+(e.g. "S1xD1 S1xD2 S2xD1 S2xD2"; ";" between populations);
+sample_design = "2x2" is shorthand for every cross of 2 sires and 2
+dams. Sires and dams are drawn at random from the previous generation and
+each cross makes a family of exactly the given size, with the usual
+meiosis. The planted offspring are only sampled: they do not join the
+population, so drift and gene flow are unchanged. With sample_parents =
+TRUE each parent is sampled once. ind.metrics also gains sample_cross
+(the offspring's cross) and parent_label (the parent's label).
 }
 \examples{
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
@@ -87,10 +268,19 @@ res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
 \code{\link{gl.sim.WF.table}}
 
 Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.report.nall}()},
+\code{\link{gl.sim.Neconst}()},
 \code{\link{gl.sim.WF.table}()},
-\code{\link{gl.sim.create_dispersal}()}
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.emigration}()},
+\code{\link{gl.sim.ind}()},
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.mutate}()},
+\code{\link{gl.sim.offspring}()}
 }
 \author{
-Custodian: Luis Mijangos
+Author(s): Luis Mijangos. Custodian: Luis Mijangos -- Post to
+\url{https://groups.google.com/d/forum/dartr}
 }
 \concept{simulation functions}

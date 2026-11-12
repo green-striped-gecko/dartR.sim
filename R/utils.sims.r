@@ -19,89 +19,227 @@ q_equilibrium <- function(a, b, c) {
   return(x_1)
 }
 
+###############################################################################
+####################### REFERENCE TABLE VARIABLES #############################
+###############################################################################
+
+# Converts the variable/value table used by gl.sim.WF.table into a named list
+# of R values. Character variables are stored quoted in ref_variables.csv
+# ("gamma") but bare in the Shiny app and in ... overrides (gamma), so their
+# quotes are stripped instead of evaluated. Every other value is evaluated,
+# which allows entries such as sqrt(0.001) or 5*10^-5; values are evaluated in
+# order in one environment, so a value can refer to an earlier variable.
+utils.wf.ref.values <- function(ref_vars,
+                                char_vars = c("chromosome_name",
+                                              "h_distribution_del",
+                                              "s_distribution_del",
+                                              "q_distribution_del",
+                                              "h_distribution_adv",
+                                              "s_distribution_adv",
+                                              "q_distribution_adv")) {
+  env <- new.env(parent = globalenv())
+  for (i in seq_len(nrow(ref_vars))) {
+    var <- as.character(ref_vars$variable[i])
+    val <- as.character(ref_vars$value[i])
+    if (var %in% char_vars) {
+      val <- gsub("[\"']", "", val)
+      ## An empty or NULL entry (e.g. local_adap) means "not set"
+      if (is.na(val) || val %in% c("", "NULL")) {
+        val <- NULL
+      }
+    } else {
+      val <- eval(parse(text = val), envir = env)
+    }
+    assign(var, val, envir = env)
+  }
+  return(mget(as.character(ref_vars$variable), envir = env))
+}
+
+###############################################################################
+############################ C++ HELPERS ######################################
+###############################################################################
+
+# The C++ helpers of the Wright-Fisher simulator are compiled once per R
+# session and kept in this environment; compiling them inside the generation
+# loop cost ~0.07 s per call even with Rcpp's cache.
+.wf_cpp <- new.env(parent = baseenv())
+
+utils.wf.cpp <- function() {
+  if (!is.null(.wf_cpp$make_fit)) {
+    return(.wf_cpp)
+  }
+  
+  # Chromosomes for the initial generation: allele "1" with probability q
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    'StringVector make_chr(int j, NumericVector q) {
+          StringVector out(j);
+          int size = 1;
+          IntegerVector x = IntegerVector::create(1, 0);
+          bool rep = false;
+          for (int i = 0; i < j; i++) {
+            std::ostringstream temp;
+            for (int z = 0; z < q.length(); z++) {
+              NumericVector p = NumericVector::create(q[z], 1 - q[z]);
+              temp << sample(x, size, rep, p);
+            }
+            out[i] = temp.str();
+          }
+          return out;
+        }')
+  
+  # Number of "1" alleles per locus across chromosomes
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    "NumericVector make_freqs(StringVector seqs) {
+              int seqN = seqs.length();
+              int locN = strlen(seqs(0));
+              NumericMatrix freq_mat = NumericMatrix(seqN, locN);
+              NumericVector out(locN);
+              for (int i = 0; i < seqN; i++) {
+                for (int j = 0; j < locN; j++) {
+                  freq_mat(i, j) = seqs(i)[j] - '0';
+                }
+              }
+              for (int y = 0; y < locN; y++){
+                out[y] = sum(freq_mat(_, y));
+              }
+              return out;
+            }")
+  
+  # Multiplicative fitness across loci: 1 - s ("11"), 1 - hs (heterozygote)
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    "NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
+  int loc_number = strlen(seqs(0,0));
+  int indN = seqs.nrow();
+  NumericVector out(indN);
+  for (int i = 0; i < indN; i++) {
+    NumericVector fit_ind(loc_number);
+    fit_ind.fill(1);
+    for (int loc = 0; loc < loc_number; loc++){
+      char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
+      if (chr1 == chr2 && chr1=='1')
+        fit_ind[loc] = 1 - s[loc];
+      if (chr1 != chr2)
+        fit_ind[loc] = 1 - (h[loc] * s[loc]);
+    }
+    out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
+  }
+  return(out);
+}")
+  
+  # Genotype strings ("00", "01", "10", "11") per individual and locus
+  Rcpp::cppFunction(plugins = "cpp11", env = .wf_cpp,
+                    'List make_geno(StringMatrix mat) {
+    int ind = mat.nrow();
+    int loc = strlen(mat(0,0));
+    List out(ind);
+    for (int i = 0; i < ind; i++) {
+      std::string chr1 (mat(i,0));
+      std::string chr2 (mat(i,1));
+      StringVector temp(loc);
+      for (int j = 0; j < loc; j++) {
+        StringVector geno = StringVector::create(chr1[j],chr2[j]);
+        temp[j] = collapse(geno);
+      }
+      out[i] = temp;
+    }
+    return out;
+  }')
+  
+  return(.wf_cpp)
+}
+
 
 ###############################################################################
 ################################ MIGRATION ####################################
 ###############################################################################
 
 # Function to simulate migration (or transfer) of individuals between two populations.
-# population1, population2: data frames representing the two populations.
+# population1, population2: data frames representing the two populations
+#   (males in the first half, females in the second half).
 # gen: current generation.
 # size_pop1, size_pop2: sizes of the populations.
 # trans_gen: migration event interval (only migrate if generation is a multiple of this).
-# male_tran, female_tran: Boolean flags indicating whether migration should occur for males and/or females.
-# n_transfer: number of individuals to transfer.
+# n_transfer: number of individuals swapped in each direction. With 2 or more,
+#   ceiling(n / 2) males and floor(n / 2) females are swapped; with 1, one
+#   individual whose sex is given by next_male; with 0, none.
+# next_male: with n_transfer == 1, whether this event swaps a male; it is
+#   flipped after each event so that the pair alternates sexes over time.
+# Returns list(population1, population2, next_male).
 migration <- function(population1,
                       population2,
                       gen,
                       size_pop1,
                       size_pop2,
                       trans_gen,
-                      male_tran,
-                      female_tran,
-                      n_transfer) {
-  # Check if it is not the first generation and if the current generation is a migration event
-  if (gen != 1 & gen %% trans_gen == 0) {
-    
-    # Case: transferring one individual at a time
+                      n_transfer,
+                      next_male = TRUE) {
+  # Only migrate if it is not the first generation and the current
+  # generation is a migration event
+  if (gen != 1 && gen %% trans_gen == 0 && n_transfer > 0) {
     if (n_transfer == 1) {
-      if (male_tran) {
-        # For males, sample one individual from the first half of each population
-        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = 1)
-        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = 1)
-        # Temporarily store the individuals and then swap them between populations
-        temppop1 <- population1[malepoptran_pop1, ]
-        temppop2 <- population2[malepoptran_pop2, ]
-        population2[malepoptran_pop2, ] <- temppop1
-        population1[malepoptran_pop1, ] <- temppop2
-      }
-      if (female_tran) {
-        # For females, sample one individual from the second half of each population
-        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = 1)
-        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = 1)
-        # Temporarily store the individuals and then swap them between populations
-        temppop1 <- population1[fempoptran_pop1, ]
-        temppop2 <- population2[fempoptran_pop2, ]
-        population2[fempoptran_pop2, ] <- temppop1
-        population1[fempoptran_pop1, ] <- temppop2
-      }
+      n_males <- as.integer(next_male)
+      n_females <- 1L - n_males
+      next_male <- !next_male
+    } else {
+      n_males <- ceiling(n_transfer / 2)
+      n_females <- floor(n_transfer / 2)
     }
-    
-    # Case: transferring two or more individuals
-    if (n_transfer >= 2) {
-      # Determine how many males and females to transfer
-      size_malepoptran <- ceiling(n_transfer / 2)
-      size_femalepoptran <- floor(n_transfer / 2)
-      if (male_tran) {
-        # Sample male individuals from the first half of each population
-        malepoptran_pop1 <- sample(c(1:(size_pop1 / 2)), size = size_malepoptran)
-        malepoptran_pop2 <- sample(c(1:(size_pop2 / 2)), size = size_malepoptran)
-        # Swap the selected male individuals between populations
-        temppop1 <- population1[malepoptran_pop1, ]
-        temppop2 <- population2[malepoptran_pop2, ]
-        population2[malepoptran_pop2, ] <- temppop1
-        population1[malepoptran_pop1, ] <- temppop2
-      }
-      if (female_tran) {
-        # Sample female individuals from the second half of each population
-        fempoptran_pop1 <- sample(c(((size_pop1 / 2) + 1):size_pop1), size = size_femalepoptran)
-        fempoptran_pop2 <- sample(c(((size_pop2 / 2) + 1):size_pop2), size = size_femalepoptran)
-        # Swap the selected female individuals between populations
-        temppop1 <- population1[fempoptran_pop1, ]
-        temppop2 <- population2[fempoptran_pop2, ]
-        population2[fempoptran_pop2, ] <- temppop1
-        population1[fempoptran_pop1, ] <- temppop2
-      }
+    if (n_males > 0) {
+      # Males are sampled from the first half of each population
+      pick1 <- sample(seq_len(size_pop1 / 2), size = n_males)
+      pick2 <- sample(seq_len(size_pop2 / 2), size = n_males)
+      temppop1 <- population1[pick1, ]
+      population1[pick1, ] <- population2[pick2, ]
+      population2[pick2, ] <- temppop1
     }
-    # For one individual transfer, flip the migration flags to alternate migration types
-    if (n_transfer == 1) {
-      male_tran <- !male_tran
-      female_tran <- !female_tran
+    if (n_females > 0) {
+      # Females are sampled from the second half of each population
+      pick1 <- size_pop1 / 2 + sample(seq_len(size_pop1 / 2), size = n_females)
+      pick2 <- size_pop2 / 2 + sample(seq_len(size_pop2 / 2), size = n_females)
+      temppop1 <- population1[pick1, ]
+      population1[pick1, ] <- population2[pick2, ]
+      population2[pick2, ] <- temppop1
     }
   }
-  
-  # Return the updated populations along with the (possibly toggled) migration flags
-  return (list(population1, population2, male_tran, female_tran))
+  return(list(population1, population2, next_male))
+}
+
+# Function to run one dispersal event over all rows of a dispersal table.
+# pop_list: list of population data frames.
+# dispersal_pairs: data frame with pop1, pop2, number_transfers,
+#   transfer_each_gen, size_pop1 and size_pop2 (one row per connected pair).
+# generation: current generation.
+# next_male: logical vector, one element per row of dispersal_pairs, with the
+#   sex of the next single-individual transfer of each pair; NULL (or the
+#   wrong length) starts every pair with a male.
+# Returns list(pop_list, next_male).
+dispersal_event <- function(pop_list,
+                            dispersal_pairs,
+                            generation,
+                            next_male = NULL) {
+  if (is.null(next_male) || length(next_male) != nrow(dispersal_pairs)) {
+    next_male <- rep(TRUE, nrow(dispersal_pairs))
+  }
+  for (i in seq_len(nrow(dispersal_pairs))) {
+    p1 <- dispersal_pairs$pop1[i]
+    p2 <- dispersal_pairs$pop2[i]
+    res <- migration(
+      population1 = pop_list[[p1]],
+      population2 = pop_list[[p2]],
+      gen = generation,
+      size_pop1 = dispersal_pairs$size_pop1[i],
+      size_pop2 = dispersal_pairs$size_pop2[i],
+      trans_gen = dispersal_pairs$transfer_each_gen[i],
+      n_transfer = dispersal_pairs$number_transfers[i],
+      next_male = next_male[i]
+    )
+    pop_list[[p1]] <- res[[1]]
+    pop_list[[p1]]$V2 <- p1
+    pop_list[[p2]] <- res[[2]]
+    pop_list[[p2]]$V2 <- p2
+    next_male[i] <- res[[3]]
+  }
+  return(list(pop_list, next_male))
 }
 
 
@@ -120,6 +258,7 @@ migration <- function(population1,
 # r_males: flag indicating if recombination occurs in males.
 # r_map_1: recombination map used by the recombination function.
 # n_loc: number of loci (genetic positions).
+# sib: proportion of matings between full siblings (0 = random mating).
 reproduction <- function(pop,
                          pop_number,
                          pop_size,
@@ -131,20 +270,29 @@ reproduction <- function(pop,
                          r_map_1,
                          n_loc,
                          gen,
-                         rep_parents) {
+                         rep_parents,
+                         sib = 0) {
   # Create a matrix to hold pairs of parents (male and female)
   parents_matrix <- as.data.frame(matrix(nrow = pop_size / 2, ncol = 2))
-  # Randomly select male parents from the first half of the population
-  parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]), 
-                                size = pop_size / 2,
-                                replace = rep_parents)
-  # Randomly select female parents from the second half of the population
-  parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]), 
-                                size = pop_size / 2,
-                                replace = rep_parents)
-  
-  # Initialize an empty data frame to store all offspring
-  offspring <- NULL
+  sib_short <- FALSE
+  if (sib > 0 && all(c("V5", "V6") %in% colnames(pop))) {
+    pairs <- sib_pairs(pop, pop_size, sib, rep_parents)
+    parents_matrix[, 1] <- pairs$males
+    parents_matrix[, 2] <- pairs$females
+    sib_short <- pairs$short
+  } else {
+    # Randomly select male parents from the first half of the population
+    parents_matrix[, 1] <- sample(rownames(pop[1:(pop_size / 2),]),
+                                  size = pop_size / 2,
+                                  replace = rep_parents)
+    # Randomly select female parents from the second half of the population
+    parents_matrix[, 2] <- sample(rownames(pop[((pop_size / 2) + 1):pop_size,]),
+                                  size = pop_size / 2,
+                                  replace = rep_parents)
+  }
+
+  # Offspring of each pair are collected in a list and bound once
+  offspring <- vector("list", nrow(parents_matrix))
   
   # Loop over each mating pair to generate offspring
   for (parent in 1:dim(parents_matrix)[1]) {
@@ -172,55 +320,390 @@ reproduction <- function(pop,
     female_chromosomes <- list(pop[parents_matrix[parent, 2], 3], 
                                pop[parents_matrix[parent, 2], 4])
     
-    # Loop through each offspring produced by the pair
+    # Loop through each offspring produced by the pair. Each gamete starts
+    # from the parent's own chromosomes, so siblings recombine independently.
+    # The number of recombination events is Poisson(r_event); each event
+    # places a chiasma with probability sum(c) / r_event (see gamete()), so
+    # the mean number of crossovers per gamete equals the map length in
+    # Morgans
     for (offs in 1:pairing_offspring) {
-      # Generate recombination event counts using a Poisson distribution for both sexes
-      males_recom_events <- rpois(1, r_event)
-      females_recom_events <- rpois(1, r_event)
-      
-      # For males: if recombination is enabled and enough events occur, recombine chromosomes
-      if (recom == TRUE & r_males == TRUE & males_recom_events > 1) {
-        for (event in males_recom_events) {
-          male_chromosomes <- recomb(
-            chr1 = male_chromosomes[[1]],
-            chr2 = male_chromosomes[[2]],
-            r_map = r_map_1,
-            loci = n_loc
-          )
-        }
-        # Randomly select one of the recombined male chromosomes for the offspring
-        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-      } else {
-        # Without recombination, randomly select one of the male chromosomes
-        offspring_temp[offs, 3] <- male_chromosomes[[sample(c(1, 2), 1)]]
-      }
-      
-      # For females: if recombination is enabled and enough events occur, recombine chromosomes
-      if (recom == TRUE & females_recom_events > 1) {
-        for (event in females_recom_events) {
-          female_chromosomes <- recomb(
-            chr1 = female_chromosomes[[1]],
-            chr2 = female_chromosomes[[2]],
-            r_map = r_map_1,
-            loci = n_loc
-          )
-        }
-        # Randomly select one of the recombined female chromosomes for the offspring
-        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-      } else {
-        # Without recombination, randomly select one of the female chromosomes
-        offspring_temp[offs, 4] <- female_chromosomes[[sample(c(1, 2), 1)]]
-      }
+      offspring_temp[offs, 3] <- gamete(
+        chr1 = male_chromosomes[[1]],
+        chr2 = male_chromosomes[[2]],
+        n_events = if (recom == TRUE & r_males == TRUE) rpois(1, r_event) else 0,
+        r_map = r_map_1,
+        loci = n_loc
+      )
+      offspring_temp[offs, 4] <- gamete(
+        chr1 = female_chromosomes[[1]],
+        chr2 = female_chromosomes[[2]],
+        n_events = if (recom == TRUE) rpois(1, r_event) else 0,
+        r_map = r_map_1,
+        loci = n_loc
+      )
     }
     # Record the parent IDs: father (column 5) and mother (column 6)
     offspring_temp[, 5] <- pop[parents_matrix[parent,1],"id"]
     offspring_temp[, 6] <- pop[parents_matrix[parent,2],"id"]
     
-    # Combine the offspring from this pair with the overall offspring data
-    offspring <- rbind(offspring, offspring_temp)
+    offspring[[parent]] <- offspring_temp
   }
-  # Return the complete offspring data frame
+  # Return the complete offspring data frame (NULL if no offspring).
+  # Attribute sib_short flags that fewer females had a brother than the
+  # proportion of sib matings asked for
+  offspring <- do.call(rbind, offspring)
+  if (!is.null(offspring)) {
+    attr(offspring, "sib_short") <- sib_short
+  }
   return(offspring)
+}
+
+# Pair parents when a proportion sib of matings is between full siblings.
+# Full siblings share father (V5) and mother (V6). The number of sib
+# matings is drawn as Binomial(pairs, sib); females, in random order, are
+# paired with a brother not yet paired until that number is reached. The
+# remaining females mate at random with the remaining males. short = TRUE
+# when too few females had a free brother to reach the number. Returns row
+# names of males and females, one pair per element.
+sib_pairs <- function(pop, pop_size, sib, rep_parents) {
+  n_pairs <- pop_size / 2
+  males <- rownames(pop[1:n_pairs, ])
+  females <- sample(rownames(pop[(n_pairs + 1):pop_size, ]), size = n_pairs,
+                    replace = rep_parents)
+  family <- paste(pop$V5, pop$V6)
+  family[is.na(pop$V5) | is.na(pop$V6)] <- NA
+  names(family) <- rownames(pop)
+  fam_males <- family[males]
+  n_sib <- rbinom(1, n_pairs, sib)
+  mates <- rep(NA_character_, n_pairs)
+  paired <- 0
+  for (i in sample.int(n_pairs)) {
+    if (paired >= n_sib) break
+    if (is.na(family[females[i]])) next
+    options <- males[which(fam_males == family[females[i]])]
+    if (!rep_parents) options <- setdiff(options, mates)
+    if (length(options) > 0) {
+      mates[i] <- options[sample.int(length(options), 1)]
+      paired <- paired + 1
+    }
+  }
+  random <- is.na(mates)
+  pool <- if (rep_parents) males else setdiff(males, mates)
+  mates[random] <- pool[sample.int(length(pool), sum(random),
+                                   replace = rep_parents)]
+  return(list(males = mates, females = females, short = paired < n_sib))
+}
+
+# Shrink population allele frequencies toward their mean,
+# q' = mean + lambda * (q - mean), to remove sampling noise from the
+# differentiation among founders. freq: list (one numeric vector per
+# population) of sample frequencies; n: list of the number of genotyped
+# individuals per locus. With lambda = "auto", lambda^2 = (V - S) / V, where
+# V is the observed between-population variance summed over loci and S the
+# part of it expected from sampling n individuals. The frequencies the
+# founders are drawn from then differ among populations as much as the
+# sampled populations do once sampling noise is removed, so an FST
+# estimator that corrects for sample size (e.g. Hudson's) gives the same
+# value for the founders as for x, whatever the number of founders.
+# Returns list(freq, lambda).
+shrink_freq <- function(freq, n, lambda = "auto") {
+  k <- length(freq)
+  q <- do.call(rbind, freq)
+  q_mean <- colMeans(q)
+  if (identical(lambda, "auto")) {
+    nn <- do.call(rbind, n)
+    s2 <- ifelse(nn > 0, q * (1 - q) / pmax(2 * nn - 1, 1), 0)
+    V <- sum(sweep(q, 2, q_mean)^2)
+    S <- (k - 1) / k * sum(s2)
+    lambda <- if (V > 0) sqrt(min(1, max(0, (V - S) / V))) else 1
+  }
+  q <- sweep(sweep(q, 2, q_mean) * lambda, 2, q_mean, "+")
+  freq <- lapply(seq_len(k), function(i) q[i, ])
+  return(list(freq = freq, lambda = lambda))
+}
+
+# Sample of n individuals of one population, half of each sex (the extra
+# individual of an odd n is of a random sex)
+sample_sexes <- function(p, n) {
+  males <- which(p$V1 == "Male")
+  females <- which(p$V1 == "Female")
+  n_m <- floor(n / 2) + (n %% 2 == 1 && runif(1) < 0.5)
+  n_m <- min(n_m, length(males))
+  n_f <- min(n - n_m, length(females))
+  n_m <- n - n_f
+  p[c(males[sample.int(length(males), n_m)],
+      females[sample.int(length(females), n_f)]), ]
+}
+
+# Sample of n individuals of one population made of full-sib families, as
+# in a sample of clutches or litters. p: the population (retained
+# generation); pool: its offspring pool (before survival sampling), with
+# father (V5) and mother (V6); parents: the previous generation (the pool's
+# parents); sizes: family sizes; with_parents: also sample each family's
+# two parents. For each size, largest first, a mating pair with at least
+# that many offspring in the pool is chosen at random (without it, the
+# largest remaining family, with a warning), then that many of its
+# offspring; parents count against n; the rest of n is drawn at random from
+# p. Returns list(sample, role, family, short) with role "family", "parent"
+# or "random" and family the "father mother" id of family members.
+sample_with_families <- function(p, pool, parents, n, sizes, with_parents) {
+  cols <- c("V1", "V2", "V3", "V4", "V5", "V6", "id")
+  fix_cols <- function(d) {
+    d <- as.data.frame(d)
+    for (v in setdiff(cols, names(d))) d[[v]] <- NA
+    d[, cols]
+  }
+  pool <- fix_cols(pool)
+  parents <- fix_cols(parents)
+  p <- fix_cols(p)
+  key <- paste(pool$V5, pool$V6)
+  fam_n <- table(key)
+  used <- character(0)
+  rows <- list()
+  role <- character(0)
+  family <- character(0)
+  short <- FALSE
+  for (k in sort(sizes, decreasing = TRUE)) {
+    free <- setdiff(names(fam_n), used)
+    if (length(free) == 0) {
+      short <- TRUE
+      break
+    }
+    big <- free[fam_n[free] >= k]
+    if (length(big) == 0) {
+      short <- TRUE
+      big <- free[fam_n[free] == max(fam_n[free])]
+      k <- max(fam_n[free])
+    }
+    f <- big[sample.int(length(big), 1)]
+    used <- c(used, f)
+    members <- which(key == f)
+    members <- members[sample.int(length(members), k)]
+    rows <- c(rows, list(pool[members, ]))
+    role <- c(role, rep("family", k))
+    family <- c(family, rep(f, k))
+    if (with_parents) {
+      par_ids <- c(pool$V5[members[1]], pool$V6[members[1]])
+      par_rows <- parents[parents$id %in% setdiff(par_ids, unlist(lapply(
+        rows, function(r) r$id))), ]
+      rows <- c(rows, list(par_rows))
+      role <- c(role, rep("parent", nrow(par_rows)))
+      family <- c(family, rep(f, nrow(par_rows)))
+    }
+  }
+  chosen <- do.call(rbind, rows)
+  if (is.null(chosen)) chosen <- p[0, ]
+  if (nrow(chosen) > n) {
+    stop(error("  sample_families: the families", if (with_parents)
+      "and their parents", "add up to", nrow(chosen), "individuals, more",
+      "than the", n, "sampled\n"))
+  }
+  rest <- p[!p$id %in% chosen$id, ]
+  n_rest <- min(n - nrow(chosen), nrow(rest))
+  random <- rest[sample.int(nrow(rest), n_rest), ]
+  sample <- rbind(chosen, random)
+  sample$V2 <- p$V2[1]
+  return(list(sample = sample,
+              role = c(role, rep("random", n_rest)),
+              family = c(family, rep(NA_character_, n_rest)),
+              short = short))
+}
+
+# Expand sample_design "axb" (a sires x b dams, every cross one family)
+# into cross tokens "S1xD1 S1xD2 ... SaxDb"
+expand_design <- function(design) {
+  ab <- suppressWarnings(as.numeric(strsplit(trimws(design), "x")[[1]]))
+  if (length(ab) != 2 || anyNA(ab) || any(ab < 1 | ab %% 1 != 0)) {
+    return(NA_character_)
+  }
+  grid <- expand.grid(d = seq_len(ab[2]), s = seq_len(ab[1]))
+  paste0("S", grid$s, "xD", grid$d)
+}
+
+# Sample of n individuals of one population with planted families: for
+# each cross token ("S1xD2": sire label x dam label; the same label is the
+# same individual) a family of the given size is made from a sire and a dam
+# drawn from the previous generation (parents), with the usual meiosis. The
+# planted offspring are sampled only: they do not join the population.
+# with_parents also samples the parents (once each, counted against n); the
+# rest of n is drawn at random from the population p. Returns the same
+# list as sample_with_families() plus cross (the offspring's token) and
+# label (the parent's label).
+sample_planted <- function(p, parents, n, sizes, crosses, with_parents,
+                           generation, pop_n, r_event, recom, r_males,
+                           r_map, n_loc) {
+  cols <- c("V1", "V2", "V3", "V4", "V5", "V6", "id")
+  fix_cols <- function(d) {
+    d <- as.data.frame(d)
+    for (v in setdiff(cols, names(d))) d[[v]] <- NA
+    d[, cols]
+  }
+  p <- fix_cols(p)
+  parents <- fix_cols(parents)
+  labels <- strsplit(crosses, "x")
+  sire_labels <- unique(vapply(labels, `[`, character(1), 1))
+  dam_labels <- unique(vapply(labels, `[`, character(1), 2))
+  males <- which(parents$V1 == "Male")
+  females <- which(parents$V1 == "Female")
+  if (length(sire_labels) > length(males) ||
+      length(dam_labels) > length(females)) {
+    stop(error("  sample_crosses needs", length(sire_labels), "sires and",
+               length(dam_labels), "dams, but the parents' generation has",
+               length(males), "males and", length(females), "females\n"))
+  }
+  sires <- parents[males[sample.int(length(males), length(sire_labels))], ]
+  dams <- parents[females[sample.int(length(females), length(dam_labels))], ]
+  rownames(sires) <- sire_labels
+  rownames(dams) <- dam_labels
+  offspring <- lapply(seq_along(crosses), function(i) {
+    sire <- sires[labels[[i]][1], ]
+    dam <- dams[labels[[i]][2], ]
+    k <- sizes[i]
+    data.frame(
+      V1 = sample(c("Male", "Female"), k, replace = TRUE),
+      V2 = pop_n,
+      V3 = vapply(seq_len(k), function(j) {
+        gamete(sire$V3, sire$V4,
+               if (recom && r_males) rpois(1, r_event) else 0, r_map, n_loc)
+      }, character(1)),
+      V4 = vapply(seq_len(k), function(j) {
+        gamete(dam$V3, dam$V4, if (recom) rpois(1, r_event) else 0, r_map,
+               n_loc)
+      }, character(1)),
+      V5 = sire$id,
+      V6 = dam$id,
+      id = paste0(generation, "_", pop_n, "_x", i, "_", seq_len(k)),
+      stringsAsFactors = FALSE
+    )
+  })
+  chosen <- do.call(rbind, offspring)
+  role <- rep("family", nrow(chosen))
+  family <- paste(chosen$V5, chosen$V6)
+  cross <- rep(crosses, sizes)
+  label <- rep(NA_character_, nrow(chosen))
+  if (with_parents) {
+    par_rows <- rbind(sires, dams)
+    chosen <- rbind(chosen, par_rows)
+    role <- c(role, rep("parent", nrow(par_rows)))
+    family <- c(family, rep(NA_character_, nrow(par_rows)))
+    cross <- c(cross, rep(NA_character_, nrow(par_rows)))
+    label <- c(label, rownames(par_rows))
+  }
+  if (nrow(chosen) > n) {
+    stop(error("  sample_crosses: the planted families", if (with_parents)
+      "and their parents", "add up to", nrow(chosen), "individuals, more",
+      "than the", n, "sampled\n"))
+  }
+  rest <- p[!p$id %in% chosen$id, ]
+  n_rest <- min(n - nrow(chosen), nrow(rest))
+  random <- rest[sample.int(nrow(rest), n_rest), ]
+  sample <- rbind(chosen, random)
+  sample$V2 <- pop_n
+  rownames(sample) <- NULL
+  return(list(sample = sample,
+              role = c(role, rep("random", n_rest)),
+              family = c(family, rep(NA_character_, n_rest)),
+              cross = c(cross, rep(NA_character_, n_rest)),
+              label = c(label, rep(NA_character_, n_rest)),
+              short = FALSE))
+}
+
+# Ne / N of the simulator. Ne = 4N / (Vk + 2), with Vk the variance in the
+# number of offspring an individual leaves in the next generation. A mating
+# pair leaves on average 2 offspring after the next generation is sampled,
+# with variance 2 + 4 / k (negative binomial of size k = variance_offspring,
+# thinned). Without replacement each parent mates once, so Vk = 2 + 4 / k
+# and Ne / N = k / (k + 1). With replacement (replace_parents = TRUE) an
+# individual mates a Poisson(1) number of times, so Vk = 6 + 4 / k and
+# Ne / N = k / (2k + 1), at most 1/2. Checked against the rate of loss of
+# heterozygosity (N = 100, 30 generations): 0.99, 0.52, 0.49 and 0.33 for
+# predicted 1, 0.5, 0.5 and 0.33.
+ne_ratio <- function(k, rep_parents) {
+  if (rep_parents) k / (2 * k + 1) else k / (k + 1)
+}
+
+# variance_offspring (k) giving Ne / N = R; the inverse of ne_ratio(). R at
+# or above the maximum (1, or 1/2 with replacement) gives Inf.
+k_for_ne <- function(R, rep_parents) {
+  max_R <- if (rep_parents) 1 / 2 else 1
+  ifelse(R >= max_R, Inf,
+         if (rep_parents) R / (1 - 2 * R) else R / (1 - R))
+}
+
+# Mean pairwise FST among the populations of a genlight, Hudson's estimator
+# (Bhatia et al. 2013), which corrects for sample size: for each pair, the
+# ratio of sums over loci of
+# (p1 - p2)^2 - p1(1 - p1)/(n1 - 1) - p2(1 - p2)/(n2 - 1) and
+# p1(1 - p2) + p2(1 - p1), with n the number of alleles genotyped.
+fst_hudson <- function(x) {
+  pops <- seppop(x)
+  freq <- lapply(pops, function(p) colMeans(as.matrix(p), na.rm = TRUE) / 2)
+  n <- lapply(pops, function(p) 2 * colSums(!is.na(as.matrix(p))))
+  pairs <- utils::combn(length(pops), 2)
+  mean(apply(pairs, 2, function(ij) {
+    p1 <- freq[[ij[1]]]
+    p2 <- freq[[ij[2]]]
+    n1 <- n[[ij[1]]]
+    n2 <- n[[ij[2]]]
+    num <- (p1 - p2)^2 - p1 * (1 - p1) / (n1 - 1) - p2 * (1 - p2) / (n2 - 1)
+    den <- p1 * (1 - p2) + p2 * (1 - p1)
+    ok <- is.finite(num) & is.finite(den)
+    sum(num[ok]) / sum(den[ok])
+  }))
+}
+
+# Observed inbreeding coefficient of each population of a genlight,
+# F = 1 - Ho / He, with Ho and He summed over loci and He corrected for
+# sample size (2n / (2n - 1)). Returns a named numeric vector; NA for a
+# population without polymorphic loci.
+inbreeding_real <- function(x) {
+  vapply(seppop(x), function(p) {
+    g <- as.matrix(p)
+    n <- colSums(!is.na(g))
+    q <- colMeans(g, na.rm = TRUE) / 2
+    ho <- colMeans(g == 1, na.rm = TRUE)
+    he <- 2 * q * (1 - q) * 2 * n / (2 * n - 1)
+    keep <- n > 0 & is.finite(he) & is.finite(ho)
+    if (sum(he[keep]) == 0) {
+      return(NA_real_)
+    }
+    1 - sum(ho[keep]) / sum(he[keep])
+  }, numeric(1))
+}
+
+# Loci that are identical by descent (IBD) in an inbred founder with
+# inbreeding coefficient F. Along the chromosome (map position loc_cM, which
+# the reference table stores in Morgans) the founder alternates between IBD
+# and non-IBD stretches, a two-state Markov process that is IBD a fraction F
+# of the map. IBD stretches have a mean length of 1 / meioses Morgans, the
+# length expected from a common ancestor that many meioses away (4 for the
+# offspring of full siblings, 25 cM). Returns a logical
+# vector, TRUE for IBD loci.
+ibd_loci <- function(loc_cM, F, meioses = 4) {
+  n_loc <- length(loc_cM)
+  if (F <= 0) {
+    return(rep(FALSE, n_loc))
+  }
+  if (F >= 1) {
+    return(rep(TRUE, n_loc))
+  }
+  # Mean lengths in Morgans of IBD and non-IBD stretches
+  mean_ibd <- 1 / meioses
+  mean_non <- mean_ibd * (1 - F) / F
+  start <- min(loc_cM)
+  map_length <- max(loc_cM) - start
+  state <- runif(1) < F
+  breaks <- numeric(0)
+  states <- state
+  pos <- 0
+  repeat {
+    pos <- pos + rexp(1, 1 / if (state) mean_ibd else mean_non)
+    if (pos >= map_length) break
+    breaks <- c(breaks, pos)
+    state <- !state
+    states <- c(states, state)
+  }
+  return(states[findInterval(loc_cM - start, breaks) + 1])
 }
 
 
@@ -253,6 +736,41 @@ recomb <- function(chr1,
 }
 
 
+# Function to make one gamete from a parent's two chromosomes.
+# chr1, chr2: the parent's chromosomes (strings of 0/1, one character per locus).
+# n_events: number of recombination events in this meiosis.
+# r_map: recombination map; row i (i <= loci) is the probability weight of a
+#   chiasma between loci i and i + 1, row loci + 1 is "no chiasma".
+# loci: number of loci.
+# All chiasmata are drawn at once (equivalent to applying recomb() n_events
+# times: a chiasma drawn twice at the same place cancels out). One of the two
+# recombinant products is returned at random.
+gamete <- function(chr1,
+                   chr2,
+                   n_events,
+                   r_map,
+                   loci) {
+  chiasmata <- integer(0)
+  if (n_events > 0) {
+    chiasmata <- sample.int(nrow(r_map), size = n_events, replace = TRUE,
+                            prob = r_map[, "c"])
+    chiasmata <- chiasmata[chiasmata < loci]
+    odd <- table(chiasmata) %% 2 == 1
+    chiasmata <- sort(as.integer(names(odd)[odd]))
+  }
+  first <- sample(c(1, 2), 1)
+  if (length(chiasmata) == 0) {
+    return(if (first == 1) chr1 else chr2)
+  }
+  starts <- c(1, chiasmata + 1)
+  ends <- c(chiasmata, loci)
+  seg1 <- substring(chr1, starts, ends)
+  seg2 <- substring(chr2, starts, ends)
+  from_chr1 <- (seq_along(starts) %% 2 == 1) == (first == 1)
+  return(paste(ifelse(from_chr1, seg1, seg2), collapse = ""))
+}
+
+
 ###############################################################################
 ########################## SELECTION ##########################################
 ###############################################################################
@@ -269,36 +787,15 @@ selection_fun <- function(offspring,
                           sel_model,
                           g_load) {
   
-  # Dummy function to satisfy package checking (will be replaced by the C++ implementation below)
-  make_fit <- function(){}  
-  
-  # Define a C++ function using Rcpp that calculates individual fitness.
-  # The function iterates over each offspring's loci, comparing allele pairs,
-  # and computes the product of fitness values across loci.
-  Rcpp::cppFunction(plugins="cpp11",
-                    
-                    "NumericVector make_fit(StringMatrix seqs, NumericVector h, NumericVector s){
-  int loc_number = strlen(seqs(0,0));
-  int indN = seqs.nrow();
-  NumericVector out(indN);
-  for (int i = 0; i < indN; i++) {
-    NumericVector fit_ind(loc_number);
-    fit_ind.fill(1);
-    for (int loc = 0; loc < loc_number; loc++){
-      char chr1 = seqs(i,0)[loc], chr2 = seqs(i,1)[loc];
-      if (chr1 == chr2 && chr1=='1')
-        fit_ind[loc] = 1 - s[loc];
-      if (chr1 != chr2)
-        fit_ind[loc] = 1 - (h[loc] * s[loc]);
-    }
-    out[i] = algorithm::prod(fit_ind.begin(), fit_ind.end());
+  # A population without offspring is returned as is (extinction is
+  # detected by the caller); the C++ code needs at least one row
+  if (is.null(offspring) || nrow(offspring) == 0) {
+    return(offspring)
   }
-  return(out);
-}"
-  )
   
-  # Calculate fitness for each offspring by passing their genetic data to the C++ function.
-  offspring$fitness <- make_fit(as.matrix(offspring[,3:4]),h,s)
+  # Calculate fitness for each offspring (product across loci, see
+  # utils.wf.cpp())
+  offspring$fitness <- utils.wf.cpp()$make_fit(as.matrix(offspring[,3:4]),h,s)
   
   # Apply selection based on the specified model.
   if (sel_model == "absolute") {
@@ -356,35 +853,10 @@ store <- function(p_vector,
   # df_genotypes$id <- paste0(unlist(unname(df_genotypes[, 2])), "_", 
   #                           unlist(lapply(p_size, function(x) { 1:x })))
   
-  # Dummy function for package checking (will be replaced by the C++ function below)
-  make_geno <- function(){}  
-  
-  # Define a C++ function using Rcpp that generates genotype information.
-  # It converts two chromosome strings into a combined genotype per locus.
-  Rcpp::cppFunction(plugins="cpp11",
-                    
-                    'List make_geno(StringMatrix mat) {
-    int ind = mat.nrow();
-    int loc = strlen(mat(0,0));
-    List out(ind);
-    for (int i = 0; i < ind; i++) {
-      std::string chr1 (mat(i,0));
-      std::string chr2 (mat(i,1));
-      StringVector temp(loc);
-      for (int j = 0; j < loc; j++) {
-        StringVector geno = StringVector::create(chr1[j],chr2[j]);
-        temp[j] = collapse(geno);
-      }
-      out[i] = temp;
-    }
-    return out;
-  }'
-  )
-  
   # Extract genotype columns (assumed to be columns V3 and V4) and convert them to a matrix.
   plink_temp <- as.matrix(df_genotypes[,3:4])
   # Use the C++ function to process the genotype strings.
-  plink_ped <- make_geno(plink_temp)
+  plink_ped <- utils.wf.cpp()$make_geno(plink_temp)
   # Convert the genotype strings:
   # "11" becomes 2 (homozygous for allele 1),
   # "00" becomes 0 (homozygous for allele 0),
@@ -432,7 +904,11 @@ store <- function(p_vector,
   
   # Assign individual names and population IDs to the genlight object.
   indNames(res) <- misc.info$IID
-  pop(res) <- misc.info$FID
+  # Levels in population order: a factor built from the character labels
+  # would sort them as "1", "10", "11", "2", ..., and gl.sim.WF.run() then
+  # renames levels by position, mislabelling populations 2 onwards when
+  # there are 10 or more
+  pop(res) <- factor(misc.info$FID, levels = as.character(p_vector))
   locNames(res) <- loc.names
   
   # Store additional individual metrics (sex, phenotype, parent IDs).
@@ -1806,6 +2282,31 @@ interactive_sim_run <- function() {
       )
 
     ),
+
+    fluidRow(
+      column(
+        4,
+        textInput(
+          "sib_mating_phase2",
+          tags$div(tags$i(HTML("sib_mating_phase2<br/>")),
+                   "Proportion of matings between full siblings"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sib_mating_phase2",
+                           title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      ),
+      column(
+        4,
+        textInput(
+          "ne_phase2",
+          tags$div(tags$i(HTML("ne_phase2<br/>")),
+                   "Effective population size (sets variance_offspring)"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "ne_phase2",
+                           title = "One value or one per population, space delimited, e.g. estimated with gl.LDNe(). Empty: Ne follows from population size, variance_offspring and replace_parents. Ne must be below the population size (below half of it with replace_parents = TRUE)")
+      )
+    ),
     
     hr(),
     
@@ -2143,6 +2644,31 @@ interactive_sim_run <- function() {
       )
       
     ),
+
+    fluidRow(
+      column(
+        4,
+        textInput(
+          "sib_mating_phase1",
+          tags$div(tags$i(HTML("sib_mating_phase1<br/>")),
+                   "Proportion of matings between full siblings"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sib_mating_phase1",
+                           title = "One value or one per population, space delimited. Empty means random mating, or the proportion estimated from the genlight object when real_inbreeding = TRUE. At equilibrium F = b / (4 - 3b) for a proportion b of sib matings")
+      ),
+      column(
+        4,
+        textInput(
+          "ne_phase1",
+          tags$div(tags$i(HTML("ne_phase1<br/>")),
+                   "Effective population size (sets variance_offspring)"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "ne_phase1",
+                           title = "One value or one per population, space delimited, e.g. estimated with gl.LDNe(). Empty: Ne follows from population size, variance_offspring and replace_parents. Ne must be below the population size (below half of it with replace_parents = TRUE)")
+      )
+    ),
     
     fluidRow(
       
@@ -2311,6 +2837,120 @@ interactive_sim_run <- function() {
         ),    
         shinyBS::bsTooltip(id = "chromosome_name",
                            title = "")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_inbreeding",
+          tags$div(tags$i(HTML("real_inbreeding<br/>")),
+                   "Extract inbreeding (F) of each population from genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_inbreeding",
+                           title = "Founders are made inbred and, where sib_mating is empty, the proportion of sib matings is set to keep F")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "inbreeding_founders",
+          tags$div(tags$i(HTML("inbreeding_founders<br/>")),
+                   "Inbreeding (F) of the founders of each population"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "inbreeding_founders",
+                           title = "One value or one per population, space delimited; replaces the F estimated from the genlight object, e.g. F estimated on high call-rate loci. Empty: not used")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "real_freq_shrink",
+          tags$div(tags$i(HTML("real_freq_shrink<br/>")),
+                   "Shrink population allele frequencies toward their mean"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "real_freq_shrink",
+                           title = "Empty: no shrinkage; auto: remove the sampling noise of the genlight object, so it does not inflate FST; or a value of lambda between 0 and 1")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_migration",
+          tags$div(tags$i(HTML("real_migration<br/>")),
+                   "Set migration from the FST of the genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_migration",
+                           title = "Island model: individuals transferred per pair of populations and generation T = (1/FST - 1)/(4n); needs dispersal_type all_connected")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "real_sample_size",
+          tags$div(tags$i(HTML("real_sample_size<br/>")),
+                   "Store samples with the sample sizes of the genlight object"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        ),
+        shinyBS::bsTooltip(id = "real_sample_size",
+                           title = "Replaces sample_percent, so the simulated populations can be larger than the samples")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_families",
+          tags$div(tags$i(HTML("sample_families<br/>")),
+                   "Sizes of the full-sib families in each stored sample"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_families",
+                           title = "Space delimited, ; between populations, e.g. 9 15 9. From generation 1. Empty: random samples")
+      ),
+      
+      column(
+        4,
+        radioButtons(
+          "sample_parents",
+          tags$div(tags$i(HTML("sample_parents<br/>")),
+                   "Also store the parents of each sampled family"),
+          choices = list("TRUE" = TRUE,
+                         "FALSE" = FALSE),
+          selected = FALSE
+        )
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_crosses",
+          tags$div(tags$i(HTML("sample_crosses<br/>")),
+                   "Planted crosses, one SxD per family"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_crosses",
+                           title = "e.g. S1xD1 S1xD2 S2xD1 S2xD2; the same label is the same parent. Offspring are sampled only. Empty: families from the population")
+      ),
+      
+      column(
+        4,
+        textInput(
+          "sample_design",
+          tags$div(tags$i(HTML("sample_design<br/>")),
+                   "Factorial design of planted crosses"),
+          value = ""
+        ),
+        shinyBS::bsTooltip(id = "sample_design",
+                           title = "axb: every one of a sires crossed with every one of b dams, e.g. 2x2")
       )
       
     ),
@@ -2401,6 +3041,16 @@ interactive_sim_run <- function() {
       )
 
       shinyjs::toggleElement(
+        id = "sib_mating_phase1",
+        condition = input$phase1 == TRUE
+      )
+
+      shinyjs::toggleElement(
+        id = "ne_phase1",
+        condition = input$phase1 == TRUE
+      )
+
+      shinyjs::toggleElement(
         id = "selection_phase1",
         condition = input$phase1 == TRUE
       )
@@ -2431,6 +3081,31 @@ interactive_sim_run <- function() {
       
       shinyjs::toggleElement(
         id = "real_loc",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_inbreeding",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "inbreeding_founders",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_freq_shrink",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_migration",
+        condition = input$real_dataset == TRUE
+      )
+      
+      shinyjs::toggleElement(
+        id = "real_sample_size",
         condition = input$real_dataset == TRUE
       )
       
@@ -2533,7 +3208,20 @@ interactive_sim_run <- function() {
           "real_loc",
           "clinal_strength",
           "clinal_adap",
-          "local_adap"
+          "local_adap",
+          "sib_mating_phase1",
+          "sib_mating_phase2",
+          "real_inbreeding",
+          "real_freq_shrink",
+          "real_migration",
+          "ne_phase1",
+          "ne_phase2",
+          "real_sample_size",
+          "inbreeding_founders",
+          "sample_families",
+          "sample_parents",
+          "sample_crosses",
+          "sample_design"
         ),
         c(
           input$number_pops_phase2,
@@ -2572,7 +3260,20 @@ interactive_sim_run <- function() {
           input$real_loc,
           input$clinal_strength,
           input$clinal_adap,
-          input$local_adap
+          input$local_adap,
+          input$sib_mating_phase1,
+          input$sib_mating_phase2,
+          input$real_inbreeding,
+          input$real_freq_shrink,
+          input$real_migration,
+          input$ne_phase1,
+          input$ne_phase2,
+          input$real_sample_size,
+          input$inbreeding_founders,
+          input$sample_families,
+          input$sample_parents,
+          input$sample_crosses,
+          input$sample_design
         )))
       
       colnames(sim_vars_temp) <- c("variable","value")
@@ -2586,4 +3287,68 @@ interactive_sim_run <- function() {
 
   runApp(shinyApp(ui, server))
   
+}
+
+# Builds the dartR object of a simulated genotype matrix (individuals x loci,
+# 0/1/2 copies of the alternative allele, NA for missing) in either flavour:
+# fbm = FALSE stores the genotypes as SNPbin in @gen; fbm = TRUE writes them
+# to a file-backed FBM.code256 in @fbm (code bigsnpr::CODE_012, as
+# dartR.base::gl.gen2fbm), without building the SNPbin first. In the FBM,
+# missing genotypes are stored as the raw code 3, which CODE_012 decodes as
+# NA. The matrix is written in blocks of loci so that only one block is
+# converted at a time.
+utils.sim.dartR <- function(genmat,
+                            fbm = FALSE,
+                            ind.names,
+                            loc.names,
+                            pop,
+                            chunk = 2048L) {
+  if (!fbm) {
+    return(new("dartR",
+               gen = genmat,
+               ploidy = 2,
+               ind.names = ind.names,
+               loc.names = loc.names,
+               pop = pop))
+  }
+  n <- nrow(genmat)
+  p <- ncol(genmat)
+  G <- bigstatsr::FBM.code256(n, p, code = bigsnpr::CODE_012,
+                              backingfile = tempfile("geno_"))
+  for (s in seq(1L, p, by = chunk)) {
+    cols <- s:min(p, s + chunk - 1L)
+    blk <- genmat[, cols, drop = FALSE]
+    blk[is.na(blk)] <- 3L
+    G[, cols] <- blk
+  }
+  # names stay NULL when there are none (as in gl.gen2fbm), not character(0)
+  as_names <- function(v) if (is.null(v)) NULL else as.character(v)
+  out <- new("dartR",
+             fbm = G,
+             ploidy = rep(2L, n),
+             ind.names = as_names(ind.names),
+             loc.names = as_names(loc.names),
+             pop = factor(pop))
+  methods::validObject(out)
+  out
+}
+
+# Per-locus frequency of the alternative allele, ignoring missing data (NaN
+# for loci without calls). For an FBM-backed object the counts come from one
+# pass over the file, without decoding the genotype matrix.
+utils.sim.alf <- function(x) {
+  if (methods::.hasSlot(x, "fbm") && !is.null(x@fbm)) {
+    cnt <- bigstatsr::big_counts(x@fbm)
+    vals <- suppressWarnings(as.numeric(rownames(cnt)))
+    scored <- !is.na(vals)
+    sums <- colSums(cnt[scored, , drop = FALSE] * vals[scored])
+    ncalls <- colSums(cnt[scored, , drop = FALSE])
+    return(unname(sums / (2 * ncalls)))
+  }
+  unname(colMeans(as.matrix(x), na.rm = TRUE) / 2)
+}
+
+# TRUE when x holds its genotypes in an FBM (@fbm)
+utils.sim.is.fbm <- function(x) {
+  methods::.hasSlot(x, "fbm") && !is.null(x@fbm)
 }

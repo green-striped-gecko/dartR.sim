@@ -1,9 +1,9 @@
 Package: dartR.sim
 Type: Package
 Title: Computer Simulations of 'SNP' Data
-Version: 1.2.2
-Date: 2026-02-17
-Revision: Elastic Elapid
+Version: 1.2.7
+Date: 2026-11-12
+Revision: Generous Gecko
 Authors@R: c(
             person("Jose L.", "Mijangos", email="luis.mijangos@gmail.com", role=c("aut","cre")),
             person("Bernd", "Gruber", email="bernd.gruber@canberra.edu.au", role="aut"), 
@@ -13,17 +13,18 @@ Authors@R: c(
             person("Peter J.", "Unmack", email="peter.mail2@unmack.net", role="ctb"),
             person("Oliver", "Berry", email="oliver.berry@csiro.au", role="ctb" )
             )
-Description: Allows to simulate SNP data using genlight objects. For example, it is straight forward to simulate a simple drift scenario with exchange of individuals between two populations or create a new genlight object based on allele frequencies of an existing genlight object.
+Description: Allows to simulate SNP data using genlight objects. For example, it is straight forward to simulate a simple drift scenario with exchange of individuals between two populations or create a new genlight object based on allele frequencies of an existing genlight object. Also more complicated fully fledged PVAs (population viability analysis) are possible.
 Encoding: UTF-8
-Depends: R (>= 4.1.0),  dartR.base, dartR.data, ggplot2, dartR.popgen
+Depends: R (>= 4.1.0),  dartR.base (>= 1.2.7), dartR.data, ggplot2, dartR.popgen
 Imports: 
   adegenet (>= 2.0.0), 
+  bigsnpr,
+  bigstatsr,
   shiny, 
   fields, 
   utils, 
   methods, 
   stringi, 
-  stringr,
   data.table, 
   Rcpp, 
   shinyBS,
@@ -31,11 +32,15 @@ Imports:
   shinythemes, 
   shinyWidgets,
   hierfstat,
-  reshape2,
   foreach,
   ggrepel,
   dplyr, 
   doParallel
+Suggests:
+  testthat (>= 3.0.0),
+  knitr,
+  rmarkdown
+VignetteBuilder: knitr
 License: GPL (>= 3)
 RoxygenNote: 7.3.3
 NeedsCompilation: no
