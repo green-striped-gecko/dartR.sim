@@ -331,6 +331,13 @@ gl.sim.WF.run <- function(file_var,
       }
     }
     
+    # Simulation variables created by list2env() below; declared here (before
+    # the call, which then overwrites them) so that R CMD check sees a
+    # binding for them
+    real_inbreeding <- real_migration <- real_sample_size <- NULL
+    real_freq_shrink <- sample_design <- sample_families <- NULL
+    sample_parents <- NULL
+
     # Create one R variable per simulation variable in this environment.
     # These variables are character strings; lists of values (population
     # sizes, local_adap, clinal_adap) are space delimited

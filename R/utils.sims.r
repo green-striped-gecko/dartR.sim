@@ -639,7 +639,7 @@ fst_hudson <- function(x) {
   pops <- seppop(x)
   freq <- lapply(pops, function(p) colMeans(as.matrix(p), na.rm = TRUE) / 2)
   n <- lapply(pops, function(p) 2 * colSums(!is.na(as.matrix(p))))
-  pairs <- combn(length(pops), 2)
+  pairs <- utils::combn(length(pops), 2)
   mean(apply(pairs, 2, function(ij) {
     p1 <- freq[[ij[1]]]
     p2 <- freq[[ij[2]]]

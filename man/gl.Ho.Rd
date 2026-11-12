@@ -22,7 +22,7 @@ This is a silent pure accessor: it returns the per-locus vector directly
 (visibly), produces no console output and does not modify the input. For
 heterozygosities averaged within populations or by individual, with
 sample-size corrections and plots, use
-\code{\link{gl.report.heterozygosity}}.
+\code{\link[dartR.base]{gl.report.heterozygosity}}.
 
 Loci with all genotypes missing return NaN. The function applies to SNP
 genotype data only.
@@ -33,8 +33,8 @@ if (isTRUE(getOption("dartR_fbm"))) pp <- gl.gen2fbm(pp)
 gl.Ho(pp)
 }
 \seealso{
-\code{\link{gl.He}}, \code{\link{gl.alf}},
-\code{\link{gl.report.heterozygosity}}
+\code{\link{gl.He}}, \code{\link[dartR.base]{gl.alf}},
+\code{\link[dartR.base]{gl.report.heterozygosity}}
 
 Other utilities: 
 \code{\link{gl.He}()}
