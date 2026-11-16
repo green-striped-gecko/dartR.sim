@@ -1,3 +1,10 @@
+# dartR.sim (dev_fbm)
+
+* File-backed objects made by `gl.sim.mutate()` and the simulation
+  functions place their backing files through
+  `dartR.base::utils.fbm.new()`/`utils.fbm.copy()`, so they honour
+  `getOption("FBM.dir")`. Needs dartR.base >= 1.2.7.9000.
+
 # dartR.sim 1.2.7 (development)
 
 * History: functions called through `do.call(fun, list(x = gl, ...))` no

@@ -3313,8 +3313,7 @@ utils.sim.dartR <- function(genmat,
   }
   n <- nrow(genmat)
   p <- ncol(genmat)
-  G <- bigstatsr::FBM.code256(n, p, code = bigsnpr::CODE_012,
-                              backingfile = tempfile("geno_"))
+  G <- dartR.base::utils.fbm.new(n, p, code = bigsnpr::CODE_012)
   for (s in seq(1L, p, by = chunk)) {
     cols <- s:min(p, s + chunk - 1L)
     blk <- genmat[, cols, drop = FALSE]
