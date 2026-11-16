@@ -8,6 +8,11 @@
 
 ## File-backed (fbm) dartR objects
 
+* `gl.sim.mutate()`: BUG FIX, stopped on a file-backed object because it
+  read the empty `@gen` slot. It now mutates a copy of the FBM (the input
+  object is not changed) and gives the same result as for a gen-backed
+  object with the same seed.
+
 * `gl.sim.ind()`, `gl.sim.offspring()`, `gl.sim.Neconst()` and
   `gl.sim.ind.af()` now return objects in the flavour the user works with.
   `gl.sim.ind()` and `gl.sim.offspring()` return a file-backed object

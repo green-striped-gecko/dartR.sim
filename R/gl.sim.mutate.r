@@ -57,21 +57,35 @@ gl.sim.mutate <- function(x,
   }
 
   # DO THE JOB
+  is_fbm <- utils.sim.is.fbm(x)
   nm <- rbinom(1, nInd(x) * nLoc(x) * 2, mut.rate)
   n_applied <- 0
+  if (is_fbm && nm > 0) {
+    # An FBM is a reference to a file: copy it so the input object is not
+    # changed in place
+    x@fbm <- bigstatsr::big_copy(x@fbm, backingfile = tempfile("geno_"))
+  }
   for (ii in seq_len(nm)) {
     ri <- sample(1:nInd(x), 1)
     rl <- sample(1:nLoc(x), 1)
     # Genotypes of the mutated individual only (not the whole matrix)
-    xx <- as.integer(x@gen[[ri]])
-    cs <- xx[rl]
+    if (is_fbm) {
+      cs <- x@fbm[ri, rl]
+    } else {
+      xx <- as.integer(x@gen[[ri]])
+      cs <- xx[rl]
+    }
     if (!is.na(cs)) {
       if (!cs %% 2)
         nv <- 1
       else
         nv <- sample(c(0, 2), 1)
-      xx[rl] <- nv
-      x@gen[[ri]] <- new("SNPbin", snp = xx, ploidy = 2L)
+      if (is_fbm) {
+        x@fbm[ri, rl] <- nv
+      } else {
+        xx[rl] <- nv
+        x@gen[[ri]] <- new("SNPbin", snp = xx, ploidy = 2L)
+      }
       n_applied <- n_applied + 1
     }
   }

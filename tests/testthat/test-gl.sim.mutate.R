@@ -90,3 +90,15 @@ test_that("seeded results unchanged by reading one individual (F4)", {
   expect_gt(n_diff(x, b), 0)
   expect_identical(as.matrix(b), as.matrix(a))
 })
+
+test_that("gl.sim.mutate works on a file-backed object and leaves the input unchanged", {
+  fb <- gl.gen2fbm(bandicoot.gl, verbose = 0)
+  M0 <- as.matrix(fb)
+  set.seed(1)
+  m_f <- gl.sim.mutate(fb, mut.rate = 1e-3, verbose = 0)
+  set.seed(1)
+  m_g <- gl.sim.mutate(bandicoot.gl, mut.rate = 1e-3, verbose = 0)
+  expect_false(is.null(m_f@fbm))
+  expect_identical(as.matrix(m_f), as.matrix(m_g))
+  expect_identical(as.matrix(fb), M0)
+})
