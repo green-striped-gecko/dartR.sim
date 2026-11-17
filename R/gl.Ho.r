@@ -35,6 +35,10 @@
 
 gl.Ho <- function(gl) {
   utils.check.datatype(gl, accept = "SNP", verbose = 0)
-  out <- colMeans(as.matrix(gl) == 1, na.rm = T)
+  # per-locus means in blocks of loci (a file-backed object is not decoded
+  # as a whole; values identical to colMeans(as.matrix(gl) == 1))
+  out <- dartR.base::utils.fbm.colwise(gl, function(m) {
+    colMeans(m == 1, na.rm = TRUE)
+  })
   return(out)
 }
