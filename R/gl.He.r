@@ -35,7 +35,11 @@
 
 gl.He <- function(gl) {
   utils.check.datatype(gl, accept = "SNP", verbose = 0)
-  alf <- colMeans(as.matrix(gl), na.rm = T) / 2
+  # per-locus means in blocks of loci (a file-backed object is not decoded
+  # as a whole; values identical to colMeans(as.matrix(gl)))
+  alf <- dartR.base::utils.fbm.colwise(gl, function(m) {
+    colMeans(m, na.rm = TRUE)
+  }) / 2
   out <- alf * (1 - alf) * 2
   return(out)
 }

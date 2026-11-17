@@ -150,11 +150,19 @@ gl.report.nall <- function(x,
   # --- Helper: compute allele counts per population ---------------------------
   # Returns a data.frame with popname, Npop (sample size), and N.all (total alleles)
   gl.report.nall.pop <- function(x, x2 = NULL) {
-    # Either use two provided pops (x, x2) or split x by population factor
+    # Either use two provided pops (x, x2) or the populations of x, as row
+    # indices in the order of seppop() (the levels of pop(x)), so that x
+    # is not copied and a file-backed object is read in blocks of loci
     if (!is.null(x2)) {
       pops <- list(pop1 = x, pop2 = x2)
+      rows <- list(NULL, NULL)
     } else{
-      pops <- seppop(x)
+      # (inlined, not utils.sim.pop.rows(): this helper also runs on
+      # parallel workers)
+      rows <- lapply(levels(pop(x)), function(p) which(pop(x) == p))
+      names(rows) <- levels(pop(x))
+      pops <- rep(list(x), length(rows))
+      names(pops) <- names(rows)
     }
     
     res <- data.frame(popname = NA,
@@ -163,11 +171,14 @@ gl.report.nall <- function(x,
     
     for (i in 1:length(pops)) {
       # Per-locus allele frequency proxy from genotype means (ignoring NAs)
-      p <- colMeans(as.matrix(pops[[i]]), na.rm = TRUE) / 2
+      p <- dartR.base::utils.fbm.colwise(pops[[i]], function(m) {
+        colMeans(m, na.rm = TRUE)
+      }, rows = rows[[i]]) / 2
       
       # Store population name and size
       res[i, 1] = names(pops)[i]
-      res[i, 2] = nInd(pops[[i]])
+      res[i, 2] = if (is.null(rows[[i]])) nInd(pops[[i]]) else
+        length(rows[[i]])
       
       # Count alleles per locus:
       #   1 allele if fixed (p==0 or p==1), 2 alleles if polymorphic (0<p<1)

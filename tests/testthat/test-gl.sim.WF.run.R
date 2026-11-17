@@ -844,3 +844,23 @@ test_that("expand_design builds the factorial", {
                    c("S1xD1", "S1xD2", "S1xD3", "S2xD1", "S2xD2", "S2xD3"))
   expect_true(is.na(expand_design("2by3")))
 })
+
+test_that("real_freq gives identical results from a file-backed object", {
+  skip_if_not_installed("bigstatsr")
+  # population frequencies and genotyped counts are read in blocks of loci
+  # (dartR.base::utils.fbm.colwise); two populations reach the shrinkage
+  x <- gl.filter.callrate(testset.gl, threshold = 1, verbose = 0)
+  x <- gl.keep.pop(x, pop.list = popNames(x)[1:2], verbose = 0)
+  f <- suppressWarnings(gl.gen2fbm(x, verbose = 0))
+  rt <- wf_ref(x = x, real_freq = TRUE)
+  args <- list(rt, seed = 1, real_freq = TRUE, real_pops = TRUE,
+               sample_percent = 100, population_size_phase2 = "200 200",
+               number_pops_phase2 = 2, gen_number_phase2 = 1,
+               real_freq_shrink = "auto")
+  a <- do.call(wf_run, c(args, list(x = x)))
+  local_mocked_bindings(.fbm_as_matrix = function(x) {
+    stop("the whole FBM was decoded")
+  }, .package = "dartR.base")
+  b <- do.call(wf_run, c(args, list(x = f)))
+  expect_identical(b, a)
+})

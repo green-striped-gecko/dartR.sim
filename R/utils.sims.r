@@ -635,10 +635,19 @@ k_for_ne <- function(R, rep_parents) {
 # ratio of sums over loci of
 # (p1 - p2)^2 - p1(1 - p1)/(n1 - 1) - p2(1 - p2)/(n2 - 1) and
 # p1(1 - p2) + p2(1 - p1), with n the number of alleles genotyped.
+## Counts per population in blocks of loci (dartR.base::utils.fbm.colwise)
+## in the order of seppop(): x is not copied and a file-backed object is not
+## decoded as a whole.
 fst_hudson <- function(x) {
-  pops <- seppop(x)
-  freq <- lapply(pops, function(p) colMeans(as.matrix(p), na.rm = TRUE) / 2)
-  n <- lapply(pops, function(p) 2 * colSums(!is.na(as.matrix(p))))
+  pops <- utils.sim.pop.rows(x)
+  freq <- lapply(pops, function(r) {
+    dartR.base::utils.fbm.colwise(x, function(m) colMeans(m, na.rm = TRUE),
+                                  rows = r) / 2
+  })
+  n <- lapply(pops, function(r) {
+    2 * dartR.base::utils.fbm.colwise(x, function(m) colSums(!is.na(m)),
+                                      rows = r)
+  })
   pairs <- utils::combn(length(pops), 2)
   mean(apply(pairs, 2, function(ij) {
     p1 <- freq[[ij[1]]]
@@ -657,11 +666,15 @@ fst_hudson <- function(x) {
 # sample size (2n / (2n - 1)). Returns a named numeric vector; NA for a
 # population without polymorphic loci.
 inbreeding_real <- function(x) {
-  vapply(seppop(x), function(p) {
-    g <- as.matrix(p)
-    n <- colSums(!is.na(g))
-    q <- colMeans(g, na.rm = TRUE) / 2
-    ho <- colMeans(g == 1, na.rm = TRUE)
+  vapply(utils.sim.pop.rows(x), function(r) {
+    # per-locus counts of the population's rows, in blocks of loci
+    s <- dartR.base::utils.fbm.colwise(x, function(g) {
+      rbind(colSums(!is.na(g)), colMeans(g, na.rm = TRUE),
+            colMeans(g == 1, na.rm = TRUE))
+    }, rows = r)
+    n <- s[1, ]
+    q <- s[2, ] / 2
+    ho <- s[3, ]
     he <- 2 * q * (1 - q) * 2 * n / (2 * n - 1)
     keep <- n > 0 & is.finite(he) & is.finite(ho)
     if (sum(he[keep]) == 0) {
@@ -3313,8 +3326,7 @@ utils.sim.dartR <- function(genmat,
   }
   n <- nrow(genmat)
   p <- ncol(genmat)
-  G <- bigstatsr::FBM.code256(n, p, code = bigsnpr::CODE_012,
-                              backingfile = tempfile("geno_"))
+  G <- dartR.base::utils.fbm.new(n, p, code = bigsnpr::CODE_012)
   for (s in seq(1L, p, by = chunk)) {
     cols <- s:min(p, s + chunk - 1L)
     blk <- genmat[, cols, drop = FALSE]
@@ -3334,21 +3346,27 @@ utils.sim.dartR <- function(genmat,
 }
 
 # Per-locus frequency of the alternative allele, ignoring missing data (NaN
-# for loci without calls). For an FBM-backed object the counts come from one
-# pass over the file, without decoding the genotype matrix.
+# for loci without calls). Read in blocks of loci for an FBM-backed object
+# (dartR.base::utils.fbm.colwise), without decoding the genotype matrix; the
+# values are identical to colMeans(as.matrix(x)) / 2 for both storage types
+# (the former big_counts() path divided counts directly, which can differ
+# from colMeans() in the last digit).
 utils.sim.alf <- function(x) {
-  if (methods::.hasSlot(x, "fbm") && !is.null(x@fbm)) {
-    cnt <- bigstatsr::big_counts(x@fbm)
-    vals <- suppressWarnings(as.numeric(rownames(cnt)))
-    scored <- !is.na(vals)
-    sums <- colSums(cnt[scored, , drop = FALSE] * vals[scored])
-    ncalls <- colSums(cnt[scored, , drop = FALSE])
-    return(unname(sums / (2 * ncalls)))
-  }
-  unname(colMeans(as.matrix(x), na.rm = TRUE) / 2)
+  unname(dartR.base::utils.fbm.colwise(x, function(m) {
+    colMeans(m, na.rm = TRUE)
+  }) / 2)
 }
 
 # TRUE when x holds its genotypes in an FBM (@fbm)
 utils.sim.is.fbm <- function(x) {
-  methods::.hasSlot(x, "fbm") && !is.null(x@fbm)
+  dartR.base::utils.fbm.has(x)
+}
+
+# Row indices of each population of x, named and ordered as seppop(x) (the
+# levels of pop(x))
+utils.sim.pop.rows <- function(x) {
+  lv <- levels(pop(x))
+  rows <- lapply(lv, function(p) which(pop(x) == p))
+  names(rows) <- lv
+  rows
 }

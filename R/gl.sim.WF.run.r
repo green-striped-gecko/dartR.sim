@@ -666,11 +666,20 @@ gl.sim.WF.run <- function(file_var,
       # Alternative-allele frequency (as gl.alf()$alf2), computed here so
       # it does not depend on the gl.alf() signature of the installed
       # dartR.base (the CRAN release has no verbose argument)
-      alt_freq <- function(g) colMeans(as.matrix(g), na.rm = TRUE) / 2
-      freq_pooled <- alt_freq(x_freq)
+      # Read in blocks of loci for all individuals or one population's rows
+      # (dartR.base::utils.fbm.colwise), so x is not copied by population
+      # and a file-backed object is not decoded as a whole; values are
+      # identical to colMeans(as.matrix(seppop(x)[[i]])) / 2
+      pop_rows <- utils.sim.pop.rows(x_freq)
+      alt_freq <- function(rows = NULL) {
+        dartR.base::utils.fbm.colwise(x_freq, function(m) {
+          colMeans(m, na.rm = TRUE)
+        }, rows = rows) / 2
+      }
+      freq_pooled <- alt_freq()
       freq_pooled[is.na(freq_pooled)] <- q_neutral
-      pop_list_freq <- lapply(seppop(x_freq), function(p) {
-        f <- alt_freq(p)
+      pop_list_freq <- lapply(pop_rows, function(r) {
+        f <- alt_freq(r)
         f[is.na(f)] <- freq_pooled[is.na(f)]
         return(f)
       })
@@ -686,8 +695,10 @@ gl.sim.WF.run <- function(file_var,
           stop(error("  real_freq_shrink must be NULL, \"auto\" or a number",
                      "between 0 and 1\n"))
         }
-        n_genotyped <- lapply(seppop(x_freq), function(p) {
-          colSums(!is.na(as.matrix(p)))
+        n_genotyped <- lapply(pop_rows, function(r) {
+          dartR.base::utils.fbm.colwise(x_freq, function(m) {
+            colSums(!is.na(m))
+          }, rows = r)
         })
         shrunk <- shrink_freq(pop_list_freq, n_genotyped, shrink)
         pop_list_freq <- shrunk$freq

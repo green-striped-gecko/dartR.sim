@@ -63,7 +63,7 @@ gl.sim.mutate <- function(x,
   if (is_fbm && nm > 0) {
     # An FBM is a reference to a file: copy it so the input object is not
     # changed in place
-    x@fbm <- bigstatsr::big_copy(x@fbm, backingfile = tempfile("geno_"))
+    x@fbm <- dartR.base::utils.fbm.copy(x@fbm)
   }
   for (ii in seq_len(nm)) {
     ri <- sample(1:nInd(x), 1)
