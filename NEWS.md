@@ -1,4 +1,4 @@
-# dartR.sim (dev_fbm)
+# dartR.sim 1.3.0
 
 * File-backed objects made by `gl.sim.mutate()` and the simulation
   functions place their backing files through
