@@ -106,9 +106,12 @@ To show further information of the variables in interactive mode, it might be
 ref_table <- gl.sim.WF.table(file_var=system.file("extdata", 
 "ref_variables.csv", package = "dartR.sim"),interactive_vars = FALSE)
 
+\donttest{
+# Runs about 20 seconds
 res_sim <- gl.sim.WF.run(file_var = system.file("extdata",
  "sim_variables.csv", package ="dartR.sim"),ref_table=ref_table,
  interactive_vars = FALSE)
+}
  
 }
 \seealso{
