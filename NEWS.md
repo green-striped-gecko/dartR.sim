@@ -1,5 +1,8 @@
 # dartR.sim 1.3.0
 
+* The `gl.sim.WF.run()` example (about 20 s) is wrapped in `\donttest{}`
+  to keep the CRAN example run short.
+
 * `gl.He()` and `gl.Ho()` are back in dartR.base (unchanged), where the
   CRAN release of dartR.sim imports them from; dartR.sim imports `gl.He()`
   from dartR.base again.
