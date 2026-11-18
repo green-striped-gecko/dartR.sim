@@ -1,3 +1,24 @@
+# dartR.sim 1.3.0
+
+* `gl.He()` and `gl.Ho()` are back in dartR.base (unchanged), where the
+  CRAN release of dartR.sim imports them from; dartR.sim imports `gl.He()`
+  from dartR.base again.
+
+* File-backed objects made by `gl.sim.mutate()` and the simulation
+  functions place their backing files through
+  `dartR.base::utils.fbm.new()`/`utils.fbm.copy()`, so they honour
+  `getOption("FBM.dir")`. Needs dartR.base >= 1.2.7.9000.
+* `gl.He()`, `gl.Ho()`, `gl.report.nall()`, `gl.sim.ind()` (through the
+  internal allele frequencies), `gl.sim.WF.run(real_freq = TRUE)` and the
+  internal per-population helpers (Hudson Fst, inbreeding) read the
+  genotypes in blocks of loci with `dartR.base::utils.fbm.colwise()`, per
+  population by row indices instead of `seppop()` copies. A file-backed
+  object is no longer decoded as a whole; results are identical to those of
+  the same data held in memory (tested for both storage types and any block
+  size). The former `big_counts()` path of the internal allele frequencies
+  divided counts directly and could differ from `colMeans()` in the last
+  digit; it now gives exactly the in-memory values.
+
 # dartR.sim 1.2.7 (development)
 
 * History: functions called through `do.call(fun, list(x = gl, ...))` no
@@ -7,6 +28,11 @@
   dartR.base.
 
 ## File-backed (fbm) dartR objects
+
+* `gl.sim.mutate()`: BUG FIX, stopped on a file-backed object because it
+  read the empty `@gen` slot. It now mutates a copy of the FBM (the input
+  object is not changed) and gives the same result as for a gen-backed
+  object with the same seed.
 
 * `gl.sim.ind()`, `gl.sim.offspring()`, `gl.sim.Neconst()` and
   `gl.sim.ind.af()` now return objects in the flavour the user works with.
