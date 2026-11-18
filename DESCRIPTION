@@ -13,7 +13,7 @@ Authors@R: c(
             person("Peter J.", "Unmack", email="peter.mail2@unmack.net", role="ctb"),
             person("Oliver", "Berry", email="oliver.berry@csiro.au", role="ctb" )
             )
-Description: Allows to simulate SNP data using genlight objects. For example, it is straight forward to simulate a simple drift scenario with exchange of individuals between two populations or create a new genlight object based on allele frequencies of an existing genlight object. Also more complicated fully fledged PVAs (population viability analysis) are possible.
+Description: Allows to simulate SNP data using genlight objects. For example, it is straight forward to simulate a simple drift scenario with exchange of individuals between two populations or create a new genlight object based on allele frequencies of an existing genlight object. Also more complicated, fully fledged population viability analyses are possible.
 Encoding: UTF-8
 Depends: R (>= 4.1.0),  dartR.base (>= 1.3.0), dartR.data, ggplot2, dartR.popgen
 Imports: 
