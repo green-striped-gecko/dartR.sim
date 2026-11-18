@@ -1,3 +1,7 @@
+# Slow file: skipped on CRAN to keep the check time under 10 minutes; runs
+# with devtools::test() and on GitHub Actions.
+skip_on_cran()
+
 # Characterization tests for gl.diagnostics.sim
 # Baseline snapshotted before review (review-gl.diagnostics.sim). Assertions
 # marked [approved diff] were flipped in Phase C under the finding named in
