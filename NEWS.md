@@ -1,5 +1,9 @@
 # dartR.sim 1.3.0
 
+* `gl.He()` and `gl.Ho()` are back in dartR.base (unchanged), where the
+  CRAN release of dartR.sim imports them from; dartR.sim imports `gl.He()`
+  from dartR.base again.
+
 * File-backed objects made by `gl.sim.mutate()` and the simulation
   functions place their backing files through
   `dartR.base::utils.fbm.new()`/`utils.fbm.copy()`, so they honour

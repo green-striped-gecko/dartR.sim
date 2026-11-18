@@ -1,5 +1,6 @@
-# File-backed objects: gl.He, gl.Ho, gl.report.nall and the per-population
-# helpers read the genotypes in blocks of loci
+# File-backed objects: gl.report.nall and the per-population helpers read
+# the genotypes in blocks of loci (gl.He and gl.Ho, now in dartR.base, are
+# tested there)
 # (dartR.base::utils.fbm.colwise). Results and messages must be identical to
 # those of the gen-backed object for any block size, and no call may decode
 # the whole FBM.
@@ -14,8 +15,6 @@ fbm_pair <- function() {
 }
 
 calls <- list(
-  He = list(gl.He),
-  Ho = list(gl.Ho),
   alf = list(utils.sim.alf),
   fst = list(fst_hudson),
   inbreeding = list(inbreeding_real),
