@@ -4,34 +4,49 @@
 \alias{gl.sim.ind}
 \title{Simulates individuals based on allele frequencies}
 \usage{
-gl.sim.ind(x, n = 50, popname = "pop1")
+gl.sim.ind(x, n = 50, popname = "pop1", verbose = NULL)
 }
 \arguments{
-\item{x}{Name of the genlight object containing the SNP data [required].}
+\item{x}{Genlight object containing the SNP data [required].}
 
 \item{n}{Number of individuals that should be simulated [default 50].}
 
-\item{popname}{A population name for the simulated individuals 
- objects
+\item{popname}{A population name for the simulated individuals
 [default "pop1"].}
+
+\item{verbose}{Verbosity: 0, silent or fatal errors; 1, begin and end; 2,
+brief progress messages; 3, progress and results summary; 5, full report
+[default 2, unless specified using gl.set.verbosity].}
 }
 \value{
-A genlight object with n individuals.
+A genlight object with n individuals, file-backed (@fbm) if x is
+file-backed and gen-backed (@gen) otherwise.
 }
 \description{
 This function simulates individuals based on the allele frequencies of a
-genlight object. The output is a genlight object with the same number of loci
-as the input genlight object.
+genlight object. The output is a genlight object with the same loci as the
+input genlight object.
 }
 \details{
-The function can be used to simulate populations for sampling designs or for
- power analysis. Check the example below where the effect of drift is
-  explored, by simply simulating several generation a genlight object and
-  putting in the allele frequencies of the previous generation. The beauty of
-   the function is, that it is lightning fast. Be aware this is a simulation
-   and to avoid lengthy error checking the function crashes if there are loci
-   that have just NAs. If such a case can occur during your simulation, those
-   loci need to be removed, before the function is called.
+For each locus, the frequency p of the alternative allele (genotype 2) is
+estimated from x, ignoring missing data. Each simulated genotype is the
+number of alternative alleles in two independent draws, so genotypes are
+in Hardy-Weinberg proportions and loci are in linkage equilibrium. Loci
+with no calls in x get missing genotypes (NA).
+
+The simulated object keeps the locus names, alleles, positions,
+chromosomes and locus metrics of x; the metrics flags are reset, so
+recalculable metrics are recalculated when needed.
+
+The simulated object has the same flavour as x: if the genotypes of x are
+held in a file-backed matrix (@fbm, see \code{dartR.base::gl.gen2fbm}),
+the simulated genotypes are written to a new file-backed matrix, otherwise
+they are stored in @gen. In the file-backed matrix missing genotypes are
+stored as the raw code 3, which is read back as NA.
+
+The function can be used to simulate populations for sampling designs or
+for power analysis. The example below explores drift by simulating several
+generations, each from the allele frequencies of the previous one.
 }
 \examples{
 glsim <- gl.sim.ind(testset.gl, n=10, popname='sims')
@@ -46,11 +61,26 @@ res <- sum(colMeans(as.matrix(founder), na.rm=TRUE) \%\%2 ==0)
 simgl <- founder
 #49 generations of only 10 individuals
 for (i in 2:50) {
-   simgl <- gl.sim.ind(simgl, n=10, popname='sims')
+   simgl <- gl.sim.ind(simgl, n=10, popname='sims', verbose = 0)
    res[i]<- sum(colMeans(as.matrix(simgl), na.rm=TRUE) \%\%2 ==0)
 }
 plot(1:50, res, type='b', xlab='generation', ylab='# fixed loci')
 }
-\author{
-Bernd Gruber (bernd.gruber@canberra.edu.au)
+\seealso{
+Other simulation functions: 
+\code{\link{gl.diagnostics.sim}()},
+\code{\link{gl.report.nall}()},
+\code{\link{gl.sim.Neconst}()},
+\code{\link{gl.sim.WF.run}()},
+\code{\link{gl.sim.WF.table}()},
+\code{\link{gl.sim.create_dispersal}()},
+\code{\link{gl.sim.emigration}()},
+\code{\link{gl.sim.ind.af}()},
+\code{\link{gl.sim.mutate}()},
+\code{\link{gl.sim.offspring}()}
 }
+\author{
+Author(s): Bernd Gruber. Custodian: Luis Mijangos -- Post to
+\url{https://groups.google.com/d/forum/dartr}
+}
+\concept{simulation functions}
